@@ -11,24 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CheckCircle2, LifeBuoy } from "lucide-react";
 import { toast } from "sonner";
 import type { AppNotification } from "@/lib/mock-data";
-
-const TICKET_TYPES = [
-  "Invoice / Payment issue",
-  "PO discrepancy",
-  "Fill rate dispute",
-  "Login / Access issue",
-  "Other",
-];
 
 export function RaiseTicketDialog({
   notification,
@@ -40,19 +25,11 @@ export function RaiseTicketDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const [submitted, setSubmitted] = useState(false);
-  const [type, setType] = useState(TICKET_TYPES[0]);
   const [description, setDescription] = useState("");
 
   useEffect(() => {
     if (open && notification) {
       setSubmitted(false);
-      setType(
-        notification.category === "finance_payments"
-          ? "Invoice / Payment issue"
-          : notification.category === "action_required"
-            ? "PO discrepancy"
-            : "Other",
-      );
       setDescription(
         `Regarding: ${notification.subject}\n\nContext auto-populated from notification ${notification.id.toUpperCase()}. `,
       );
@@ -60,6 +37,13 @@ export function RaiseTicketDialog({
   }, [open, notification]);
 
   if (!notification) return null;
+
+  const type =
+    notification.category === "finance_payments"
+      ? "Invoice / Payment issue"
+      : notification.category === "action_required"
+        ? "PO discrepancy"
+        : "Other";
 
   const ticketId = `HS-${notification.id.replace("n", "10")}42`;
 
@@ -103,18 +87,12 @@ export function RaiseTicketDialog({
 
               <div className="grid gap-2">
                 <Label>Issue type</Label>
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TICKET_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs">
+                  <p className="font-medium text-foreground">{type}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Auto detected from notification
+                </p>
               </div>
 
               <div className="grid gap-2">
