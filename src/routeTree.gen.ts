@@ -9,38 +9,102 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
+import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
+import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
 
+const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
+  id: '/po-extension-request',
+  path: '/po-extension-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsIndexRoute = NotificationsIndexRouteImport.update({
+  id: '/notifications/',
+  path: '/notifications/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsSettingsRoute = NotificationsSettingsRouteImport.update({
+  id: '/notifications/settings',
+  path: '/notifications/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsEscalationQueueRoute =
+  NotificationsEscalationQueueRouteImport.update({
+    id: '/notifications/escalation-queue',
+    path: '/notifications/escalation-queue',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/po-extension-request': typeof PoExtensionRequestRoute
+  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
+  '/notifications/': typeof NotificationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/po-extension-request': typeof PoExtensionRequestRoute
+  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
+  '/notifications': typeof NotificationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/po-extension-request': typeof PoExtensionRequestRoute
+  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
+  '/notifications/': typeof NotificationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/po-extension-request'
+    | '/notifications/escalation-queue'
+    | '/notifications/settings'
+    | '/notifications/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/po-extension-request'
+    | '/notifications/escalation-queue'
+    | '/notifications/settings'
+    | '/notifications'
+  id:
+    | '__root__'
+    | '/'
+    | '/po-extension-request'
+    | '/notifications/escalation-queue'
+    | '/notifications/settings'
+    | '/notifications/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PoExtensionRequestRoute: typeof PoExtensionRequestRoute
+  NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
+  NotificationsSettingsRoute: typeof NotificationsSettingsRoute
+  NotificationsIndexRoute: typeof NotificationsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/po-extension-request': {
+      id: '/po-extension-request'
+      path: '/po-extension-request'
+      fullPath: '/po-extension-request'
+      preLoaderRoute: typeof PoExtensionRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +112,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/': {
+      id: '/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications/'
+      preLoaderRoute: typeof NotificationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications/settings': {
+      id: '/notifications/settings'
+      path: '/notifications/settings'
+      fullPath: '/notifications/settings'
+      preLoaderRoute: typeof NotificationsSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications/escalation-queue': {
+      id: '/notifications/escalation-queue'
+      path: '/notifications/escalation-queue'
+      fullPath: '/notifications/escalation-queue'
+      preLoaderRoute: typeof NotificationsEscalationQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PoExtensionRequestRoute: PoExtensionRequestRoute,
+  NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
+  NotificationsSettingsRoute: NotificationsSettingsRoute,
+  NotificationsIndexRoute: NotificationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
