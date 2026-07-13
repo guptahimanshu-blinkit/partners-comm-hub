@@ -11,24 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CheckCircle2, LifeBuoy } from "lucide-react";
 import { toast } from "sonner";
 import type { AppNotification } from "@/lib/mock-data";
-
-const TICKET_TYPES = [
-  "Invoice / Payment issue",
-  "PO discrepancy",
-  "Fill rate dispute",
-  "Login / Access issue",
-  "Other",
-];
 
 export function RaiseTicketDialog({
   notification,
