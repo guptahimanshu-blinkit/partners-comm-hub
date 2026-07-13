@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
+import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,33 +29,56 @@ const NotificationsSettingsRoute = NotificationsSettingsRouteImport.update({
   path: '/notifications/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsEscalationQueueRoute =
+  NotificationsEscalationQueueRouteImport.update({
+    id: '/notifications/escalation-queue',
+    path: '/notifications/escalation-queue',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications': typeof NotificationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/notifications/settings' | '/notifications/'
+  fullPaths:
+    | '/'
+    | '/notifications/escalation-queue'
+    | '/notifications/settings'
+    | '/notifications/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/notifications/settings' | '/notifications'
-  id: '__root__' | '/' | '/notifications/settings' | '/notifications/'
+  to:
+    | '/'
+    | '/notifications/escalation-queue'
+    | '/notifications/settings'
+    | '/notifications'
+  id:
+    | '__root__'
+    | '/'
+    | '/notifications/escalation-queue'
+    | '/notifications/settings'
+    | '/notifications/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
 }
@@ -82,11 +106,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/escalation-queue': {
+      id: '/notifications/escalation-queue'
+      path: '/notifications/escalation-queue'
+      fullPath: '/notifications/escalation-queue'
+      preLoaderRoute: typeof NotificationsEscalationQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
 }
