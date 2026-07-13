@@ -25,19 +25,11 @@ export function RaiseTicketDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const [submitted, setSubmitted] = useState(false);
-  const [type, setType] = useState(TICKET_TYPES[0]);
   const [description, setDescription] = useState("");
 
   useEffect(() => {
     if (open && notification) {
       setSubmitted(false);
-      setType(
-        notification.category === "finance_payments"
-          ? "Invoice / Payment issue"
-          : notification.category === "action_required"
-            ? "PO discrepancy"
-            : "Other",
-      );
       setDescription(
         `Regarding: ${notification.subject}\n\nContext auto-populated from notification ${notification.id.toUpperCase()}. `,
       );
@@ -45,6 +37,13 @@ export function RaiseTicketDialog({
   }, [open, notification]);
 
   if (!notification) return null;
+
+  const type =
+    notification.category === "finance_payments"
+      ? "Invoice / Payment issue"
+      : notification.category === "action_required"
+        ? "PO discrepancy"
+        : "Other";
 
   const ticketId = `HS-${notification.id.replace("n", "10")}42`;
 
