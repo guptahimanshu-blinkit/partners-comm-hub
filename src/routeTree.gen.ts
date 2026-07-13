@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
 import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
 
+const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
+  id: '/po-extension-request',
+  path: '/po-extension-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -38,12 +44,14 @@ const NotificationsEscalationQueueRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications': typeof NotificationsIndexRoute
@@ -51,6 +59,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
@@ -59,18 +68,21 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/po-extension-request'
     | '/notifications/escalation-queue'
     | '/notifications/settings'
     | '/notifications/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/po-extension-request'
     | '/notifications/escalation-queue'
     | '/notifications/settings'
     | '/notifications'
   id:
     | '__root__'
     | '/'
+    | '/po-extension-request'
     | '/notifications/escalation-queue'
     | '/notifications/settings'
     | '/notifications/'
@@ -78,6 +90,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
@@ -85,6 +98,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/po-extension-request': {
+      id: '/po-extension-request'
+      path: '/po-extension-request'
+      fullPath: '/po-extension-request'
+      preLoaderRoute: typeof PoExtensionRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -118,6 +138,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PoExtensionRequestRoute: PoExtensionRequestRoute,
   NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,

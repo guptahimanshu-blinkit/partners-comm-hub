@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { ShieldAlert, ArrowUpRight, CheckCircle2, AlertTriangle } from "lucide-react";
 
