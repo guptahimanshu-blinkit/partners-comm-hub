@@ -87,18 +87,12 @@ export function RaiseTicketDialog({
 
               <div className="grid gap-2">
                 <Label>Issue type</Label>
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TICKET_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs">
+                  <p className="font-medium text-foreground">{type}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Auto detected from notification
+                </p>
               </div>
 
               <div className="grid gap-2">
