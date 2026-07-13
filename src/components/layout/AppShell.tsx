@@ -208,6 +208,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main className="min-w-0 flex-1">{children}</main>
       </div>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }
