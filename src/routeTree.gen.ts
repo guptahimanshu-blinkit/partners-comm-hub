@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
+import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +23,39 @@ const NotificationsIndexRoute = NotificationsIndexRouteImport.update({
   path: '/notifications/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsSettingsRoute = NotificationsSettingsRouteImport.update({
+  id: '/notifications/settings',
+  path: '/notifications/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications': typeof NotificationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/notifications/'
+  fullPaths: '/' | '/notifications/settings' | '/notifications/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/notifications'
-  id: '__root__' | '/' | '/notifications/'
+  to: '/' | '/notifications/settings' | '/notifications'
+  id: '__root__' | '/' | '/notifications/settings' | '/notifications/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
 }
 
@@ -65,11 +75,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/settings': {
+      id: '/notifications/settings'
+      path: '/notifications/settings'
+      fullPath: '/notifications/settings'
+      preLoaderRoute: typeof NotificationsSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NotificationsSettingsRoute: NotificationsSettingsRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
 }
 export const routeTree = rootRouteImport
