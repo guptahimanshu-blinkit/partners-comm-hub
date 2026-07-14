@@ -118,7 +118,14 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function RoleSwitcher() {
-  const { role, setRole, employeeRole, setEmployeeRole } = useRole();
+  const {
+    role,
+    setRole,
+    employeeRole,
+    setEmployeeRole,
+    internalRole,
+    setInternalRole,
+  } = useRole();
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <Select value={role} onValueChange={(v) => setRole(v as PortalRole)}>
@@ -147,6 +154,23 @@ function RoleSwitcher() {
           </SelectContent>
         </Select>
       )}
+      {role === "internal_ops" && (
+        <Select
+          value={internalRole}
+          onValueChange={(v) => setInternalRole(v as InternalRole)}
+        >
+          <SelectTrigger className="h-9 w-full sm:w-[190px]" aria-label="Internal ops role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Team Member">Team Member</SelectItem>
+            <SelectItem value="Category Manager">Category Manager</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+}
     </div>
   );
 }
