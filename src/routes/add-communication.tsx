@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { PlusCircle, ArrowRight, ShieldAlert } from "lucide-react";
+import { PlusCircle, ArrowRight, ShieldAlert, Info } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
