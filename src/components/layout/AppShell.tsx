@@ -5,6 +5,7 @@ import {
   SlidersHorizontal,
   ShieldAlert,
   CalendarClock,
+  PlusCircle,
   Menu,
   ChevronDown,
   Radio,
@@ -21,7 +22,12 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
-import { useRole, ROLE_LABELS, type PortalRole } from "@/lib/role-context";
+import {
+  useRole,
+  ROLE_LABELS,
+  type PortalRole,
+  type InternalRole,
+} from "@/lib/role-context";
 import type { EmployeeRole } from "@/lib/mock-data";
 
 interface NavItem {
@@ -54,6 +60,12 @@ const NAV: NavItem[] = [
     to: "/notifications/escalation-queue",
     label: "Escalation Queue",
     icon: ShieldAlert,
+    roles: ["internal_ops"],
+  },
+  {
+    to: "/add-communication",
+    label: "Add Communication",
+    icon: PlusCircle,
     roles: ["internal_ops"],
   },
 ];
@@ -111,7 +123,14 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function RoleSwitcher() {
-  const { role, setRole, employeeRole, setEmployeeRole } = useRole();
+  const {
+    role,
+    setRole,
+    employeeRole,
+    setEmployeeRole,
+    internalRole,
+    setInternalRole,
+  } = useRole();
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <Select value={role} onValueChange={(v) => setRole(v as PortalRole)}>
@@ -140,9 +159,24 @@ function RoleSwitcher() {
           </SelectContent>
         </Select>
       )}
+      {role === "internal_ops" && (
+        <Select
+          value={internalRole}
+          onValueChange={(v) => setInternalRole(v as InternalRole)}
+        >
+          <SelectTrigger className="h-9 w-full sm:w-[190px]" aria-label="Internal ops role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Team Member">Team Member</SelectItem>
+            <SelectItem value="Category Manager">Category Manager</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
     </div>
   );
 }
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
