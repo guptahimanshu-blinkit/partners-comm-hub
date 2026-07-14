@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
+import { Route as AddCommunicationRouteImport } from './routes/add-communication'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
@@ -18,6 +19,11 @@ import { Route as NotificationsEscalationQueueRouteImport } from './routes/notif
 const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
   id: '/po-extension-request',
   path: '/po-extension-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AddCommunicationRoute = AddCommunicationRouteImport.update({
+  id: '/add-communication',
+  path: '/add-communication',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -44,6 +50,7 @@ const NotificationsEscalationQueueRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -59,6 +67,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -68,6 +77,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/add-communication'
     | '/po-extension-request'
     | '/notifications/escalation-queue'
     | '/notifications/settings'
@@ -75,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/add-communication'
     | '/po-extension-request'
     | '/notifications/escalation-queue'
     | '/notifications/settings'
@@ -82,6 +93,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/add-communication'
     | '/po-extension-request'
     | '/notifications/escalation-queue'
     | '/notifications/settings'
@@ -90,6 +102,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AddCommunicationRoute: typeof AddCommunicationRoute
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
@@ -103,6 +116,13 @@ declare module '@tanstack/react-router' {
       path: '/po-extension-request'
       fullPath: '/po-extension-request'
       preLoaderRoute: typeof PoExtensionRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/add-communication': {
+      id: '/add-communication'
+      path: '/add-communication'
+      fullPath: '/add-communication'
+      preLoaderRoute: typeof AddCommunicationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -138,6 +158,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AddCommunicationRoute: AddCommunicationRoute,
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
