@@ -69,6 +69,12 @@ const NAV: NavItem[] = [
     icon: PlusCircle,
     roles: ["internal_ops"],
   },
+  {
+    to: "/notifications/send-calendar",
+    label: "Send Calendar",
+    icon: CalendarDays,
+    roles: ["internal_ops"],
+  },
 ];
 
 function Logo() {
