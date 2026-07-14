@@ -5,6 +5,7 @@ import {
   SlidersHorizontal,
   ShieldAlert,
   CalendarClock,
+  PlusCircle,
   Menu,
   ChevronDown,
   Radio,
