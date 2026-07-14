@@ -57,6 +57,12 @@ const NAV: NavItem[] = [
     icon: ShieldAlert,
     roles: ["internal_ops"],
   },
+  {
+    to: "/add-communication",
+    label: "Add Communication",
+    icon: PlusCircle,
+    roles: ["internal_ops"],
+  },
 ];
 
 function Logo() {
