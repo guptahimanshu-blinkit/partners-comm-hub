@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { PlusCircle, ArrowRight, ShieldAlert } from "lucide-react";
+import { PlusCircle, ArrowRight, ShieldAlert, Info } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
@@ -115,7 +115,7 @@ function AddCommunicationPage() {
 
   const submit = () => {
     const commName = name.trim() || "Untitled communication";
-    toast.success(`${commName} submitted for Category Manager approval`);
+    toast.success(`${commName} submitted for approval`);
     reset();
   };
 
@@ -128,9 +128,19 @@ function AddCommunicationPage() {
             Add Communication
           </h1>
         </div>
-        <p className="mb-6 text-sm text-muted-foreground">
+        <p className="mb-4 text-sm text-muted-foreground">
           Draft a new comm, configuration is assigned automatically by category.
         </p>
+
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Content is finalized in Apollo and scheduled via Workdesk. All new or edited
+            communications go through a single review step before going live, regardless
+            of which team submits them.
+          </p>
+        </div>
+
 
         <div className="space-y-5 rounded-xl border border-border bg-card p-5">
           <div className="grid gap-2">
@@ -241,9 +251,18 @@ function AddCommunicationPage() {
           )}
 
           {config && (
-            <Button className="w-full gap-1.5" onClick={submit}>
-              Submit for Approval <ArrowRight className="h-4 w-4" />
-            </Button>
+            <>
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-3">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Check the Send Calendar to see if this can be clubbed with an existing
+                  send before submitting.
+                </p>
+              </div>
+              <Button className="w-full gap-1.5" onClick={submit}>
+                Submit for Approval <ArrowRight className="h-4 w-4" />
+              </Button>
+            </>
           )}
         </div>
 

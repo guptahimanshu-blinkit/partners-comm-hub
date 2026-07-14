@@ -14,6 +14,7 @@ import { Route as AddCommunicationRouteImport } from './routes/add-communication
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
+import { Route as NotificationsSendCalendarRouteImport } from './routes/notifications.send-calendar'
 import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
 
 const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
@@ -41,6 +42,12 @@ const NotificationsSettingsRoute = NotificationsSettingsRouteImport.update({
   path: '/notifications/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsSendCalendarRoute =
+  NotificationsSendCalendarRouteImport.update({
+    id: '/notifications/send-calendar',
+    path: '/notifications/send-calendar',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const NotificationsEscalationQueueRoute =
   NotificationsEscalationQueueRouteImport.update({
     id: '/notifications/escalation-queue',
@@ -53,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
+  '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
@@ -61,6 +69,7 @@ export interface FileRoutesByTo {
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
+  '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications': typeof NotificationsIndexRoute
 }
@@ -70,6 +79,7 @@ export interface FileRoutesById {
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
+  '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
 }
@@ -80,6 +90,7 @@ export interface FileRouteTypes {
     | '/add-communication'
     | '/po-extension-request'
     | '/notifications/escalation-queue'
+    | '/notifications/send-calendar'
     | '/notifications/settings'
     | '/notifications/'
   fileRoutesByTo: FileRoutesByTo
@@ -88,6 +99,7 @@ export interface FileRouteTypes {
     | '/add-communication'
     | '/po-extension-request'
     | '/notifications/escalation-queue'
+    | '/notifications/send-calendar'
     | '/notifications/settings'
     | '/notifications'
   id:
@@ -96,6 +108,7 @@ export interface FileRouteTypes {
     | '/add-communication'
     | '/po-extension-request'
     | '/notifications/escalation-queue'
+    | '/notifications/send-calendar'
     | '/notifications/settings'
     | '/notifications/'
   fileRoutesById: FileRoutesById
@@ -105,6 +118,7 @@ export interface RootRouteChildren {
   AddCommunicationRoute: typeof AddCommunicationRoute
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
+  NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
 }
@@ -146,6 +160,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/send-calendar': {
+      id: '/notifications/send-calendar'
+      path: '/notifications/send-calendar'
+      fullPath: '/notifications/send-calendar'
+      preLoaderRoute: typeof NotificationsSendCalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications/escalation-queue': {
       id: '/notifications/escalation-queue'
       path: '/notifications/escalation-queue'
@@ -161,19 +182,10 @@ const rootRouteChildren: RootRouteChildren = {
   AddCommunicationRoute: AddCommunicationRoute,
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
+  NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
