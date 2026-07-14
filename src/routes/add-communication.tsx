@@ -128,9 +128,19 @@ function AddCommunicationPage() {
             Add Communication
           </h1>
         </div>
-        <p className="mb-6 text-sm text-muted-foreground">
+        <p className="mb-4 text-sm text-muted-foreground">
           Draft a new comm, configuration is assigned automatically by category.
         </p>
+
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Content is finalized in Apollo and scheduled via Workdesk. All new or edited
+            communications go through a single review step before going live, regardless
+            of which team submits them.
+          </p>
+        </div>
+
 
         <div className="space-y-5 rounded-xl border border-border bg-card p-5">
           <div className="grid gap-2">
