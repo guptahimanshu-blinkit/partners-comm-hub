@@ -115,7 +115,7 @@ function AddCommunicationPage() {
 
   const submit = () => {
     const commName = name.trim() || "Untitled communication";
-    toast.success(`${commName} submitted for Category Manager approval`);
+    toast.success(`${commName} submitted for approval`);
     reset();
   };
 
