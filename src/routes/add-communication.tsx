@@ -251,9 +251,18 @@ function AddCommunicationPage() {
           )}
 
           {config && (
-            <Button className="w-full gap-1.5" onClick={submit}>
-              Submit for Approval <ArrowRight className="h-4 w-4" />
-            </Button>
+            <>
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-3">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Check the Send Calendar to see if this can be clubbed with an existing
+                  send before submitting.
+                </p>
+              </div>
+              <Button className="w-full gap-1.5" onClick={submit}>
+                Submit for Approval <ArrowRight className="h-4 w-4" />
+              </Button>
+            </>
           )}
         </div>
 
