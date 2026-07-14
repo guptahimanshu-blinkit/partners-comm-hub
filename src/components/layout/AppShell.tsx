@@ -171,9 +171,7 @@ function RoleSwitcher() {
     </div>
   );
 }
-    </div>
-  );
-}
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
