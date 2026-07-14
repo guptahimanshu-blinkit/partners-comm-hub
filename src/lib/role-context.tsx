@@ -2,29 +2,36 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { EmployeeRole } from "./mock-data";
 
 export type PortalRole = "vendor_admin" | "vendor_employee" | "internal_ops";
+export type InternalRole = "Team Member" | "Category Manager";
 
 export interface RoleState {
   role: PortalRole;
   employeeRole: EmployeeRole;
+  internalRole: InternalRole;
   setRole: (r: PortalRole) => void;
   setEmployeeRole: (r: EmployeeRole) => void;
+  setInternalRole: (r: InternalRole) => void;
 }
 
 const RoleContext = createContext<RoleState | null>(null);
 
 const STORAGE_KEY = "pbc_role";
 const STORAGE_EMP_KEY = "pbc_emp_role";
+const STORAGE_INT_KEY = "pbc_int_role";
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<PortalRole>("vendor_admin");
   const [employeeRole, setEmployeeRoleState] =
     useState<EmployeeRole>("Supply Chain Manager");
+  const [internalRole, setInternalRoleState] = useState<InternalRole>("Team Member");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as PortalRole | null;
     if (stored) setRoleState(stored);
     const empStored = window.localStorage.getItem(STORAGE_EMP_KEY) as EmployeeRole | null;
     if (empStored) setEmployeeRoleState(empStored);
+    const intStored = window.localStorage.getItem(STORAGE_INT_KEY) as InternalRole | null;
+    if (intStored) setInternalRoleState(intStored);
   }, []);
 
   const setRole = (r: PortalRole) => {
@@ -35,9 +42,22 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     setEmployeeRoleState(r);
     window.localStorage.setItem(STORAGE_EMP_KEY, r);
   };
+  const setInternalRole = (r: InternalRole) => {
+    setInternalRoleState(r);
+    window.localStorage.setItem(STORAGE_INT_KEY, r);
+  };
 
   return (
-    <RoleContext.Provider value={{ role, employeeRole, setRole, setEmployeeRole }}>
+    <RoleContext.Provider
+      value={{
+        role,
+        employeeRole,
+        internalRole,
+        setRole,
+        setEmployeeRole,
+        setInternalRole,
+      }}
+    >
       {children}
     </RoleContext.Provider>
   );
