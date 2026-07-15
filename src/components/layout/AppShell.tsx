@@ -8,6 +8,7 @@ import {
   CalendarDays,
   PlusCircle,
   Inbox,
+  Truck,
   Menu,
   ChevronDown,
   Radio,
