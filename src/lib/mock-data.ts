@@ -276,6 +276,7 @@ export const NOTIFICATIONS: AppNotification[] = [
       { label: "Total Spend", value: "₹1,60,03,209" },
       { label: "Unique Products", value: "557" },
     ],
+    attachment: { label: "June sales report.csv", type: "Excel Export" },
   },
   {
     id: "n8",
