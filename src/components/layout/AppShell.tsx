@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CalendarDays,
   PlusCircle,
+  Inbox,
   Menu,
   ChevronDown,
   Radio,
