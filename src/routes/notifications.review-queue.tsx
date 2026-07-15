@@ -1118,9 +1118,19 @@ function ApproverQueue() {
         </dl>
 
         {selected.hasLowTechVendors && (
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
-            <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p className="text-xs leading-relaxed text-muted-foreground">
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Smartphone className="h-3.5 w-3.5" />
+              WhatsApp preview
+            </div>
+            <div className="flex justify-end">
+              <WhatsAppBubble
+                body={selected.whatsappBody ?? ""}
+                ctaKind={selected.whatsappCtaKind ?? "None"}
+                ctaValue={selected.whatsappCtaValue ?? ""}
+              />
+            </div>
+            <p className="text-right text-[11px] text-muted-foreground">
               Also delivers via WhatsApp to Low Tech vendors in this segment.
             </p>
           </div>
