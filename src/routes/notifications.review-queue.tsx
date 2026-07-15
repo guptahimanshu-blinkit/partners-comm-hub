@@ -203,6 +203,10 @@ function TemplateSubmitterFlow() {
   const [attachment, setAttachment] = useState<AttachmentType>("None");
   const [cta, setCta] = useState<CtaType>("None");
   const [ctaLink, setCtaLink] = useState("");
+  const [segment, setSegment] = useState<Segment>("All vendors");
+  const [whatsappBody, setWhatsappBody] = useState("");
+  const [whatsappCtaKind, setWhatsappCtaKind] = useState<WhatsAppCtaKind>("None");
+  const [whatsappCtaValue, setWhatsappCtaValue] = useState("");
 
   // Step 4
   const [confirmOpen, setConfirmOpen] = useState(false);
