@@ -7,6 +7,7 @@ import {
   ExternalLink,
   LifeBuoy,
   CircleAlert,
+  Paperclip,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
