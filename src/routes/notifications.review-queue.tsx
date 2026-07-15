@@ -1206,3 +1206,98 @@ function MetaRow({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* WhatsApp bubble (styled as an actual WhatsApp message, not app card style) */
+/* -------------------------------------------------------------------------- */
+
+interface WhatsAppBubbleProps {
+  body: string;
+  ctaKind: WhatsAppCtaKind;
+  ctaValue: string;
+  editable?: boolean;
+  onBodyChange?: (v: string) => void;
+  onCtaKindChange?: (v: WhatsAppCtaKind) => void;
+  onCtaValueChange?: (v: string) => void;
+}
+
+function WhatsAppBubble({
+  body,
+  ctaKind,
+  ctaValue,
+  editable = false,
+  onBodyChange,
+  onCtaKindChange,
+  onCtaValueChange,
+}: WhatsAppBubbleProps) {
+  const count = body.length;
+  const ctaLabel =
+    ctaKind === "Link" ? "Visit website" : ctaKind === "Phone" ? "Call business" : null;
+
+  return (
+    <div
+      className="w-full max-w-sm rounded-2xl rounded-br-sm bg-[#DCF8C6] p-3 text-[#111B21] shadow-sm"
+      style={{ fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif" }}
+    >
+      {editable ? (
+        <>
+          <textarea
+            value={body}
+            maxLength={300}
+            onChange={(e) => onBodyChange?.(e.target.value)}
+            placeholder="Type the WhatsApp message vendors will receive…"
+            rows={4}
+            className="w-full resize-none border-0 bg-transparent p-0 text-sm leading-snug text-[#111B21] placeholder:text-[#54656F]/60 focus:outline-none focus:ring-0"
+          />
+          <div className="mt-1 text-right text-[10px] text-[#54656F]">
+            {count}/300
+          </div>
+        </>
+      ) : (
+        <p className="whitespace-pre-wrap text-sm leading-snug text-[#111B21]">
+          {body || <span className="italic text-[#54656F]">No message body</span>}
+        </p>
+      )}
+
+      {editable && (
+        <div className="mt-2 space-y-1.5 border-t border-[#B8E0A0] pt-2">
+          <div className="flex items-center gap-1.5">
+            {(["None", "Link", "Phone"] as WhatsAppCtaKind[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => onCtaKindChange?.(k)}
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+                  ctaKind === k
+                    ? "bg-[#25D366] text-white"
+                    : "bg-white/70 text-[#54656F] hover:bg-white",
+                )}
+              >
+                {k === "None" ? "No action" : k === "Link" ? "Visit link" : "Call number"}
+              </button>
+            ))}
+          </div>
+          {ctaKind !== "None" && (
+            <input
+              value={ctaValue}
+              onChange={(e) => onCtaValueChange?.(e.target.value)}
+              placeholder={ctaKind === "Link" ? "https://…" : "+91 …"}
+              className="w-full border-0 bg-transparent p-0 text-xs text-[#111B21] placeholder:text-[#54656F]/60 focus:outline-none focus:ring-0"
+            />
+          )}
+        </div>
+      )}
+
+      {ctaLabel && (
+        <div className="mt-2 border-t border-[#B8E0A0] pt-2 text-center">
+          <div className="text-sm font-medium text-[#027EB5]">{ctaLabel}</div>
+          {!editable && ctaValue && (
+            <div className="mt-0.5 text-[11px] text-[#54656F]">{ctaValue}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
