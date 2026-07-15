@@ -552,6 +552,63 @@ function TemplateSubmitterFlow() {
             </div>
           )}
 
+          {config && (
+            <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  WhatsApp Template Details
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  WhatsApp delivery is added automatically when the target segment
+                  includes Low Tech vendors, per Vendor Delivery Profiles.
+                </p>
+              </div>
+
+              <Field label="Target vendor segment">
+                <Select
+                  value={segment}
+                  onValueChange={(v) => setSegment(v as Segment)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEGMENTS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                        {SEGMENT_HAS_LOW_TECH[s] ? " · includes Low Tech" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {segmentHasLowTech && (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-foreground">
+                    WhatsApp Message Preview
+                  </p>
+                  <div className="flex justify-end">
+                    <WhatsAppBubble
+                      editable
+                      body={whatsappBody}
+                      onBodyChange={setWhatsappBody}
+                      ctaKind={whatsappCtaKind}
+                      onCtaKindChange={setWhatsappCtaKind}
+                      ctaValue={whatsappCtaValue}
+                      onCtaValueChange={setWhatsappCtaValue}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <span className="rounded-full border border-cat-amber/40 bg-cat-amber-soft px-2.5 py-0.5 text-[11px] font-medium text-cat-amber">
+                      Requires separate approval from WhatsApp Business API
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <StepNav
             onBack={() => setStep(1)}
             onNext={() => setStep(3)}
