@@ -285,6 +285,11 @@ function NotificationCard({
                 <Clock className="h-3 w-3" /> Expired
               </Badge>
             )}
+            {n.attachment && (
+              <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                <Paperclip className="h-3 w-3" /> {n.attachment.type}
+              </Badge>
+            )}
           </div>
           <p
             className={cn(
