@@ -6,7 +6,6 @@ import {
   ShieldAlert,
   CalendarClock,
   CalendarPlus,
-  CalendarDays,
   PlusCircle,
   Inbox,
   Truck,
@@ -79,12 +78,6 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
   {
-    to: "/notifications/send-calendar",
-    label: "Send Calendar",
-    icon: CalendarDays,
-    roles: ["internal_ops"],
-  },
-  {
     to: "/notifications/schedule",
     label: "Add New Notification",
     icon: CalendarPlus,
@@ -117,7 +110,7 @@ function Logo() {
 }
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
-  const { role } = useRole();
+  const { role, internalRole } = useRole();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = NAV.filter((n) => n.roles.includes(role));
 
@@ -129,6 +122,12 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
             ? pathname === "/notifications"
             : pathname.startsWith(item.to);
         const Icon = item.icon;
+        const label =
+          item.to === "/notifications/review-queue" &&
+          role === "internal_ops" &&
+          internalRole === "Template Submitter"
+            ? "Submit Template"
+            : item.label;
         return (
           <Link
             key={item.to}
@@ -142,7 +141,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
             )}
           >
             <Icon className="h-[18px] w-[18px] shrink-0" />
-            <span className="truncate">{item.label}</span>
+            <span className="truncate">{label}</span>
           </Link>
         );
       })}

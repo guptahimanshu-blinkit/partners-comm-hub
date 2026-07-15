@@ -164,6 +164,22 @@ const APOLLO_CATEGORIES = ["Internal", "Important Updates", "Orders and Purchase
 
 type AttachmentType = "None" | "PDF" | "Image" | "Excel Export";
 type CtaType = "None" | "Direct Link" | "Autofilled Help & Support Ticket";
+type WhatsAppCtaKind = "None" | "Link" | "Phone";
+
+const SEGMENTS = [
+  "All vendors",
+  "Grocery – Tier 1",
+  "Fashion vendors",
+  "New vendors < 90 days",
+] as const;
+type Segment = (typeof SEGMENTS)[number];
+
+const SEGMENT_HAS_LOW_TECH: Record<Segment, boolean> = {
+  "All vendors": true,
+  "Grocery – Tier 1": false,
+  "Fashion vendors": false,
+  "New vendors < 90 days": true,
+};
 
 /* -------------------------------------------------------------------------- */
 /* Template Submitter flow                                                    */
@@ -187,6 +203,10 @@ function TemplateSubmitterFlow() {
   const [attachment, setAttachment] = useState<AttachmentType>("None");
   const [cta, setCta] = useState<CtaType>("None");
   const [ctaLink, setCtaLink] = useState("");
+  const [segment, setSegment] = useState<Segment>("All vendors");
+  const [whatsappBody, setWhatsappBody] = useState("");
+  const [whatsappCtaKind, setWhatsappCtaKind] = useState<WhatsAppCtaKind>("None");
+  const [whatsappCtaValue, setWhatsappCtaValue] = useState("");
 
   // Step 4
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -228,7 +248,13 @@ function TemplateSubmitterFlow() {
     setAttachment("None");
     setCta("None");
     setCtaLink("");
+    setSegment("All vendors");
+    setWhatsappBody("");
+    setWhatsappCtaKind("None");
+    setWhatsappCtaValue("");
   };
+
+  const segmentHasLowTech = SEGMENT_HAS_LOW_TECH[segment];
 
   const submittedRecord = () => ({
     name,
@@ -241,6 +267,11 @@ function TemplateSubmitterFlow() {
     attachment,
     ctaType: cta,
     ctaLink: cta === "Direct Link" ? ctaLink : undefined,
+    segment,
+    whatsappBody: segmentHasLowTech ? whatsappBody : undefined,
+    whatsappCtaKind: segmentHasLowTech ? whatsappCtaKind : undefined,
+    whatsappCtaValue:
+      segmentHasLowTech && whatsappCtaKind !== "None" ? whatsappCtaValue : undefined,
   });
 
   const submitReview = () => {
@@ -521,6 +552,63 @@ function TemplateSubmitterFlow() {
             </div>
           )}
 
+          {config && (
+            <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  WhatsApp Template Details
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  WhatsApp delivery is added automatically when the target segment
+                  includes Low Tech vendors, per Vendor Delivery Profiles.
+                </p>
+              </div>
+
+              <Field label="Target vendor segment">
+                <Select
+                  value={segment}
+                  onValueChange={(v) => setSegment(v as Segment)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEGMENTS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                        {SEGMENT_HAS_LOW_TECH[s] ? " · includes Low Tech" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {segmentHasLowTech && (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-foreground">
+                    WhatsApp Message Preview
+                  </p>
+                  <div className="flex justify-end">
+                    <WhatsAppBubble
+                      editable
+                      body={whatsappBody}
+                      onBodyChange={setWhatsappBody}
+                      ctaKind={whatsappCtaKind}
+                      onCtaKindChange={setWhatsappCtaKind}
+                      ctaValue={whatsappCtaValue}
+                      onCtaValueChange={setWhatsappCtaValue}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <span className="rounded-full border border-cat-amber/40 bg-cat-amber-soft px-2.5 py-0.5 text-[11px] font-medium text-cat-amber">
+                      Requires separate approval from WhatsApp Business API
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <StepNav
             onBack={() => setStep(1)}
             onNext={() => setStep(3)}
@@ -625,6 +713,15 @@ function TemplateSubmitterFlow() {
                 CTA · {cta}
                 {cta === "Direct Link" && ctaLink ? ` (${ctaLink})` : ""}
               </Chip>
+              <Chip>Segment · {segment}</Chip>
+              {segmentHasLowTech && (
+                <Chip>
+                  WhatsApp · {whatsappBody ? `${whatsappBody.length}/300 chars` : "empty"}
+                  {whatsappCtaKind !== "None" && whatsappCtaValue
+                    ? ` · ${whatsappCtaKind} ${whatsappCtaValue}`
+                    : ""}
+                </Chip>
+              )}
             </div>
           </div>
 
@@ -827,6 +924,9 @@ interface PendingTemplate {
   ctaLink?: string;
   segment: string;
   hasLowTechVendors: boolean;
+  whatsappBody?: string;
+  whatsappCtaKind?: WhatsAppCtaKind;
+  whatsappCtaValue?: string;
 }
 
 const PENDING: PendingTemplate[] = [
@@ -844,6 +944,10 @@ const PENDING: PendingTemplate[] = [
     ctaLink: "https://partners.blinkit.com/payouts",
     segment: "All vendors",
     hasLowTechVendors: true,
+    whatsappBody:
+      "Hi {{vendor_name}}, your weekly payout summary for {{week}} is ready. View the full breakdown on the partner portal.",
+    whatsappCtaKind: "Link",
+    whatsappCtaValue: "https://partners.blinkit.com/payouts",
   },
   {
     id: "t2",
@@ -868,8 +972,12 @@ const PENDING: PendingTemplate[] = [
     category: "account_access",
     attachment: "None",
     ctaType: "None",
-    segment: "New vendors (< 90 days)",
+    segment: "New vendors < 90 days",
     hasLowTechVendors: true,
+    whatsappBody:
+      "Reminder: please rotate your PartnersBiz password within 7 days to keep access active. Call support if you need help.",
+    whatsappCtaKind: "Phone",
+    whatsappCtaValue: "+91 80 4567 1200",
   },
 ];
 
@@ -1010,9 +1118,19 @@ function ApproverQueue() {
         </dl>
 
         {selected.hasLowTechVendors && (
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
-            <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p className="text-xs leading-relaxed text-muted-foreground">
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Smartphone className="h-3.5 w-3.5" />
+              WhatsApp preview
+            </div>
+            <div className="flex justify-end">
+              <WhatsAppBubble
+                body={selected.whatsappBody ?? ""}
+                ctaKind={selected.whatsappCtaKind ?? "None"}
+                ctaValue={selected.whatsappCtaValue ?? ""}
+              />
+            </div>
+            <p className="text-right text-[11px] text-muted-foreground">
               Also delivers via WhatsApp to Low Tech vendors in this segment.
             </p>
           </div>
@@ -1087,4 +1205,99 @@ function MetaRow({
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* WhatsApp bubble (styled as an actual WhatsApp message, not app card style) */
+/* -------------------------------------------------------------------------- */
+
+interface WhatsAppBubbleProps {
+  body: string;
+  ctaKind: WhatsAppCtaKind;
+  ctaValue: string;
+  editable?: boolean;
+  onBodyChange?: (v: string) => void;
+  onCtaKindChange?: (v: WhatsAppCtaKind) => void;
+  onCtaValueChange?: (v: string) => void;
+}
+
+function WhatsAppBubble({
+  body,
+  ctaKind,
+  ctaValue,
+  editable = false,
+  onBodyChange,
+  onCtaKindChange,
+  onCtaValueChange,
+}: WhatsAppBubbleProps) {
+  const count = body.length;
+  const ctaLabel =
+    ctaKind === "Link" ? "Visit website" : ctaKind === "Phone" ? "Call business" : null;
+
+  return (
+    <div
+      className="w-full max-w-sm rounded-2xl rounded-br-sm bg-[#DCF8C6] p-3 text-[#111B21] shadow-sm"
+      style={{ fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif" }}
+    >
+      {editable ? (
+        <>
+          <textarea
+            value={body}
+            maxLength={300}
+            onChange={(e) => onBodyChange?.(e.target.value)}
+            placeholder="Type the WhatsApp message vendors will receive…"
+            rows={4}
+            className="w-full resize-none border-0 bg-transparent p-0 text-sm leading-snug text-[#111B21] placeholder:text-[#54656F]/60 focus:outline-none focus:ring-0"
+          />
+          <div className="mt-1 text-right text-[10px] text-[#54656F]">
+            {count}/300
+          </div>
+        </>
+      ) : (
+        <p className="whitespace-pre-wrap text-sm leading-snug text-[#111B21]">
+          {body || <span className="italic text-[#54656F]">No message body</span>}
+        </p>
+      )}
+
+      {editable && (
+        <div className="mt-2 space-y-1.5 border-t border-[#B8E0A0] pt-2">
+          <div className="flex items-center gap-1.5">
+            {(["None", "Link", "Phone"] as WhatsAppCtaKind[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => onCtaKindChange?.(k)}
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+                  ctaKind === k
+                    ? "bg-[#25D366] text-white"
+                    : "bg-white/70 text-[#54656F] hover:bg-white",
+                )}
+              >
+                {k === "None" ? "No action" : k === "Link" ? "Visit link" : "Call number"}
+              </button>
+            ))}
+          </div>
+          {ctaKind !== "None" && (
+            <input
+              value={ctaValue}
+              onChange={(e) => onCtaValueChange?.(e.target.value)}
+              placeholder={ctaKind === "Link" ? "https://…" : "+91 …"}
+              className="w-full border-0 bg-transparent p-0 text-xs text-[#111B21] placeholder:text-[#54656F]/60 focus:outline-none focus:ring-0"
+            />
+          )}
+        </div>
+      )}
+
+      {ctaLabel && (
+        <div className="mt-2 border-t border-[#B8E0A0] pt-2 text-center">
+          <div className="text-sm font-medium text-[#027EB5]">{ctaLabel}</div>
+          {!editable && ctaValue && (
+            <div className="mt-0.5 text-[11px] text-[#54656F]">{ctaValue}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
