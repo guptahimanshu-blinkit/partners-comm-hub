@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CalendarDays,
   PlusCircle,
+  Inbox,
   Menu,
   ChevronDown,
   Radio,
@@ -67,6 +68,12 @@ const NAV: NavItem[] = [
     to: "/add-communication",
     label: "Add Communication",
     icon: PlusCircle,
+    roles: ["internal_ops"],
+  },
+  {
+    to: "/notifications/review-queue",
+    label: "Comms Review Queue",
+    icon: Inbox,
     roles: ["internal_ops"],
   },
   {
@@ -175,8 +182,8 @@ function RoleSwitcher() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Team Member">Team Member</SelectItem>
-            <SelectItem value="Category Manager">Category Manager</SelectItem>
+            <SelectItem value="Template Submitter">Template Submitter</SelectItem>
+            <SelectItem value="Approver">Approver</SelectItem>
           </SelectContent>
         </Select>
       )}

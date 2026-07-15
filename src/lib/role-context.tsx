@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { EmployeeRole } from "./mock-data";
 
 export type PortalRole = "vendor_admin" | "vendor_employee" | "internal_ops";
-export type InternalRole = "Team Member" | "Category Manager";
+export type InternalRole = "Template Submitter" | "Approver";
 
 export interface RoleState {
   role: PortalRole;
@@ -23,7 +23,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<PortalRole>("vendor_admin");
   const [employeeRole, setEmployeeRoleState] =
     useState<EmployeeRole>("Supply Chain Manager");
-  const [internalRole, setInternalRoleState] = useState<InternalRole>("Team Member");
+  const [internalRole, setInternalRoleState] = useState<InternalRole>("Template Submitter");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) as PortalRole | null;
