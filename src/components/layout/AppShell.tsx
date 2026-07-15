@@ -5,6 +5,7 @@ import {
   SlidersHorizontal,
   ShieldAlert,
   CalendarClock,
+  CalendarPlus,
   CalendarDays,
   PlusCircle,
   Inbox,
@@ -81,6 +82,12 @@ const NAV: NavItem[] = [
     to: "/notifications/send-calendar",
     label: "Send Calendar",
     icon: CalendarDays,
+    roles: ["internal_ops"],
+  },
+  {
+    to: "/notifications/schedule",
+    label: "Add New Notification",
+    icon: CalendarPlus,
     roles: ["internal_ops"],
   },
   {
