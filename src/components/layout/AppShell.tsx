@@ -5,6 +5,7 @@ import {
   SlidersHorizontal,
   ShieldAlert,
   CalendarClock,
+  CalendarPlus,
   CalendarDays,
   PlusCircle,
   Inbox,
