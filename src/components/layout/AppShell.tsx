@@ -83,6 +83,12 @@ const NAV: NavItem[] = [
     icon: CalendarDays,
     roles: ["internal_ops"],
   },
+  {
+    to: "/vendor-delivery-profiles",
+    label: "Vendor Delivery Profiles",
+    icon: Truck,
+    roles: ["internal_ops"],
+  },
 ];
 
 function Logo() {
