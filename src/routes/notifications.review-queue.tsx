@@ -10,6 +10,12 @@ import {
   Send,
   Save,
   MessageSquare,
+  CheckCircle2,
+  XCircle,
+  Paperclip,
+  Link2,
+  Layers,
+  Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -61,15 +67,13 @@ function ReviewQueuePage() {
         <p className="mb-6 text-sm text-muted-foreground">
           {internalRole === "Template Submitter"
             ? "Draft a new template, categorize it, and send it for approval."
-            : "Approver view — coming soon."}
+            : "Review pending templates from your team. Approve to publish, reject to send back with notes."}
         </p>
 
         {internalRole === "Template Submitter" ? (
           <TemplateSubmitterFlow />
         ) : (
-          <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-            Approver queue will be populated next.
-          </div>
+          <ApproverQueue />
         )}
       </div>
     </AppShell>
@@ -804,3 +808,283 @@ function StepNav({
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Approver queue                                                             */
+/* -------------------------------------------------------------------------- */
+
+interface PendingTemplate {
+  id: string;
+  name: string;
+  submittedBy: string;
+  submittedAgo: string;
+  tenant: string;
+  apolloCategory: string;
+  category: CategoryId;
+  subType?: string;
+  attachment: AttachmentType;
+  ctaType: CtaType;
+  ctaLink?: string;
+  segment: string;
+  hasLowTechVendors: boolean;
+}
+
+const PENDING: PendingTemplate[] = [
+  {
+    id: "t1",
+    name: "Weekly payout summary",
+    submittedBy: "Priya S.",
+    submittedAgo: "12m ago",
+    tenant: "Blinkit",
+    apolloCategory: "Important Updates",
+    category: "finance_payments",
+    subType: "Scheduled Push",
+    attachment: "PDF",
+    ctaType: "Direct Link",
+    ctaLink: "https://partners.blinkit.com/payouts",
+    segment: "All vendors",
+    hasLowTechVendors: true,
+  },
+  {
+    id: "t2",
+    name: "PO acceptance reminder",
+    submittedBy: "Rohit K.",
+    submittedAgo: "1h ago",
+    tenant: "Blinkit",
+    apolloCategory: "Orders and Purchases",
+    category: "reminders",
+    attachment: "None",
+    ctaType: "Autofilled Help & Support Ticket",
+    segment: "Grocery – Tier 1",
+    hasLowTechVendors: false,
+  },
+  {
+    id: "t3",
+    name: "Password rotation notice",
+    submittedBy: "Aditi M.",
+    submittedAgo: "3h ago",
+    tenant: "Hyperpure",
+    apolloCategory: "Internal",
+    category: "account_access",
+    attachment: "None",
+    ctaType: "None",
+    segment: "New vendors (< 90 days)",
+    hasLowTechVendors: true,
+  },
+];
+
+const CLUBBABLE_APOLLO = new Set(["Important Updates", "Orders and Purchases"]);
+
+function ApproverQueue() {
+  const [items, setItems] = useState<PendingTemplate[]>(PENDING);
+  const [selectedId, setSelectedId] = useState<string | null>(PENDING[0]?.id ?? null);
+
+  const selected = items.find((i) => i.id === selectedId) ?? null;
+
+  const clubbable = useMemo(() => {
+    if (!selected) return [];
+    if (!CLUBBABLE_APOLLO.has(selected.apolloCategory)) return [];
+    return items.filter(
+      (i) =>
+        i.id !== selected.id &&
+        i.tenant === selected.tenant &&
+        i.apolloCategory === selected.apolloCategory,
+    );
+  }, [items, selected]);
+
+  const act = (id: string, verdict: "approved" | "rejected") => {
+    const item = items.find((i) => i.id === id);
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    setSelectedId((prev) => {
+      if (prev !== id) return prev;
+      const remaining = items.filter((i) => i.id !== id);
+      return remaining[0]?.id ?? null;
+    });
+    toast.success(`${item?.name ?? "Template"} ${verdict}`);
+  };
+
+  if (!selected) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        No templates waiting for review.
+      </div>
+    );
+  }
+
+  const config = CONFIG[selected.category];
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,240px)_1fr]">
+      {/* Queue list */}
+      <aside className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Pending ({items.length})
+        </p>
+        <ul className="space-y-1.5">
+          {items.map((i) => {
+            const active = i.id === selectedId;
+            const cfg = CONFIG[i.category];
+            return (
+              <li key={i.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(i.id)}
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
+                    active
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-card hover:border-primary/40",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {i.name}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                        colorClasses[cfg.color].badge,
+                      )}
+                    >
+                      {cfg.label.split(" ")[0]}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {i.submittedBy} · {i.submittedAgo}
+                  </p>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+
+      {/* Detail panel */}
+      <section className="space-y-5 rounded-xl border border-border bg-card p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold tracking-tight">
+              {selected.name}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Submitted by {selected.submittedBy} · {selected.submittedAgo}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                colorClasses[config.color].badge,
+              )}
+            >
+              {config.label}
+            </span>
+            <Chip>Priority {config.priority}</Chip>
+            {selected.subType && (
+              <span className="rounded-full border border-dashed border-border bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                Sub Type · {selected.subType}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Meta grid */}
+        <dl className="grid grid-cols-1 gap-3 rounded-xl border border-border bg-muted/30 p-4 sm:grid-cols-2">
+          <MetaRow label="Tenant" value={selected.tenant} />
+          <MetaRow label="Apollo Category" value={selected.apolloCategory} />
+          <MetaRow
+            label="Attachment"
+            value={selected.attachment}
+            icon={selected.attachment !== "None" ? <Paperclip className="h-3 w-3" /> : undefined}
+          />
+          <MetaRow
+            label="CTA Type"
+            value={
+              selected.ctaType === "Direct Link" && selected.ctaLink
+                ? `${selected.ctaType} · ${selected.ctaLink}`
+                : selected.ctaType
+            }
+            icon={selected.ctaType !== "None" ? <Link2 className="h-3 w-3" /> : undefined}
+          />
+          <MetaRow label="Target segment" value={selected.segment} />
+        </dl>
+
+        {selected.hasLowTechVendors && (
+          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
+            <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Also delivers via WhatsApp to Low Tech vendors in this segment.
+            </p>
+          </div>
+        )}
+
+        {clubbable.length > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-50 p-3 dark:bg-amber-500/10">
+            <Layers className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+            <div className="text-xs leading-relaxed">
+              <p className="font-semibold text-amber-800 dark:text-amber-300">
+                Clubbing candidate — {clubbable.length} other pending{" "}
+                {clubbable.length === 1 ? "template" : "templates"} in{" "}
+                {selected.apolloCategory}.
+              </p>
+              <ul className="mt-1 space-y-0.5 text-amber-800/80 dark:text-amber-200/80">
+                {clubbable.map((c) => (
+                  <li key={c.id}>· {c.name}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Inherited config recap */}
+        <div className="overflow-hidden rounded-xl border border-border">
+          <div className="border-b border-border bg-muted/30 px-4 py-2 text-[11px] font-medium text-muted-foreground">
+            Inherited from category
+          </div>
+          <dl className="divide-y divide-border">
+            <ConfigRow label="Channel" value={config.channel} />
+            <ConfigRow label="Batching" value={config.batching} />
+            <ConfigRow label="Escalation" value={config.escalation} />
+            <ConfigRow label="Portal Expiry" value={config.expiry} />
+          </dl>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => act(selected.id, "rejected")}
+            className="gap-1.5"
+          >
+            <XCircle className="h-4 w-4" /> Reject
+          </Button>
+          <Button onClick={() => act(selected.id, "approved")} className="gap-1.5">
+            <CheckCircle2 className="h-4 w-4" /> Approve
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MetaRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="mt-0.5 flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+        {icon}
+        <span className="truncate">{value}</span>
+      </dd>
+    </div>
+  );
+}
+
