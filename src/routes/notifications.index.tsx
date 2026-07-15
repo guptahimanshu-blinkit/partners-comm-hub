@@ -112,7 +112,9 @@ function NotificationCentreInner({
           </button>
 
           <div className="space-y-0.5">
-            {CATEGORIES.map((cat) => {
+            {CATEGORIES.filter(
+              (cat) => !isEmployee || isCategoryVisibleTo(cat.id, employeeRole, routing),
+            ).map((cat) => {
               const c = colorClasses[cat.color];
               const count = unreadByCat(cat.id);
               const isActive = selectedCat === cat.id;
