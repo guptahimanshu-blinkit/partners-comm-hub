@@ -55,6 +55,7 @@ function NotificationCentreInner({
   isEmployee: boolean;
   employeeRole: string;
 }) {
+  const { routing } = useRoleRouting();
   const [selectedCat, setSelectedCat] = useState<CategoryId | "all">("all");
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>("n1");
@@ -64,9 +65,9 @@ function NotificationCentreInner({
   const visible = useMemo(
     () =>
       NOTIFICATIONS.filter(
-        (n) => !isEmployee || n.audience === employeeRole || n.audience === "All Roles",
+        (n) => !isEmployee || isCategoryVisibleTo(n.category, employeeRole, routing),
       ),
-    [isEmployee, employeeRole],
+    [isEmployee, employeeRole, routing],
   );
 
   const unreadByCat = (cat: CategoryId) =>
