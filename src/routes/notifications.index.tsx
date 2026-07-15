@@ -21,6 +21,7 @@ import {
 import { DetailDialog } from "@/components/notifications/DetailDialog";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
 import { useRole } from "@/lib/role-context";
+import { useRoleRouting, isCategoryVisibleTo } from "@/lib/role-routing";
 import {
   CATEGORIES,
   NOTIFICATIONS,
