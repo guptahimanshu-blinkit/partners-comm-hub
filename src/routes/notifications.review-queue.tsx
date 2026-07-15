@@ -10,6 +10,12 @@ import {
   Send,
   Save,
   MessageSquare,
+  CheckCircle2,
+  XCircle,
+  Paperclip,
+  Link2,
+  Layers,
+  Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 
