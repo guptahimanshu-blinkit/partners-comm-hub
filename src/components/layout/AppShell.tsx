@@ -175,8 +175,8 @@ function RoleSwitcher() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Team Member">Team Member</SelectItem>
-            <SelectItem value="Category Manager">Category Manager</SelectItem>
+            <SelectItem value="Template Submitter">Template Submitter</SelectItem>
+            <SelectItem value="Approver">Approver</SelectItem>
           </SelectContent>
         </Select>
       )}
