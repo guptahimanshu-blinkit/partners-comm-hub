@@ -84,6 +84,12 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
   {
+    to: "/notifications/schedule",
+    label: "Add New Notification",
+    icon: CalendarPlus,
+    roles: ["internal_ops"],
+  },
+  {
     to: "/vendor-delivery-profiles",
     label: "Vendor Delivery Profiles",
     icon: Truck,
