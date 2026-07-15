@@ -78,12 +78,6 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
   {
-    to: "/notifications/send-calendar",
-    label: "Send Calendar",
-    icon: CalendarDays,
-    roles: ["internal_ops"],
-  },
-  {
     to: "/notifications/schedule",
     label: "Add New Notification",
     icon: CalendarPlus,
