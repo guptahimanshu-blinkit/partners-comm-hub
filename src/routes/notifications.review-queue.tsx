@@ -924,6 +924,9 @@ interface PendingTemplate {
   ctaLink?: string;
   segment: string;
   hasLowTechVendors: boolean;
+  whatsappBody?: string;
+  whatsappCtaKind?: WhatsAppCtaKind;
+  whatsappCtaValue?: string;
 }
 
 const PENDING: PendingTemplate[] = [
@@ -941,6 +944,10 @@ const PENDING: PendingTemplate[] = [
     ctaLink: "https://partners.blinkit.com/payouts",
     segment: "All vendors",
     hasLowTechVendors: true,
+    whatsappBody:
+      "Hi {{vendor_name}}, your weekly payout summary for {{week}} is ready. View the full breakdown on the partner portal.",
+    whatsappCtaKind: "Link",
+    whatsappCtaValue: "https://partners.blinkit.com/payouts",
   },
   {
     id: "t2",
@@ -965,8 +972,12 @@ const PENDING: PendingTemplate[] = [
     category: "account_access",
     attachment: "None",
     ctaType: "None",
-    segment: "New vendors (< 90 days)",
+    segment: "New vendors < 90 days",
     hasLowTechVendors: true,
+    whatsappBody:
+      "Reminder: please rotate your PartnersBiz password within 7 days to keep access active. Call support if you need help.",
+    whatsappCtaKind: "Phone",
+    whatsappCtaValue: "+91 80 4567 1200",
   },
 ];
 
