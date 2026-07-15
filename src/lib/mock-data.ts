@@ -212,6 +212,7 @@ export const NOTIFICATIONS: AppNotification[] = [
       { label: "Weighted Fill Rate", value: "92.6%" },
       { label: "Highest Rank in Category", value: "#3" },
     ],
+    attachment: { label: "Fill Rate Scorecard W27.pdf", type: "PDF" },
   },
   {
     id: "n5",
