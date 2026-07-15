@@ -99,6 +99,13 @@ export interface DetailField {
   value: string;
 }
 
+export type AttachmentType = "PDF" | "Image" | "Excel Export";
+
+export interface NotificationAttachment {
+  label: string;
+  type: AttachmentType;
+}
+
 export interface AppNotification {
   id: string;
   category: CategoryId;
@@ -113,6 +120,7 @@ export interface AppNotification {
   expired: boolean;
   audience: EmployeeRole;
   detail: DetailField[];
+  attachment?: NotificationAttachment;
 }
 
 export const NOTIFICATIONS: AppNotification[] = [
@@ -204,6 +212,7 @@ export const NOTIFICATIONS: AppNotification[] = [
       { label: "Weighted Fill Rate", value: "92.6%" },
       { label: "Highest Rank in Category", value: "#3" },
     ],
+    attachment: { label: "Fill Rate Scorecard W27.pdf", type: "PDF" },
   },
   {
     id: "n5",
@@ -267,6 +276,7 @@ export const NOTIFICATIONS: AppNotification[] = [
       { label: "Total Spend", value: "₹1,60,03,209" },
       { label: "Unique Products", value: "557" },
     ],
+    attachment: { label: "June sales report.csv", type: "Excel Export" },
   },
   {
     id: "n8",
@@ -306,6 +316,111 @@ export const NOTIFICATIONS: AppNotification[] = [
     detail: [
       { label: "Pending POs", value: "3" },
       { label: "Deadline", value: "Today, 11:59 PM" },
+    ],
+  },
+  {
+    id: "n10",
+    category: "finance_payments",
+    subCategory: "rejected_invoices",
+    subject: "Invoice INV-88420 rejected — HSN code missing",
+    message:
+      "Your invoice INV-88420 was rejected during validation. Reason: HSN code missing on line items 2 and 4. Please correct and re-upload to avoid payment delays.",
+    timestamp: "13 Jul 2026, 10:05 AM",
+    relativeTime: "8 min ago",
+    priority: "P2",
+    cta: "raise_ticket",
+    read: false,
+    expired: false,
+    audience: "Finance",
+    detail: [
+      { label: "Invoice ID", value: "INV-88420" },
+      { label: "Rejection Reason", value: "HSN code missing" },
+      { label: "Invoice Value", value: "₹1,84,600" },
+      { label: "Facility", value: "Bengaluru — Feeder Warehouse" },
+      { label: "Status", value: "REJECTED" },
+    ],
+    attachment: { label: "Rejection report.pdf", type: "PDF" },
+  },
+  {
+    id: "n11",
+    category: "finance_payments",
+    subCategory: "payment_on_hold",
+    subject: "Payment on hold — ₹78K pending TDS reconciliation",
+    message:
+      "A payment of ₹78,400 is currently on hold pending TDS reconciliation for Q2 FY26. Please confirm the TDS certificate to release the payment.",
+    timestamp: "13 Jul 2026, 09:45 AM",
+    relativeTime: "35 min ago",
+    priority: "P1",
+    cta: "view_details",
+    read: false,
+    expired: false,
+    audience: "Finance",
+    detail: [
+      { label: "Amount On Hold", value: "₹78,400" },
+      { label: "Reason", value: "TDS reconciliation pending" },
+      { label: "Quarter", value: "Q2 FY26" },
+      { label: "Status", value: "ON HOLD" },
+    ],
+  },
+  {
+    id: "n12",
+    category: "reports_analytics",
+    subCategory: "sales_reports",
+    subject: "Weekly sales snapshot ready — 42 SKUs",
+    message:
+      "Your weekly sales snapshot for Week 27 is ready. 42 SKUs tracked with a total sell-through of ₹22.6L. Download the Excel export for the full breakdown.",
+    timestamp: "13 Jul 2026, 07:00 AM",
+    relativeTime: "3 hrs ago",
+    priority: "P3",
+    cta: "view_details",
+    read: false,
+    expired: false,
+    audience: "Supply Chain Manager",
+    detail: [
+      { label: "Report Week", value: "Week 27, 2026" },
+      { label: "SKUs Tracked", value: "42" },
+      { label: "Sell-through", value: "₹22,60,000" },
+    ],
+    attachment: { label: "Weekly sales.xlsx", type: "Excel Export" },
+  },
+  {
+    id: "n13",
+    category: "daily_ops",
+    subCategory: "stock_updates",
+    subject: "Stock on Hand refreshed — 8 SKUs below reorder point",
+    message:
+      "Today's Stock on Hand refresh flagged 8 SKUs below their reorder point at Delhi D3 Feeder Warehouse. Review and raise replenishment POs to avoid stock-outs.",
+    timestamp: "13 Jul 2026, 06:30 AM",
+    relativeTime: "3 hrs ago",
+    priority: "P3",
+    cta: "view_details",
+    read: false,
+    expired: false,
+    audience: "Supply Chain Manager",
+    detail: [
+      { label: "Facility", value: "Delhi D3 — Feeder Warehouse" },
+      { label: "SKUs Below ROP", value: "8" },
+      { label: "Refresh Time", value: "06:30 AM" },
+    ],
+  },
+  {
+    id: "n14",
+    category: "account_access",
+    subCategory: "role_changes",
+    subject: "Your role assignment was updated by Vendor Admin",
+    message:
+      "Your PartnersBiz role assignment was updated by the Vendor Admin. Review your new access scope in Preference Centre.",
+    timestamp: "12 Jul 2026, 06:15 PM",
+    relativeTime: "15 hrs ago",
+    priority: "P2",
+    cta: "view_details",
+    read: false,
+    expired: false,
+    audience: "All Roles",
+    detail: [
+      { label: "Changed By", value: "Vendor Admin" },
+      { label: "Effective From", value: "12/07/2026" },
+      { label: "Status", value: "ACTIVE" },
     ],
   },
 ];

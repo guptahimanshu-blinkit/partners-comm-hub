@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { useRole } from "@/lib/role-context";
 import { CATEGORIES, colorClasses, type Channel, type CategoryId } from "@/lib/mock-data";
+import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
 
 export const Route = createFileRoute("/notifications/settings")({
   head: () => ({
@@ -253,17 +254,8 @@ function ChannelIcon({ channel }: { channel: Channel }) {
   return <MessageSquare className="h-3.5 w-3.5" />;
 }
 
-const DEFAULT_ROUTING: Record<CategoryId, { role: string; mode: string }> = {
-  action_required: { role: "Supply Chain Manager", mode: "Real-time" },
-  finance_payments: { role: "Finance", mode: "Real-time" },
-  reports_analytics: { role: "Supply Chain Manager", mode: "Weekly digest" },
-  daily_ops: { role: "Supply Chain Manager", mode: "Daily digest" },
-  reminders: { role: "Supply Chain Manager", mode: "Real-time" },
-  account_access: { role: "All Roles", mode: "Real-time" },
-};
-
 function RoleRoutingTable() {
-  const [routing, setRouting] = useState(DEFAULT_ROUTING);
+  const { routing, setRouting } = useRoleRouting();
   return (
     <Table>
       <TableHeader>
@@ -291,7 +283,10 @@ function RoleRoutingTable() {
               <Select
                 value={routing[cat.id].role}
                 onValueChange={(v) =>
-                  setRouting((p) => ({ ...p, [cat.id]: { ...p[cat.id], role: v } }))
+                  setRouting((p) => ({
+                    ...p,
+                    [cat.id]: { ...p[cat.id], role: v as AssignedRole },
+                  }))
                 }
               >
                 <SelectTrigger className="w-[190px]">

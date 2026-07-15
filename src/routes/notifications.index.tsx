@@ -7,6 +7,7 @@ import {
   ExternalLink,
   LifeBuoy,
   CircleAlert,
+  Paperclip,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import {
 import { DetailDialog } from "@/components/notifications/DetailDialog";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
 import { useRole } from "@/lib/role-context";
+import { useRoleRouting, isCategoryVisibleTo } from "@/lib/role-routing";
 import {
   CATEGORIES,
   NOTIFICATIONS,
@@ -54,6 +56,7 @@ function NotificationCentreInner({
   isEmployee: boolean;
   employeeRole: string;
 }) {
+  const { routing } = useRoleRouting();
   const [selectedCat, setSelectedCat] = useState<CategoryId | "all">("all");
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>("n1");
@@ -63,9 +66,9 @@ function NotificationCentreInner({
   const visible = useMemo(
     () =>
       NOTIFICATIONS.filter(
-        (n) => !isEmployee || n.audience === employeeRole || n.audience === "All Roles",
+        (n) => !isEmployee || isCategoryVisibleTo(n.category, employeeRole, routing),
       ),
-    [isEmployee, employeeRole],
+    [isEmployee, employeeRole, routing],
   );
 
   const unreadByCat = (cat: CategoryId) =>
@@ -110,7 +113,9 @@ function NotificationCentreInner({
           </button>
 
           <div className="space-y-0.5">
-            {CATEGORIES.map((cat) => {
+            {CATEGORIES.filter(
+              (cat) => !isEmployee || isCategoryVisibleTo(cat.id, employeeRole, routing),
+            ).map((cat) => {
               const c = colorClasses[cat.color];
               const count = unreadByCat(cat.id);
               const isActive = selectedCat === cat.id;
@@ -279,6 +284,11 @@ function NotificationCard({
             {n.expired && (
               <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
                 <Clock className="h-3 w-3" /> Expired
+              </Badge>
+            )}
+            {n.attachment && (
+              <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                <Paperclip className="h-3 w-3" /> {n.attachment.type}
               </Badge>
             )}
           </div>
