@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { useRole } from "@/lib/role-context";
 import { CATEGORIES, colorClasses, type Channel, type CategoryId } from "@/lib/mock-data";
+import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
 
 export const Route = createFileRoute("/notifications/settings")({
   head: () => ({
