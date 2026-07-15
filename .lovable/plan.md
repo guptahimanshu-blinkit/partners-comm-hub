@@ -1,55 +1,29 @@
-## Goal
-
-Make the Notification Centre a strict function of the Role Routing table in the Preference Centre: each employee role sees only notifications whose **category** is routed to them (plus categories routed to "All Roles"), and the same rule gates attachments. Add a handful of new sample notifications so the filtering is visibly testable.
-
 ## Changes
 
-### 1. `src/lib/role-routing.ts` (new, shared source of truth)
-- Move `DEFAULT_ROUTING` out of `notifications.settings.tsx` into a shared module so the Notification Centre and Preference Centre read the same map.
-- Persist per-category assignments in `localStorage` under `pbc_role_routing` (mirrors the existing `pbc_*` role-context keys). Falls back to the current defaults on first load.
-- Export a small `useRoleRouting()` hook that returns `{ routing, setRouting }` plus a helper `isCategoryVisibleTo(categoryId, employeeRole, routing)` which returns true when the category is assigned to that role or to `"All Roles"`.
-- Default routing keeps today's assignments exactly:
-  - Action Required → Supply Chain Manager
-  - Finance & Payments → Finance
-  - Reports & Analytics → Supply Chain Manager
-  - Daily Ops Updates → Supply Chain Manager
-  - Reminders → Supply Chain Manager
-  - Account & Access → All Roles
+### 1. Sidebar (`src/components/layout/AppShell.tsx`)
+- Remove the **Send Calendar** nav entry entirely.
+- In `NavList`, when rendering the Comms Review Queue entry and `role === "internal_ops"`, swap the label to **"Submit Template"** if `internalRole === "Template Submitter"`, otherwise keep **"Comms Review Queue"**. Position, icon, and route unchanged. Uses the existing `useRole()` hook.
 
-### 2. `src/lib/mock-data.ts`
-- Extend `AppNotification` with an optional `attachment?: { label: string; type: "PDF" | "Image" | "Excel Export" }`.
-- Attach existing sample attachments where realistic (e.g. Fill Rate Scorecard PDF on n4, Sales Report CSV on n7).
-- Add 5 new sample notifications spread across categories so both Finance and Supply Chain Manager have obviously different visible lists:
-  1. `n10` — Finance & Payments / rejected_invoices, P2, Finance, unread, PDF attachment "Rejection report.pdf".
-  2. `n11` — Finance & Payments / payment_on_hold, P1, Finance, unread.
-  3. `n12` — Reports & Analytics / sales_reports, P3, Supply Chain Manager, unread, Excel attachment "Weekly sales.xlsx".
-  4. `n13` — Daily Ops Updates / stock_updates, P3, Supply Chain Manager, unread.
-  5. `n14` — Account & Access / role_changes, P2, All Roles, unread (visible to both roles by design).
-- Keep `audience` on the type for backward compatibility, but stop using it as the filter (the category → role routing now decides).
+### 2. Template Submitter — WhatsApp Template Details (`src/routes/notifications.review-queue.tsx`)
+Add to **Step 2 (Categorize)**, right after the Channel/config block:
 
-### 3. `src/routes/notifications.settings.tsx`
-- Delete the local `DEFAULT_ROUTING` and inline `useState` in `RoleRoutingTable`; use `useRoleRouting()` from the shared module so edits by the Vendor Admin immediately affect what employees see in the Centre (within the same browser).
-- No visual change to the table.
+- **Target vendor segment** field (select) with the same 4 segments used elsewhere: `All vendors`, `Grocery – Tier 1`, `Fashion vendors`, `New vendors < 90 days`. A local map marks `All vendors` and `New vendors < 90 days` as containing Low Tech vendors.
+- If the chosen segment contains Low Tech vendors, render a **WhatsApp Message Preview** panel:
+  - Bubble styled like a real WhatsApp message: `rounded-2xl rounded-br-sm`, `bg-[#DCF8C6]`, dark text, narrow max-width, right-aligned, subtle shadow — explicitly using raw WhatsApp hex, not app semantic tokens.
+  - Inside the bubble: `Textarea` for message body with `maxLength={300}` and a live `{n}/300` counter; a single CTA row with a small kind toggle (`None` / `Visit link` / `Call phone number`) and value input, rendered as plain WhatsApp-style action text (no button chrome).
+  - Below the bubble, an amber status tag in app-standard styling: **"Requires separate approval from WhatsApp Business API"** (uses existing `cat-amber` tokens).
+- Extend the submitted record, Step 5 summary chips, and `PendingTemplate` mock type to carry `segment`, `whatsappBody`, `whatsappCtaKind`, `whatsappCtaValue`. Seed the two existing Low-Tech PENDING entries with sample WhatsApp copy.
+- When the segment has no Low Tech vendors, the panel is hidden and the current muted "Delivery to WhatsApp is handled automatically…" note stays.
 
-### 4. `src/routes/notifications.index.tsx`
-- Replace the current filter
-  `n.audience === employeeRole || n.audience === "All Roles"`
-  with
-  `isCategoryVisibleTo(n.category, employeeRole, routing)`.
-- Apply the same filter to:
-  - the visible list,
-  - the unread badge count in the header,
-  - any per-category tabs / counters already computed from `NOTIFICATIONS`.
-- Vendor Admin and Internal Ops views are unaffected (they still see everything they see today).
+### 3. Approver review panel (same file)
+- Replace the current one-line WhatsApp note with the same WhatsApp bubble component (read-only variant), rendering the template's real `whatsappBody` and CTA.
+- Keep a small muted caption under it: "Also delivers via WhatsApp to Low Tech vendors in this segment."
+- Approve/Reject buttons and the Important-Updates / Orders-and-Purchases clubbing logic are untouched.
 
-### 5. `src/components/notifications/DetailDialog.tsx`
-- Render the new `attachment` block (small "Paperclip · label" chip, existing muted card styling — no new tokens).
-- Guard the attachment render behind the same `isCategoryVisibleTo` check as a defensive second layer, so an attachment can never appear for a role that isn't assigned the category, even if a notification somehow leaks into view.
-
-### 6. Sidebar unread badge (if present in `AppShell.tsx`)
-- If the sidebar shows an unread count for the Notification Centre item, recompute it with the same filter. (Will confirm in the file during build; no change if it isn't currently rendered.)
+## Technical notes
+- Shared `WhatsAppBubble` component lives in the same route file (editable vs. read-only via a prop) — no new files.
+- Only the bubble uses raw hex (`#DCF8C6`); every other new element uses existing semantic tokens so the rest matches app styling exactly.
+- `/notifications/send-calendar` route file is left in place (just delinked from the sidebar) — safe for the prototype and avoids churn to the route tree.
 
 ## Out of scope
-- No changes to Preference Centre visuals, Escalation Queue, Add Communication, Review Queue, Send Calendar, Vendor Delivery Profiles, or Workdesk scheduling.
-- No changes to the routing UI itself — still edited only by Vendor Admin.
-- No backend/persistence beyond the existing `localStorage` pattern.
+Preference Centre, Escalation Queue, Vendor Delivery Profiles data model, and any backend wiring.
