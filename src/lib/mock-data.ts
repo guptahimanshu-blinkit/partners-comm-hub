@@ -99,6 +99,13 @@ export interface DetailField {
   value: string;
 }
 
+export type AttachmentType = "PDF" | "Image" | "Excel Export";
+
+export interface NotificationAttachment {
+  label: string;
+  type: AttachmentType;
+}
+
 export interface AppNotification {
   id: string;
   category: CategoryId;
@@ -113,6 +120,7 @@ export interface AppNotification {
   expired: boolean;
   audience: EmployeeRole;
   detail: DetailField[];
+  attachment?: NotificationAttachment;
 }
 
 export const NOTIFICATIONS: AppNotification[] = [
