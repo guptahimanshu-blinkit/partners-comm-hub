@@ -7,8 +7,10 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Paperclip } from "lucide-react";
 import { priorityBadgeClass, type AppNotification } from "@/lib/mock-data";
+import { useRole } from "@/lib/role-context";
+import { useRoleRouting, isCategoryVisibleTo } from "@/lib/role-routing";
 
 export function DetailDialog({
   notification,
