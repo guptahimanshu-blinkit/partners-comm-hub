@@ -61,15 +61,13 @@ function ReviewQueuePage() {
         <p className="mb-6 text-sm text-muted-foreground">
           {internalRole === "Template Submitter"
             ? "Draft a new template, categorize it, and send it for approval."
-            : "Approver view — coming soon."}
+            : "Review pending templates from your team. Approve to publish, reject to send back with notes."}
         </p>
 
         {internalRole === "Template Submitter" ? (
           <TemplateSubmitterFlow />
         ) : (
-          <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-            Approver queue will be populated next.
-          </div>
+          <ApproverQueue />
         )}
       </div>
     </AppShell>
