@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
 import { Route as NotificationsSendCalendarRouteImport } from './routes/notifications.send-calendar'
+import { Route as NotificationsScheduleRouteImport } from './routes/notifications.schedule'
 import { Route as NotificationsReviewQueueRouteImport } from './routes/notifications.review-queue'
 import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
 
@@ -55,6 +56,11 @@ const NotificationsSendCalendarRoute =
     path: '/notifications/send-calendar',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NotificationsScheduleRoute = NotificationsScheduleRouteImport.update({
+  id: '/notifications/schedule',
+  path: '/notifications/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsReviewQueueRoute =
   NotificationsReviewQueueRouteImport.update({
     id: '/notifications/review-queue',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
+  '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
+  '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications': typeof NotificationsIndexRoute
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
+  '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
   '/notifications/': typeof NotificationsIndexRoute
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
+    | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
     | '/notifications/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
+    | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
     | '/notifications'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
+    | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
     | '/notifications/'
@@ -145,6 +157,7 @@ export interface RootRouteChildren {
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
   NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsReviewQueueRoute: typeof NotificationsReviewQueueRoute
+  NotificationsScheduleRoute: typeof NotificationsScheduleRoute
   NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
   NotificationsIndexRoute: typeof NotificationsIndexRoute
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsSendCalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications/schedule': {
+      id: '/notifications/schedule'
+      path: '/notifications/schedule'
+      fullPath: '/notifications/schedule'
+      preLoaderRoute: typeof NotificationsScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications/review-queue': {
       id: '/notifications/review-queue'
       path: '/notifications/review-queue'
@@ -225,6 +245,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
   NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsReviewQueueRoute: NotificationsReviewQueueRoute,
+  NotificationsScheduleRoute: NotificationsScheduleRoute,
   NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
   NotificationsIndexRoute: NotificationsIndexRoute,
