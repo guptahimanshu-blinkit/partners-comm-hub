@@ -713,6 +713,15 @@ function TemplateSubmitterFlow() {
                 CTA · {cta}
                 {cta === "Direct Link" && ctaLink ? ` (${ctaLink})` : ""}
               </Chip>
+              <Chip>Segment · {segment}</Chip>
+              {segmentHasLowTech && (
+                <Chip>
+                  WhatsApp · {whatsappBody ? `${whatsappBody.length}/300 chars` : "empty"}
+                  {whatsappCtaKind !== "None" && whatsappCtaValue
+                    ? ` · ${whatsappCtaKind} ${whatsappCtaValue}`
+                    : ""}
+                </Chip>
+              )}
             </div>
           </div>
 
