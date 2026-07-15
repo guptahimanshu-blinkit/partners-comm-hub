@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VendorDeliveryProfilesRouteImport } from './routes/vendor-delivery-profiles'
 import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
 import { Route as AddCommunicationRouteImport } from './routes/add-communication'
 import { Route as IndexRouteImport } from './routes/index'
@@ -18,6 +19,11 @@ import { Route as NotificationsSendCalendarRouteImport } from './routes/notifica
 import { Route as NotificationsReviewQueueRouteImport } from './routes/notifications.review-queue'
 import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
 
+const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
+  id: '/vendor-delivery-profiles',
+  path: '/vendor-delivery-profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
   id: '/po-extension-request',
   path: '/po-extension-request',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
+  '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
+  '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
+  '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add-communication'
     | '/po-extension-request'
+    | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
     | '/notifications/send-calendar'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add-communication'
     | '/po-extension-request'
+    | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
     | '/notifications/send-calendar'
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add-communication'
     | '/po-extension-request'
+    | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
     | '/notifications/send-calendar'
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddCommunicationRoute: typeof AddCommunicationRoute
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
+  VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
   NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsReviewQueueRoute: typeof NotificationsReviewQueueRoute
   NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
@@ -139,6 +152,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/vendor-delivery-profiles': {
+      id: '/vendor-delivery-profiles'
+      path: '/vendor-delivery-profiles'
+      fullPath: '/vendor-delivery-profiles'
+      preLoaderRoute: typeof VendorDeliveryProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/po-extension-request': {
       id: '/po-extension-request'
       path: '/po-extension-request'
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddCommunicationRoute: AddCommunicationRoute,
   PoExtensionRequestRoute: PoExtensionRequestRoute,
+  VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
   NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsReviewQueueRoute: NotificationsReviewQueueRoute,
   NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,

@@ -8,6 +8,7 @@ import {
   CalendarDays,
   PlusCircle,
   Inbox,
+  Truck,
   Menu,
   ChevronDown,
   Radio,
@@ -80,6 +81,12 @@ const NAV: NavItem[] = [
     to: "/notifications/send-calendar",
     label: "Send Calendar",
     icon: CalendarDays,
+    roles: ["internal_ops"],
+  },
+  {
+    to: "/vendor-delivery-profiles",
+    label: "Vendor Delivery Profiles",
+    icon: Truck,
     roles: ["internal_ops"],
   },
 ];
