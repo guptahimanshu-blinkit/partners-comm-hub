@@ -248,7 +248,13 @@ function TemplateSubmitterFlow() {
     setAttachment("None");
     setCta("None");
     setCtaLink("");
+    setSegment("All vendors");
+    setWhatsappBody("");
+    setWhatsappCtaKind("None");
+    setWhatsappCtaValue("");
   };
+
+  const segmentHasLowTech = SEGMENT_HAS_LOW_TECH[segment];
 
   const submittedRecord = () => ({
     name,
@@ -261,6 +267,11 @@ function TemplateSubmitterFlow() {
     attachment,
     ctaType: cta,
     ctaLink: cta === "Direct Link" ? ctaLink : undefined,
+    segment,
+    whatsappBody: segmentHasLowTech ? whatsappBody : undefined,
+    whatsappCtaKind: segmentHasLowTech ? whatsappCtaKind : undefined,
+    whatsappCtaValue:
+      segmentHasLowTech && whatsappCtaKind !== "None" ? whatsappCtaValue : undefined,
   });
 
   const submitReview = () => {
