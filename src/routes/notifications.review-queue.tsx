@@ -164,6 +164,22 @@ const APOLLO_CATEGORIES = ["Internal", "Important Updates", "Orders and Purchase
 
 type AttachmentType = "None" | "PDF" | "Image" | "Excel Export";
 type CtaType = "None" | "Direct Link" | "Autofilled Help & Support Ticket";
+type WhatsAppCtaKind = "None" | "Link" | "Phone";
+
+const SEGMENTS = [
+  "All vendors",
+  "Grocery – Tier 1",
+  "Fashion vendors",
+  "New vendors < 90 days",
+] as const;
+type Segment = (typeof SEGMENTS)[number];
+
+const SEGMENT_HAS_LOW_TECH: Record<Segment, boolean> = {
+  "All vendors": true,
+  "Grocery – Tier 1": false,
+  "Fashion vendors": false,
+  "New vendors < 90 days": true,
+};
 
 /* -------------------------------------------------------------------------- */
 /* Template Submitter flow                                                    */
