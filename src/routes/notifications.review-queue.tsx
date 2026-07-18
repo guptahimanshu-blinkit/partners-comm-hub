@@ -182,11 +182,16 @@ const SEGMENT_HAS_LOW_TECH: Record<Segment, boolean> = {
 };
 
 /* -------------------------------------------------------------------------- */
-/* Template Submitter flow                                                    */
+/* Template Submitter flow — Apollo simulation only                           */
 /* -------------------------------------------------------------------------- */
 
+function generateTemplateId() {
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `APOLLO-${rand}`;
+}
+
 function TemplateSubmitterFlow() {
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
   const [name, setName] = useState("");
@@ -197,42 +202,11 @@ function TemplateSubmitterFlow() {
   const [rateLimit, setRateLimit] = useState("");
   const [variables, setVariables] = useState("{}");
 
-  // Step 2
-  const [losesMoney, setLosesMoney] = useState<"yes" | "no" | null>(null);
-  const [commType, setCommType] = useState<string | null>(null);
-  const [attachment, setAttachment] = useState<AttachmentType>("None");
-  const [cta, setCta] = useState<CtaType>("None");
-  const [ctaLink, setCtaLink] = useState("");
-  const [segment, setSegment] = useState<Segment>("All vendors");
-  const [whatsappBody, setWhatsappBody] = useState("");
-  const [whatsappCtaKind, setWhatsappCtaKind] = useState<WhatsAppCtaKind>("None");
-  const [whatsappCtaValue, setWhatsappCtaValue] = useState("");
-
-  // Step 4
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [idDialogOpen, setIdDialogOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const resolvedCategory: CategoryId | null = useMemo(() => {
-    if (losesMoney === "yes") return "action_required";
-    if (losesMoney === "no" && commType) {
-      return COMM_TYPES.find((t) => t.key === commType)?.category ?? null;
-    }
-    return null;
-  }, [losesMoney, commType]);
-
-  const config = resolvedCategory ? CONFIG[resolvedCategory] : null;
-
-  const subType = useMemo(() => {
-    if (commType !== "financial" && commType !== "periodic") return null;
-    const d = description.toLowerCase();
-    if (/\b(every|weekly|monthly|daily|hourly|quarterly)\b/.test(d)) {
-      return "Scheduled Push";
-    }
-    if (/\b(clicks?|requests?|downloads?)\b/.test(d)) return "On Demand Pull";
-    return null;
-  }, [commType, description]);
-
   const step1Valid = name.trim().length > 0 && description.trim().length > 0;
-  const step2Valid = !!config;
 
   const reset = () => {
     setStep(1);
@@ -243,51 +217,12 @@ function TemplateSubmitterFlow() {
     setApolloCategory("Important Updates");
     setRateLimit("");
     setVariables("{}");
-    setLosesMoney(null);
-    setCommType(null);
-    setAttachment("None");
-    setCta("None");
-    setCtaLink("");
-    setSegment("All vendors");
-    setWhatsappBody("");
-    setWhatsappCtaKind("None");
-    setWhatsappCtaValue("");
+    setTemplateId(null);
   };
 
-  const segmentHasLowTech = SEGMENT_HAS_LOW_TECH[segment];
-
-  const submittedRecord = () => ({
-    name,
-    tenant,
-    type: templateType,
-    apolloCategory,
-    category: config?.label,
-    subType,
-    priority: config?.priority,
-    attachment,
-    ctaType: cta,
-    ctaLink: cta === "Direct Link" ? ctaLink : undefined,
-    segment,
-    whatsappBody: segmentHasLowTech ? whatsappBody : undefined,
-    whatsappCtaKind: segmentHasLowTech ? whatsappCtaKind : undefined,
-    whatsappCtaValue:
-      segmentHasLowTech && whatsappCtaKind !== "None" ? whatsappCtaValue : undefined,
-  });
-
-  const submitReview = () => {
-    // eslint-disable-next-line no-console
-    console.log("Submitted for review", submittedRecord());
-    toast.success(`${name || "Untitled template"} submitted for review`);
-    reset();
-  };
-  const saveDraft = () => {
-    // eslint-disable-next-line no-console
-    console.log("Saved as draft", submittedRecord());
-    toast.success(`${name || "Untitled template"} saved as draft`);
-    reset();
-  };
-  const notifySlack = () => {
-    toast.success("Slack notification sent to #comms-review");
+  const createTemplate = () => {
+    setTemplateId(generateTemplateId());
+    setIdDialogOpen(true);
   };
 
   return (
@@ -340,11 +275,7 @@ function TemplateSubmitterFlow() {
             </RadioGroup>
           </Field>
 
-          <Field
-            label="Apollo Category"
-            required
-            hint="This is the Apollo delivery bucket, distinct from the PartnersBiz category chosen in the next step."
-          >
+          <Field label="Apollo Category" required>
             <RadioGroup
               value={apolloCategory}
               onValueChange={setApolloCategory}
@@ -381,244 +312,43 @@ function TemplateSubmitterFlow() {
             />
           </Field>
 
-          <StepNav
-            onNext={() => setStep(2)}
-            nextDisabled={!step1Valid}
-            nextLabel="Continue to categorization"
-          />
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={createTemplate}
+              disabled={!step1Valid}
+              className="gap-1.5"
+            >
+              Create Template <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Dialog open={idDialogOpen} onOpenChange={setIdDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Template created</DialogTitle>
+                <DialogDescription>
+                  Your template has been created. Copy the Template ID and open the
+                  content editor to add the body.
+                </DialogDescription>
+              </DialogHeader>
+              <IdCopyRow id={templateId ?? ""} />
+              <DialogFooter>
+                <Button
+                  onClick={() => {
+                    setIdDialogOpen(false);
+                    setStep(2);
+                  }}
+                  className="gap-1.5"
+                >
+                  Open content editor <ArrowRight className="h-4 w-4" />
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </SectionCard>
       )}
 
       {step === 2 && (
-        <SectionCard title="Comms Categorization">
-          <Field label="Does the vendor lose money or time if this is ignored?">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={losesMoney === "yes" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => {
-                  setLosesMoney("yes");
-                  setCommType(null);
-                }}
-              >
-                Yes
-              </Button>
-              <Button
-                type="button"
-                variant={losesMoney === "no" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setLosesMoney("no")}
-              >
-                No
-              </Button>
-            </div>
-          </Field>
-
-          {losesMoney === "no" && (
-            <Field label="What type of communication is this?">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {COMM_TYPES.map((t) => (
-                  <Button
-                    key={t.key}
-                    type="button"
-                    variant={commType === t.key ? "default" : "outline"}
-                    onClick={() => setCommType(t.key)}
-                  >
-                    {t.label}
-                  </Button>
-                ))}
-              </div>
-            </Field>
-          )}
-
-          {resolvedCategory === "action_required" && config && (
-            <div className="flex items-start gap-3 rounded-xl border border-cat-red/40 bg-cat-red-soft/40 p-4">
-              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-cat-red" />
-              <div>
-                <p className="text-sm font-semibold text-cat-red">
-                  Category = Action Required
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  High-impact comm — priority automatically set to P1.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {config && (
-            <div className="overflow-hidden rounded-xl border border-border bg-muted/30">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Inherited from category, not editable here.
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                      colorClasses[config.color].badge,
-                    )}
-                  >
-                    {config.label}
-                  </span>
-                  <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-semibold text-foreground">
-                    Priority {config.priority}
-                  </span>
-                  {subType && (
-                    <span className="rounded-full border border-dashed border-border bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                      Sub Type · {subType}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <dl className="divide-y divide-border">
-                <ConfigRow label="Channel" value={config.channel} />
-                <ConfigRow label="Batching" value={config.batching} />
-                <ConfigRow label="Escalation" value={config.escalation} />
-                <ConfigRow label="Portal Expiry" value={config.expiry} />
-              </dl>
-            </div>
-          )}
-
-          {config && (
-            <div className="space-y-4 rounded-xl border border-border bg-card p-4">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Set for this specific template
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Optional overrides for this template only.
-                </p>
-              </div>
-
-              <Field label="Attachment">
-                <Select
-                  value={attachment}
-                  onValueChange={(v) => setAttachment(v as AttachmentType)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(["None", "PDF", "Image", "Excel Export"] as AttachmentType[]).map(
-                      (a) => (
-                        <SelectItem key={a} value={a}>
-                          {a}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field label="Call to Action">
-                <Select value={cta} onValueChange={(v) => setCta(v as CtaType)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(
-                      [
-                        "None",
-                        "Direct Link",
-                        "Autofilled Help & Support Ticket",
-                      ] as CtaType[]
-                    ).map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {cta === "Direct Link" && (
-                <Field label="Link destination">
-                  <Input
-                    placeholder="https://…"
-                    value={ctaLink}
-                    onChange={(e) => setCtaLink(e.target.value)}
-                  />
-                </Field>
-              )}
-
-              <div className="flex items-start gap-2 rounded-lg bg-muted/40 p-3">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Delivery to WhatsApp is handled automatically for Low Tech vendor
-                  segments based on Vendor Delivery Profiles, not set per template.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {config && (
-            <div className="space-y-4 rounded-xl border border-border bg-card p-4">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  WhatsApp Template Details
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  WhatsApp delivery is added automatically when the target segment
-                  includes Low Tech vendors, per Vendor Delivery Profiles.
-                </p>
-              </div>
-
-              <Field label="Target vendor segment">
-                <Select
-                  value={segment}
-                  onValueChange={(v) => setSegment(v as Segment)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SEGMENTS.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                        {SEGMENT_HAS_LOW_TECH[s] ? " · includes Low Tech" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {segmentHasLowTech && (
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-foreground">
-                    WhatsApp Message Preview
-                  </p>
-                  <div className="flex justify-end">
-                    <WhatsAppBubble
-                      editable
-                      body={whatsappBody}
-                      onBodyChange={setWhatsappBody}
-                      ctaKind={whatsappCtaKind}
-                      onCtaKindChange={setWhatsappCtaKind}
-                      ctaValue={whatsappCtaValue}
-                      onCtaValueChange={setWhatsappCtaValue}
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <span className="rounded-full border border-cat-amber/40 bg-cat-amber-soft px-2.5 py-0.5 text-[11px] font-medium text-cat-amber">
-                      Requires separate approval from WhatsApp Business API
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <StepNav
-            onBack={() => setStep(1)}
-            onNext={() => setStep(3)}
-            nextDisabled={!step2Valid}
-            nextLabel="Continue to content"
-          />
-        </SectionCard>
-      )}
-
-      {step === 3 && (
         <SectionCard title="Content">
           <div className="grid min-h-[240px] place-items-center rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
             <div>
@@ -630,44 +360,19 @@ function TemplateSubmitterFlow() {
               </p>
             </div>
           </div>
-          <StepNav
-            onBack={() => setStep(2)}
-            onNext={() => setStep(4)}
-            nextLabel="Continue to save"
-          />
-        </SectionCard>
-      )}
 
-      {step === 4 && (
-        <SectionCard title="Save Template">
-          <p className="text-sm text-muted-foreground">
-            You&apos;re about to save this template to Apollo. You can still edit content
-            or resend for review afterwards.
-          </p>
-          <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
-            <div className="flex flex-wrap gap-x-6 gap-y-1">
-              <span>
-                <span className="text-foreground">Name:</span> {name || "—"}
-              </span>
-              <span>
-                <span className="text-foreground">Tenant:</span> {tenant}
-              </span>
-              <span>
-                <span className="text-foreground">Category:</span>{" "}
-                {config?.label ?? "—"}
-              </span>
-              <span>
-                <span className="text-foreground">Priority:</span>{" "}
-                {config?.priority ?? "—"}
-              </span>
-            </div>
+          <div className="flex items-center justify-between pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setStep(1)}
+              className="gap-1.5"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </Button>
+            <Button onClick={() => setConfirmOpen(true)} className="gap-1.5">
+              <Save className="h-4 w-4" /> Save Template
+            </Button>
           </div>
-          <StepNav
-            onBack={() => setStep(3)}
-            onNext={() => setConfirmOpen(true)}
-            nextLabel="Save Template"
-            nextIcon={<Save className="h-4 w-4" />}
-          />
 
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogContent className="sm:max-w-md">
@@ -683,7 +388,7 @@ function TemplateSubmitterFlow() {
                   onClick={() => {
                     setConfirmOpen(false);
                     toast.success("Template saved");
-                    setStep(5);
+                    setStep(3);
                   }}
                 >
                   Submit
@@ -694,52 +399,23 @@ function TemplateSubmitterFlow() {
         </SectionCard>
       )}
 
-      {step === 5 && (
-        <SectionCard title="Next actions">
-          <p className="text-sm text-muted-foreground">
-            Template saved. Choose what to do next.
-          </p>
-
-          <div className="rounded-xl border border-border bg-muted/30 p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Attached to this submission
-            </p>
-            <div className="flex flex-wrap gap-1.5 text-xs">
-              <Chip>Category · {config?.label ?? "—"}</Chip>
-              {subType && <Chip>Sub Type · {subType}</Chip>}
-              <Chip>Priority · {config?.priority ?? "—"}</Chip>
-              <Chip>Attachment · {attachment}</Chip>
-              <Chip>
-                CTA · {cta}
-                {cta === "Direct Link" && ctaLink ? ` (${ctaLink})` : ""}
-              </Chip>
-              <Chip>Segment · {segment}</Chip>
-              {segmentHasLowTech && (
-                <Chip>
-                  WhatsApp · {whatsappBody ? `${whatsappBody.length}/300 chars` : "empty"}
-                  {whatsappCtaKind !== "None" && whatsappCtaValue
-                    ? ` · ${whatsappCtaKind} ${whatsappCtaValue}`
-                    : ""}
-                </Chip>
-              )}
+      {step === 3 && (
+        <SectionCard title="Template saved">
+          <div className="flex items-start gap-3 rounded-xl border border-cat-green/40 bg-cat-green-soft/40 p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-cat-green" />
+            <div className="min-w-0 space-y-3">
+              <p className="text-sm text-foreground">
+                Template saved. Copy this ID to raise an approval request on Workdesk.
+              </p>
+              <IdCopyRow id={templateId ?? ""} />
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Button onClick={submitReview} className="gap-1.5">
-              <Send className="h-4 w-4" /> Request Review
-            </Button>
-            <Button variant="outline" onClick={saveDraft} className="gap-1.5">
-              <Save className="h-4 w-4" /> Save as Draft only
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={reset}>
+              Create another template
             </Button>
           </div>
-          <Button
-            variant="ghost"
-            onClick={notifySlack}
-            className="w-full justify-center gap-1.5 text-muted-foreground"
-          >
-            <MessageSquare className="h-4 w-4" /> Optional — Notify on Slack
-          </Button>
         </SectionCard>
       )}
 
@@ -749,6 +425,35 @@ function TemplateSubmitterFlow() {
     </div>
   );
 }
+
+function IdCopyRow({ id }: { id: string }) {
+  const copy = () => {
+    if (!id) return;
+    void navigator.clipboard?.writeText(id);
+    toast.success("Template ID copied");
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        Template ID
+      </span>
+      <span className="flex-1 truncate font-mono text-sm font-semibold text-foreground">
+        {id || "—"}
+      </span>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={copy}
+        className="h-7 gap-1.5 px-2 text-xs"
+        aria-label="Copy Template ID"
+      >
+        <Copy className="h-3.5 w-3.5" /> Copy
+      </Button>
+    </div>
+  );
+}
+
 
 /* -------------------------------------------------------------------------- */
 /* Small helpers                                                              */
