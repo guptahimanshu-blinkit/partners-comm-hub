@@ -334,29 +334,9 @@ function RoleRoutingTable() {
   );
 }
 
-const ROLE_OPTIONS = [
-  "Account Owner",
-  "Admin",
-  "Finance Manager",
-  "Supply Chain Manager",
-] as const;
-type RoleOption = (typeof ROLE_OPTIONS)[number];
-
-const LOCKED_CATEGORIES: CategoryId[] = ["action_required", "account_access"];
-const LOCKED_ROLES: RoleOption[] = ["Account Owner", "Admin"];
-
-const INITIAL_ASSIGNMENTS: Record<CategoryId, RoleOption[]> = {
-  action_required: LOCKED_ROLES,
-  finance_payments: ["Finance Manager", "Admin"],
-  reports_analytics: ["Supply Chain Manager"],
-  daily_ops: ["Supply Chain Manager"],
-  reminders: ["Supply Chain Manager", "Finance Manager"],
-  account_access: LOCKED_ROLES,
-};
-
 function RoleAssignmentSection() {
-  const [assignments, setAssignments] =
-    useState<Record<CategoryId, RoleOption[]>>(INITIAL_ASSIGNMENTS);
+  const { assignments, setAssignments } = useRoleAssignments();
+
 
   const toggle = (cat: CategoryId, role: RoleOption) => {
     setAssignments((p) => {
