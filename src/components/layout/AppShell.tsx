@@ -54,18 +54,6 @@ const NAV: NavItem[] = [
     roles: ["vendor_admin", "vendor_employee"],
   },
   {
-    to: "/po-extension-request",
-    label: "PO Extension Request",
-    icon: CalendarClock,
-    roles: ["vendor_admin", "vendor_employee"],
-  },
-  {
-    to: "/notifications/escalation-queue",
-    label: "Escalation Queue",
-    icon: ShieldAlert,
-    roles: ["internal_ops"],
-  },
-  {
     to: "/add-communication",
     label: "Add Communication",
     icon: PlusCircle,
@@ -90,6 +78,16 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
 ];
+
+const SUPPORT_NAV: NavItem[] = [
+  {
+    to: "/notifications/escalation-queue",
+    label: "Escalation Queue",
+    icon: ShieldAlert,
+    roles: ["vendor_admin", "vendor_employee", "internal_ops"],
+  },
+];
+
 
 function Logo() {
   return (
