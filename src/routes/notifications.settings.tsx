@@ -328,3 +328,167 @@ function RoleRoutingTable() {
     </Table>
   );
 }
+
+const ROLE_OPTIONS = [
+  "Account Owner",
+  "Admin",
+  "Finance Manager",
+  "Supply Chain Manager",
+] as const;
+type RoleOption = (typeof ROLE_OPTIONS)[number];
+
+const LOCKED_CATEGORIES: CategoryId[] = ["action_required", "account_access"];
+const LOCKED_ROLES: RoleOption[] = ["Account Owner", "Admin"];
+
+const INITIAL_ASSIGNMENTS: Record<CategoryId, RoleOption[]> = {
+  action_required: LOCKED_ROLES,
+  finance_payments: ["Finance Manager", "Admin"],
+  reports_analytics: ["Supply Chain Manager"],
+  daily_ops: ["Supply Chain Manager"],
+  reminders: ["Supply Chain Manager", "Finance Manager"],
+  account_access: LOCKED_ROLES,
+};
+
+function RoleAssignmentSection() {
+  const [assignments, setAssignments] =
+    useState<Record<CategoryId, RoleOption[]>>(INITIAL_ASSIGNMENTS);
+
+  const toggle = (cat: CategoryId, role: RoleOption) => {
+    setAssignments((p) => {
+      const current = p[cat] ?? [];
+      const next = current.includes(role)
+        ? current.filter((r) => r !== role)
+        : [...current, role];
+      return { ...p, [cat]: next };
+    });
+  };
+
+  return (
+    <section className="mb-8 rounded-xl border border-border bg-card">
+      <div className="border-b border-border p-4">
+        <h2 className="font-semibold">Role Assignment</h2>
+        <p className="text-sm text-muted-foreground">
+          Assign which roles can see each category. Individual users can set their own
+          channel preference underneath this, but never above it.
+        </p>
+      </div>
+      <div className="divide-y divide-border">
+        {CATEGORIES.map((cat) => {
+          const c = colorClasses[cat.color];
+          const isLocked = LOCKED_CATEGORIES.includes(cat.id);
+          const selected = assignments[cat.id] ?? [];
+          return (
+            <div
+              key={cat.id}
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-4 sm:flex sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", c.dot)} />
+                <span className="truncate font-medium">{cat.label}</span>
+              </div>
+              <div className="col-start-1 row-start-2 sm:col-start-auto sm:row-start-auto">
+                {isLocked ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex max-w-md cursor-not-allowed flex-wrap items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
+                          {LOCKED_ROLES.map((r) => (
+                            <Badge
+                              key={r}
+                              variant="outline"
+                              className="bg-background text-[11px] font-normal text-foreground"
+                            >
+                              {r}
+                            </Badge>
+                          ))}
+                          <Lock className="ml-1 h-3.5 w-3.5" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        Mandatory, visible to Account Owner and Admin by default, cannot be
+                        restricted.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <RolePicker
+                    selected={selected}
+                    onToggle={(r) => toggle(cat.id, r)}
+                    onRemove={(r) => toggle(cat.id, r)}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-start gap-2 border-t border-border p-4 text-xs text-muted-foreground">
+        <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        Action Required and Account &amp; Access are mandatory for Account Owner and Admin
+        and cannot be restricted.
+      </div>
+    </section>
+  );
+}
+
+function RolePicker({
+  selected,
+  onToggle,
+  onRemove,
+}: {
+  selected: RoleOption[];
+  onToggle: (r: RoleOption) => void;
+  onRemove: (r: RoleOption) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {selected.map((r) => (
+        <Badge
+          key={r}
+          variant="outline"
+          className="gap-1 bg-background text-[11px] font-normal text-foreground"
+        >
+          {r}
+          <button
+            type="button"
+            onClick={() => onRemove(r)}
+            className="ml-0.5 rounded hover:text-foreground/70"
+            aria-label={`Remove ${r}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
+      ))}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs">
+            <Plus className="h-3.5 w-3.5" />
+            Add role
+            <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-56 p-2">
+          <div className="space-y-1">
+            {ROLE_OPTIONS.map((r) => {
+              const checked = selected.includes(r);
+              return (
+                <label
+                  key={r}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => onToggle(r)}
+                  />
+                  <span>{r}</span>
+                </label>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
