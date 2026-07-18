@@ -25,10 +25,10 @@ export const Route = createFileRoute("/notifications/escalation-queue")({
 });
 
 function EscalationQueuePage() {
-  const { role } = useRole();
-  if (role !== "internal_ops") return <Navigate to="/notifications" />;
+  useRole();
 
   const breached = ESCALATION_QUEUE.filter((r) => r.sla === "breached").length;
+
 
   return (
     <AppShell>
