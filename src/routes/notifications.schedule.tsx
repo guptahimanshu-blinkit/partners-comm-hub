@@ -38,7 +38,7 @@ function ScheduleNotificationPage() {
 
   const submit = () => {
     if (!selected) return;
-    toast.success(`${selected.name} scheduled`);
+    toast.success(`${selected.templateName} scheduled`);
     setTemplateId("");
     setScheduleAt("");
     setSegment("All vendors");
