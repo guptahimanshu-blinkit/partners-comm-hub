@@ -29,6 +29,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { useRole } from "@/lib/role-context";
 import { CATEGORIES, colorClasses, type Channel, type CategoryId } from "@/lib/mock-data";
 import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
