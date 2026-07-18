@@ -30,10 +30,11 @@ function ScheduleNotificationPage() {
   const [scheduleAt, setScheduleAt] = useState("");
   const [segment, setSegment] = useState("All vendors");
 
+  const requests = useRequests();
   if (role !== "internal_ops") return <Navigate to="/notifications" />;
 
-  const published = TEMPLATES.filter((t) => t.status === "Published");
-  const selected = published.find((t) => t.id === templateId);
+  const approved = requests.filter((r) => r.status === "Approved");
+  const selected = approved.find((r) => r.templateId === templateId);
 
   const submit = () => {
     if (!selected) return;
