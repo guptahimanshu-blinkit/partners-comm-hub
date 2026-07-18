@@ -64,6 +64,8 @@ function NotificationCentreInner({
   const [selectedId, setSelectedId] = useState<string>("n1");
   const [detailFor, setDetailFor] = useState<AppNotification | null>(null);
   const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
+  const [flagFor, setFlagFor] = useState<AppNotification | null>(null);
+
 
   const visible = useMemo(
     () =>
