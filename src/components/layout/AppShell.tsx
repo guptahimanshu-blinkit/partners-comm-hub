@@ -110,42 +110,63 @@ function Logo() {
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { role, internalRole } = useRole();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const items = NAV.filter((n) => n.roles.includes(role));
+  const items = NAV.filter((n) => {
+    if (!n.roles.includes(role)) return false;
+    if (
+      n.to === "/add-communication" &&
+      role === "internal_ops" &&
+      internalRole === "Template Submitter"
+    )
+      return false;
+    return true;
+  });
+  const supportItems = SUPPORT_NAV.filter((n) => n.roles.includes(role));
+
+  const renderItem = (item: NavItem) => {
+    const active =
+      item.to === "/notifications"
+        ? pathname === "/notifications"
+        : pathname.startsWith(item.to);
+    const Icon = item.icon;
+    const label =
+      item.to === "/notifications/review-queue" &&
+      role === "internal_ops" &&
+      internalRole === "Template Submitter"
+        ? "Submit Template"
+        : item.label;
+    return (
+      <Link
+        key={item.to}
+        to={item.to}
+        onClick={onNavigate}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          active
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+        )}
+      >
+        <Icon className="h-[18px] w-[18px] shrink-0" />
+        <span className="truncate">{label}</span>
+      </Link>
+    );
+  };
 
   return (
-    <nav className="flex flex-col gap-1">
-      {items.map((item) => {
-        const active =
-          item.to === "/notifications"
-            ? pathname === "/notifications"
-            : pathname.startsWith(item.to);
-        const Icon = item.icon;
-        const label =
-          item.to === "/notifications/review-queue" &&
-          role === "internal_ops" &&
-          internalRole === "Template Submitter"
-            ? "Submit Template"
-            : item.label;
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-            )}
-          >
-            <Icon className="h-[18px] w-[18px] shrink-0" />
-            <span className="truncate">{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <div className="flex flex-col gap-5">
+      <nav className="flex flex-col gap-1">{items.map(renderItem)}</nav>
+      {supportItems.length > 0 && (
+        <div>
+          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Help & Support
+          </p>
+          <nav className="flex flex-col gap-1">{supportItems.map(renderItem)}</nav>
+        </div>
+      )}
+    </div>
   );
 }
+
 
 function RoleSwitcher() {
   const {
