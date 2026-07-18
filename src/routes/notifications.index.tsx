@@ -257,13 +257,16 @@ function NotificationCard({
   onSelect,
   onViewDetails,
   onRaiseTicket,
+  onFlag,
 }: {
   n: AppNotification;
   selected: boolean;
   onSelect: () => void;
   onViewDetails: () => void;
   onRaiseTicket: () => void;
+  onFlag: () => void;
 }) {
+
   const cat = CATEGORIES.find((c) => c.id === n.category)!;
   const c = colorClasses[cat.color];
 
