@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { useRole } from "@/lib/role-context";
+
 import { ESCALATION_QUEUE, priorityBadgeClass } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/notifications/escalation-queue")({
