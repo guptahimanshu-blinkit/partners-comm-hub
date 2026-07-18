@@ -60,8 +60,8 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
   {
-    to: "/notifications/review-queue",
-    label: "Comms Review Queue",
+    to: "/requests",
+    label: "Requests",
     icon: Inbox,
     roles: ["internal_ops"],
   },
@@ -128,12 +128,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         ? pathname === "/notifications"
         : pathname.startsWith(item.to);
     const Icon = item.icon;
-    const label =
-      item.to === "/notifications/review-queue" &&
-      role === "internal_ops" &&
-      internalRole === "Template Submitter"
-        ? "Submit Template"
-        : item.label;
+    const label = item.label;
     return (
       <Link
         key={item.to}
