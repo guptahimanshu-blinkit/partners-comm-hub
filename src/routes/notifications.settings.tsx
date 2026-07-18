@@ -35,6 +35,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useRole } from "@/lib/role-context";
 import { CATEGORIES, colorClasses, type Channel, type CategoryId } from "@/lib/mock-data";
 import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
+import {
+  useRoleAssignments,
+  ROLE_OPTIONS,
+  LOCKED_CATEGORIES,
+  LOCKED_ROLES,
+  type RoleOption,
+} from "@/lib/role-assignments";
+
 
 export const Route = createFileRoute("/notifications/settings")({
   head: () => ({
