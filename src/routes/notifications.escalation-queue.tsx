@@ -25,9 +25,8 @@ export const Route = createFileRoute("/notifications/escalation-queue")({
 });
 
 function EscalationQueuePage() {
-  useRole();
-
   const breached = ESCALATION_QUEUE.filter((r) => r.sla === "breached").length;
+
 
 
   return (
