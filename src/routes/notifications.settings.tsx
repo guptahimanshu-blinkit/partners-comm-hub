@@ -174,6 +174,11 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </section>
 
+        {/* Role Assignment — Admin only */}
+        {isAdmin ? <RoleAssignmentSection /> : null}
+
+
+
         {/* Digest frequency */}
         <section className="mb-8 rounded-xl border border-border bg-card">
           <div className="border-b border-border p-4">
