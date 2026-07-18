@@ -1,7 +1,14 @@
 export type Priority = "P1" | "P2" | "P3";
 export type Channel = "Mail" | "Portal" | "Both";
 export type CtaType = "view_details" | "raise_ticket";
-export type EmployeeRole = "Supply Chain Manager" | "Finance" | "All Roles";
+export type EmployeeRole =
+  | "Supply Chain Manager"
+  | "Finance"
+  | "All Roles"
+  | "Account Owner"
+  | "Admin"
+  | "Finance Manager";
+
 
 export type CategoryId =
   | "action_required"

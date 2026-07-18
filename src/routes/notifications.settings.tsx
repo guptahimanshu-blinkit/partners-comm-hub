@@ -35,6 +35,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useRole } from "@/lib/role-context";
 import { CATEGORIES, colorClasses, type Channel, type CategoryId } from "@/lib/mock-data";
 import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
+import {
+  useRoleAssignments,
+  ROLE_OPTIONS,
+  LOCKED_CATEGORIES,
+  LOCKED_ROLES,
+  type RoleOption,
+} from "@/lib/role-assignments";
+
 
 export const Route = createFileRoute("/notifications/settings")({
   head: () => ({
@@ -47,10 +55,12 @@ const CHANNELS: Channel[] = ["Mail", "Portal", "Both"];
 type Digest = "Real-time" | "Daily" | "Weekly";
 
 function SettingsPage() {
-  const { role } = useRole();
+  const { role, employeeRole } = useRole();
   if (role === "internal_ops") return <Navigate to="/notifications/escalation-queue" />;
-  return <SettingsInner isAdmin={role === "vendor_admin"} />;
+  if (role === "vendor_employee") return <EmployeePreferences employeeRole={employeeRole} />;
+  return <SettingsInner isAdmin />;
 }
+
 
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
   const [channels, setChannels] = useState<Record<CategoryId, Channel>>({
@@ -332,29 +342,9 @@ function RoleRoutingTable() {
   );
 }
 
-const ROLE_OPTIONS = [
-  "Account Owner",
-  "Admin",
-  "Finance Manager",
-  "Supply Chain Manager",
-] as const;
-type RoleOption = (typeof ROLE_OPTIONS)[number];
-
-const LOCKED_CATEGORIES: CategoryId[] = ["action_required", "account_access"];
-const LOCKED_ROLES: RoleOption[] = ["Account Owner", "Admin"];
-
-const INITIAL_ASSIGNMENTS: Record<CategoryId, RoleOption[]> = {
-  action_required: LOCKED_ROLES,
-  finance_payments: ["Finance Manager", "Admin"],
-  reports_analytics: ["Supply Chain Manager"],
-  daily_ops: ["Supply Chain Manager"],
-  reminders: ["Supply Chain Manager", "Finance Manager"],
-  account_access: LOCKED_ROLES,
-};
-
 function RoleAssignmentSection() {
-  const [assignments, setAssignments] =
-    useState<Record<CategoryId, RoleOption[]>>(INITIAL_ASSIGNMENTS);
+  const { assignments, setAssignments } = useRoleAssignments();
+
 
   const toggle = (cat: CategoryId, role: RoleOption) => {
     setAssignments((p) => {
@@ -494,4 +484,97 @@ function RolePicker({
     </div>
   );
 }
+
+type EmployeeChannel = "Mail" | "WhatsApp" | "Both";
+const EMPLOYEE_CHANNELS: EmployeeChannel[] = ["Mail", "WhatsApp", "Both"];
+
+function EmployeePreferences({ employeeRole }: { employeeRole: string }) {
+  const { assignments } = useRoleAssignments();
+  const [prefs, setPrefs] = useState<Record<CategoryId, EmployeeChannel>>({
+    action_required: "Both",
+    finance_payments: "Mail",
+    reports_analytics: "Mail",
+    daily_ops: "Mail",
+    reminders: "WhatsApp",
+    account_access: "Mail",
+  });
+
+  const visible = CATEGORIES.filter(
+    (cat) =>
+      !cat.mandatory &&
+      (assignments[cat.id] ?? []).includes(employeeRole as RoleOption),
+  );
+
+  return (
+    <AppShell>
+      <div className="mx-auto max-w-4xl p-4 sm:p-6">
+        <div className="mb-6">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Preference Centre</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Set your personal delivery preference for the categories assigned to you. Your
+            admin controls which categories you can see, this only controls how you receive
+            them.
+          </p>
+        </div>
+
+        <section className="rounded-xl border border-border bg-card">
+          <div className="border-b border-border p-4">
+            <h2 className="font-semibold">Your delivery channels</h2>
+            <p className="text-sm text-muted-foreground">
+              Showing categories assigned to your role: {employeeRole}
+            </p>
+          </div>
+          {visible.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No non-mandatory categories are assigned to your role yet.
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {visible.map((cat) => {
+                const c = colorClasses[cat.color];
+                return (
+                  <div
+                    key={cat.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 p-4 sm:flex sm:justify-between"
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", c.dot)} />
+                      <span className="truncate font-medium">{cat.label}</span>
+                    </div>
+                    <div className="col-start-1 row-start-2 sm:col-start-auto sm:row-start-auto">
+                      <div className="inline-flex rounded-lg border border-border p-0.5">
+                        {EMPLOYEE_CHANNELS.map((ch) => (
+                          <button
+                            key={ch}
+                            onClick={() =>
+                              setPrefs((p) => ({ ...p, [cat.id]: ch }))
+                            }
+                            className={cn(
+                              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                              prefs[cat.id] === ch
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {ch}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex items-start gap-2 border-t border-border p-4 text-xs text-muted-foreground">
+            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Mandatory categories (Action Required, Account &amp; Access) are always delivered
+            and are not shown here.
+          </div>
+        </section>
+      </div>
+    </AppShell>
+  );
+}
+
 

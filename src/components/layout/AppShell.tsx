@@ -195,9 +195,12 @@ function RoleSwitcher() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="Account Owner">Account Owner</SelectItem>
+            <SelectItem value="Admin">Admin</SelectItem>
+            <SelectItem value="Finance Manager">Finance Manager</SelectItem>
             <SelectItem value="Supply Chain Manager">Supply Chain Manager</SelectItem>
-            <SelectItem value="Finance">Finance</SelectItem>
           </SelectContent>
+
         </Select>
       )}
       {role === "internal_ops" && (

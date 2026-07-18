@@ -8,12 +8,26 @@ import {
   LifeBuoy,
   CircleAlert,
   Paperclip,
+  Flag,
 } from "lucide-react";
+
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,7 +36,7 @@ import {
 import { DetailDialog } from "@/components/notifications/DetailDialog";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
 import { useRole } from "@/lib/role-context";
-import { useRoleRouting, isCategoryVisibleTo } from "@/lib/role-routing";
+import { useRoleAssignments, isCategoryAssignedTo } from "@/lib/role-assignments";
 import {
   CATEGORIES,
   NOTIFICATIONS,
@@ -56,19 +70,21 @@ function NotificationCentreInner({
   isEmployee: boolean;
   employeeRole: string;
 }) {
-  const { routing } = useRoleRouting();
+  const { assignments } = useRoleAssignments();
   const [selectedCat, setSelectedCat] = useState<CategoryId | "all">("all");
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>("n1");
   const [detailFor, setDetailFor] = useState<AppNotification | null>(null);
   const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
+  const [flagFor, setFlagFor] = useState<AppNotification | null>(null);
+
 
   const visible = useMemo(
     () =>
       NOTIFICATIONS.filter(
-        (n) => !isEmployee || isCategoryVisibleTo(n.category, employeeRole, routing),
+        (n) => !isEmployee || isCategoryAssignedTo(n.category, employeeRole, assignments),
       ),
-    [isEmployee, employeeRole, routing],
+    [isEmployee, employeeRole, assignments],
   );
 
   const unreadByCat = (cat: CategoryId) =>
@@ -114,7 +130,7 @@ function NotificationCentreInner({
 
           <div className="space-y-0.5">
             {CATEGORIES.filter(
-              (cat) => !isEmployee || isCategoryVisibleTo(cat.id, employeeRole, routing),
+              (cat) => !isEmployee || isCategoryAssignedTo(cat.id, employeeRole, assignments),
             ).map((cat) => {
               const c = colorClasses[cat.color];
               const count = unreadByCat(cat.id);
@@ -218,6 +234,8 @@ function NotificationCentreInner({
                   onSelect={() => setSelectedId(selectedId === n.id ? "" : n.id)}
                   onViewDetails={() => setDetailFor(n)}
                   onRaiseTicket={() => setTicketFor(n)}
+                  onFlag={() => setFlagFor(n)}
+
                 />
               ))}
             </div>
@@ -235,6 +253,12 @@ function NotificationCentreInner({
         open={!!ticketFor}
         onOpenChange={(v) => !v && setTicketFor(null)}
       />
+      <ReportMismatchDialog
+        notification={flagFor}
+        open={!!flagFor}
+        onOpenChange={(v) => !v && setFlagFor(null)}
+      />
+
     </AppShell>
   );
 }
@@ -245,13 +269,16 @@ function NotificationCard({
   onSelect,
   onViewDetails,
   onRaiseTicket,
+  onFlag,
 }: {
   n: AppNotification;
   selected: boolean;
   onSelect: () => void;
   onViewDetails: () => void;
   onRaiseTicket: () => void;
+  onFlag: () => void;
 }) {
+
   const cat = CATEGORIES.find((c) => c.id === n.category)!;
   const c = colorClasses[cat.color];
 
@@ -340,7 +367,20 @@ function NotificationCard({
                   <LifeBuoy className="h-4 w-4" /> Raise Ticket
                 </Button>
               )}
+              {n.category === "reports_analytics" &&
+                (n.attachment?.type === "PDF" ||
+                  n.attachment?.type === "Excel Export") && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onFlag}
+                    className="gap-1.5"
+                  >
+                    <Flag className="h-4 w-4" /> Report data mismatch
+                  </Button>
+                )}
             </div>
+
           </div>
           {n.expired && (
             <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -353,3 +393,75 @@ function NotificationCard({
     </div>
   );
 }
+
+function ReportMismatchDialog({
+  notification,
+  open,
+  onOpenChange,
+}: {
+  notification: AppNotification | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [note, setNote] = useState("");
+  const cat = notification
+    ? CATEGORIES.find((c) => c.id === notification.category)
+    : null;
+
+  const submit = () => {
+    toast.success("Reported, Help and Support will review this");
+    setNote("");
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Flag className="h-4 w-4" /> Report data mismatch
+          </DialogTitle>
+          <DialogDescription>
+            Flag this report for review by Help and Support. This does not affect the
+            notification itself.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Comm name</Label>
+            <div className="mt-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+              {notification?.subject ?? ""}
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Category</Label>
+            <div className="mt-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+              {cat?.label ?? ""}
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="mismatch-note" className="text-xs text-muted-foreground">
+              What looks wrong
+            </Label>
+            <Textarea
+              id="mismatch-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Describe the mismatch you spotted…"
+              className="mt-1 min-h-[100px]"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={note.trim().length === 0}>
+            Submit report
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
