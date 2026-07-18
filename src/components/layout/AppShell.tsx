@@ -60,8 +60,8 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
   {
-    to: "/notifications/review-queue",
-    label: "Comms Review Queue",
+    to: "/requests",
+    label: "Requests",
     icon: Inbox,
     roles: ["internal_ops"],
   },

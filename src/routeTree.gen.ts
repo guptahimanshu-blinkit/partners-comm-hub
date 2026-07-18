@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendorDeliveryProfilesRouteImport } from './routes/vendor-delivery-profiles'
+import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
 import { Route as AddCommunicationRouteImport } from './routes/add-communication'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,6 +24,11 @@ import { Route as NotificationsEscalationQueueRouteImport } from './routes/notif
 const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
   id: '/vendor-delivery-profiles',
   path: '/vendor-delivery-profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestsRoute = RequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
+  '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
+  '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
+  '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/review-queue': typeof NotificationsReviewQueueRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add-communication'
     | '/po-extension-request'
+    | '/requests'
     | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add-communication'
     | '/po-extension-request'
+    | '/requests'
     | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add-communication'
     | '/po-extension-request'
+    | '/requests'
     | '/vendor-delivery-profiles'
     | '/notifications/escalation-queue'
     | '/notifications/review-queue'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddCommunicationRoute: typeof AddCommunicationRoute
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
+  RequestsRoute: typeof RequestsRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
   NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsReviewQueueRoute: typeof NotificationsReviewQueueRoute
@@ -170,6 +183,13 @@ declare module '@tanstack/react-router' {
       path: '/vendor-delivery-profiles'
       fullPath: '/vendor-delivery-profiles'
       preLoaderRoute: typeof VendorDeliveryProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/requests': {
+      id: '/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof RequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/po-extension-request': {
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddCommunicationRoute: AddCommunicationRoute,
   PoExtensionRequestRoute: PoExtensionRequestRoute,
+  RequestsRoute: RequestsRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
   NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsReviewQueueRoute: NotificationsReviewQueueRoute,
