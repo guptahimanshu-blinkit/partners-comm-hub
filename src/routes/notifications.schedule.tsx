@@ -65,11 +65,17 @@ function ScheduleNotificationPage() {
                 <SelectValue placeholder="Choose a template…" />
               </SelectTrigger>
               <SelectContent>
-                {published.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name} — {t.tenant} · {t.category}
-                  </SelectItem>
-                ))}
+                {approved.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                    No approved templates yet.
+                  </div>
+                ) : (
+                  approved.map((r) => (
+                    <SelectItem key={r.templateId} value={r.templateId}>
+                      {r.templateName} — {r.categoryId}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             <div className="flex items-start gap-2 rounded-lg bg-muted/40 p-2.5">
