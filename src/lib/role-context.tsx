@@ -22,7 +22,8 @@ const STORAGE_INT_KEY = "pbc_int_role";
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<PortalRole>("vendor_admin");
   const [employeeRole, setEmployeeRoleState] =
-    useState<EmployeeRole>("Supply Chain Manager");
+    useState<EmployeeRole>("Finance Manager");
+
   const [internalRole, setInternalRoleState] = useState<InternalRole>("Template Submitter");
 
   useEffect(() => {
