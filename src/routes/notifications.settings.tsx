@@ -47,10 +47,12 @@ const CHANNELS: Channel[] = ["Mail", "Portal", "Both"];
 type Digest = "Real-time" | "Daily" | "Weekly";
 
 function SettingsPage() {
-  const { role } = useRole();
+  const { role, employeeRole } = useRole();
   if (role === "internal_ops") return <Navigate to="/notifications/escalation-queue" />;
-  return <SettingsInner isAdmin={role === "vendor_admin"} />;
+  if (role === "vendor_employee") return <EmployeePreferences employeeRole={employeeRole} />;
+  return <SettingsInner isAdmin />;
 }
+
 
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
   const [channels, setChannels] = useState<Record<CategoryId, Channel>>({
