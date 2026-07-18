@@ -4,19 +4,16 @@ import {
   Inbox,
   ArrowRight,
   ArrowLeft,
-  ShieldAlert,
-  Info,
-  Check,
-  Send,
   Save,
-  MessageSquare,
   CheckCircle2,
   XCircle,
   Paperclip,
   Link2,
   Layers,
   Smartphone,
+  Copy,
 } from "lucide-react";
+
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
