@@ -457,7 +457,7 @@ function IdCopyRow({ id }: { id: string }) {
 /* -------------------------------------------------------------------------- */
 
 function Stepper({ step }: { step: number }) {
-  const steps = ["Create", "Categorize", "Content", "Save", "Submit"];
+  const steps = ["Create", "Content", "Saved"];
   return (
     <ol className="flex flex-wrap items-center gap-2 text-xs">
       {steps.map((label, i) => {
@@ -476,8 +476,9 @@ function Stepper({ step }: { step: number }) {
                     : "border-border text-muted-foreground",
               )}
             >
-              {done ? <Check className="h-3 w-3" /> : n}
+              {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : n}
             </span>
+
             <span
               className={cn(
                 "font-medium",
