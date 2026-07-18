@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ShieldAlert, ArrowUpRight, CheckCircle2, AlertTriangle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { useRole } from "@/lib/role-context";
+
 import { ESCALATION_QUEUE, priorityBadgeClass } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/notifications/escalation-queue")({
@@ -25,10 +25,9 @@ export const Route = createFileRoute("/notifications/escalation-queue")({
 });
 
 function EscalationQueuePage() {
-  const { role } = useRole();
-  if (role !== "internal_ops") return <Navigate to="/notifications" />;
-
   const breached = ESCALATION_QUEUE.filter((r) => r.sla === "breached").length;
+
+
 
   return (
     <AppShell>
