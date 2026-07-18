@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/lib/role-context";
+import { useRequests } from "@/lib/requests-store";
 
 export const Route = createFileRoute("/notifications/schedule")({
   head: () => ({
@@ -22,61 +23,6 @@ export const Route = createFileRoute("/notifications/schedule")({
   }),
   component: ScheduleNotificationPage,
 });
-
-type TemplateStatus = "Published" | "Draft" | "Pending Review";
-
-interface WorkdeskTemplate {
-  id: string;
-  name: string;
-  tenant: string;
-  category: string;
-  status: TemplateStatus;
-}
-
-const TEMPLATES: WorkdeskTemplate[] = [
-  {
-    id: "tpl_1",
-    name: "Weekly payout summary",
-    tenant: "Blinkit",
-    category: "Important Updates",
-    status: "Published",
-  },
-  {
-    id: "tpl_2",
-    name: "PO acceptance reminder",
-    tenant: "Blinkit",
-    category: "Orders and Purchases",
-    status: "Published",
-  },
-  {
-    id: "tpl_3",
-    name: "Monthly performance report",
-    tenant: "Hyperpure",
-    category: "Important Updates",
-    status: "Published",
-  },
-  {
-    id: "tpl_4",
-    name: "Password rotation notice",
-    tenant: "Blinkit",
-    category: "Internal",
-    status: "Pending Review",
-  },
-  {
-    id: "tpl_5",
-    name: "New catalog upload window",
-    tenant: "Blinkit",
-    category: "Important Updates",
-    status: "Draft",
-  },
-  {
-    id: "tpl_6",
-    name: "Q3 dispute resolution deadline",
-    tenant: "Blinkit",
-    category: "Orders and Purchases",
-    status: "Draft",
-  },
-];
 
 function ScheduleNotificationPage() {
   const { role } = useRole();
