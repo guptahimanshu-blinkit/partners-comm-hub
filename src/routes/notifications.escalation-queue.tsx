@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ShieldAlert, ArrowUpRight, CheckCircle2, AlertTriangle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
