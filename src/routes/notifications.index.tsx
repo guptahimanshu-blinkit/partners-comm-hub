@@ -241,6 +241,12 @@ function NotificationCentreInner({
         open={!!ticketFor}
         onOpenChange={(v) => !v && setTicketFor(null)}
       />
+      <ReportMismatchDialog
+        notification={flagFor}
+        open={!!flagFor}
+        onOpenChange={(v) => !v && setFlagFor(null)}
+      />
+
     </AppShell>
   );
 }
