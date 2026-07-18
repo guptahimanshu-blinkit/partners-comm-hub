@@ -222,6 +222,8 @@ function NotificationCentreInner({
                   onSelect={() => setSelectedId(selectedId === n.id ? "" : n.id)}
                   onViewDetails={() => setDetailFor(n)}
                   onRaiseTicket={() => setTicketFor(n)}
+                  onFlag={() => setFlagFor(n)}
+
                 />
               ))}
             </div>
