@@ -381,3 +381,75 @@ function NotificationCard({
     </div>
   );
 }
+
+function ReportMismatchDialog({
+  notification,
+  open,
+  onOpenChange,
+}: {
+  notification: AppNotification | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [note, setNote] = useState("");
+  const cat = notification
+    ? CATEGORIES.find((c) => c.id === notification.category)
+    : null;
+
+  const submit = () => {
+    toast.success("Reported, Help and Support will review this");
+    setNote("");
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Flag className="h-4 w-4" /> Report data mismatch
+          </DialogTitle>
+          <DialogDescription>
+            Flag this report for review by Help and Support. This does not affect the
+            notification itself.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Comm name</Label>
+            <div className="mt-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+              {notification?.subject ?? ""}
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Category</Label>
+            <div className="mt-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+              {cat?.label ?? ""}
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="mismatch-note" className="text-xs text-muted-foreground">
+              What looks wrong
+            </Label>
+            <Textarea
+              id="mismatch-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Describe the mismatch you spotted…"
+              className="mt-1 min-h-[100px]"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={note.trim().length === 0}>
+            Submit report
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
