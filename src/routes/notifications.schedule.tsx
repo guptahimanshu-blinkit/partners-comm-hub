@@ -81,7 +81,7 @@ function ScheduleNotificationPage() {
             <div className="flex items-start gap-2 rounded-lg bg-muted/40 p-2.5">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Only approved templates appear here.
+                Only templates with an approved request are selectable here.
               </p>
             </div>
           </div>
