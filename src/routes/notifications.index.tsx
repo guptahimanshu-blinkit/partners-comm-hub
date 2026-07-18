@@ -56,7 +56,7 @@ function NotificationCentreInner({
   isEmployee: boolean;
   employeeRole: string;
 }) {
-  const { routing } = useRoleRouting();
+  const { assignments } = useRoleAssignments();
   const [selectedCat, setSelectedCat] = useState<CategoryId | "all">("all");
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>("n1");
@@ -66,9 +66,9 @@ function NotificationCentreInner({
   const visible = useMemo(
     () =>
       NOTIFICATIONS.filter(
-        (n) => !isEmployee || isCategoryVisibleTo(n.category, employeeRole, routing),
+        (n) => !isEmployee || isCategoryAssignedTo(n.category, employeeRole, assignments),
       ),
-    [isEmployee, employeeRole, routing],
+    [isEmployee, employeeRole, assignments],
   );
 
   const unreadByCat = (cat: CategoryId) =>
@@ -114,7 +114,7 @@ function NotificationCentreInner({
 
           <div className="space-y-0.5">
             {CATEGORIES.filter(
-              (cat) => !isEmployee || isCategoryVisibleTo(cat.id, employeeRole, routing),
+              (cat) => !isEmployee || isCategoryAssignedTo(cat.id, employeeRole, assignments),
             ).map((cat) => {
               const c = colorClasses[cat.color];
               const count = unreadByCat(cat.id);
