@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/lib/role-context";
+import { useRequests } from "@/lib/requests-store";
 
 export const Route = createFileRoute("/notifications/schedule")({
   head: () => ({
@@ -23,75 +24,21 @@ export const Route = createFileRoute("/notifications/schedule")({
   component: ScheduleNotificationPage,
 });
 
-type TemplateStatus = "Published" | "Draft" | "Pending Review";
-
-interface WorkdeskTemplate {
-  id: string;
-  name: string;
-  tenant: string;
-  category: string;
-  status: TemplateStatus;
-}
-
-const TEMPLATES: WorkdeskTemplate[] = [
-  {
-    id: "tpl_1",
-    name: "Weekly payout summary",
-    tenant: "Blinkit",
-    category: "Important Updates",
-    status: "Published",
-  },
-  {
-    id: "tpl_2",
-    name: "PO acceptance reminder",
-    tenant: "Blinkit",
-    category: "Orders and Purchases",
-    status: "Published",
-  },
-  {
-    id: "tpl_3",
-    name: "Monthly performance report",
-    tenant: "Hyperpure",
-    category: "Important Updates",
-    status: "Published",
-  },
-  {
-    id: "tpl_4",
-    name: "Password rotation notice",
-    tenant: "Blinkit",
-    category: "Internal",
-    status: "Pending Review",
-  },
-  {
-    id: "tpl_5",
-    name: "New catalog upload window",
-    tenant: "Blinkit",
-    category: "Important Updates",
-    status: "Draft",
-  },
-  {
-    id: "tpl_6",
-    name: "Q3 dispute resolution deadline",
-    tenant: "Blinkit",
-    category: "Orders and Purchases",
-    status: "Draft",
-  },
-];
-
 function ScheduleNotificationPage() {
   const { role } = useRole();
   const [templateId, setTemplateId] = useState<string>("");
   const [scheduleAt, setScheduleAt] = useState("");
   const [segment, setSegment] = useState("All vendors");
 
+  const requests = useRequests();
   if (role !== "internal_ops") return <Navigate to="/notifications" />;
 
-  const published = TEMPLATES.filter((t) => t.status === "Published");
-  const selected = published.find((t) => t.id === templateId);
+  const approved = requests.filter((r) => r.status === "Approved");
+  const selected = approved.find((r) => r.templateId === templateId);
 
   const submit = () => {
     if (!selected) return;
-    toast.success(`${selected.name} scheduled`);
+    toast.success(`${selected.templateName} scheduled`);
     setTemplateId("");
     setScheduleAt("");
     setSegment("All vendors");
@@ -118,17 +65,23 @@ function ScheduleNotificationPage() {
                 <SelectValue placeholder="Choose a template…" />
               </SelectTrigger>
               <SelectContent>
-                {published.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name} — {t.tenant} · {t.category}
-                  </SelectItem>
-                ))}
+                {approved.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                    No approved templates yet.
+                  </div>
+                ) : (
+                  approved.map((r) => (
+                    <SelectItem key={r.templateId} value={r.templateId}>
+                      {r.templateName} — {r.categoryId}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             <div className="flex items-start gap-2 rounded-lg bg-muted/40 p-2.5">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Only approved templates appear here.
+                Only templates with an approved request are selectable here.
               </p>
             </div>
           </div>
