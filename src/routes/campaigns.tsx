@@ -24,13 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -74,13 +67,8 @@ const STATUS_ICON: Record<CampaignStatus, typeof Circle> = {
   Completed: Circle,
 };
 
-const ALL_STATUSES: CampaignStatus[] = [
-  "Running",
-  "Scheduled",
-  "Pending approval",
-  "Failing",
-  "Completed",
-];
+
+
 
 function categoryMeta(id: string) {
   return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[0];
@@ -130,8 +118,43 @@ function CampaignsPage() {
         </header>
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
-          <div className="relative min-w-[240px] flex-1 max-w-sm">
+        <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["All", "Running", "Scheduled", "Pending approval", "Failing", "Completed"] as const).map((s) => {
+              const count =
+                s === "All"
+                  ? campaigns.length
+                  : campaigns.filter((c) => c.status === s).length;
+              const active = statusFilter === s;
+              const label = s === "Pending approval" ? "Pending" : s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition",
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  {label}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0 text-[10px] font-semibold tabular-nums",
+                      active
+                        ? "bg-background/20 text-background"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative max-w-sm">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
@@ -140,27 +163,6 @@ function CampaignsPage() {
               className="h-9 pl-8"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-muted-foreground">
-              Status
-            </label>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as CampaignStatus | "All")}
-            >
-              <SelectTrigger className="h-9 w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All</SelectItem>
-                {ALL_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         {/* Table */}
@@ -168,17 +170,20 @@ function CampaignsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Campaign name</TableHead>
+                <TableHead>Campaign</TableHead>
                 <TableHead className="w-40">Channels</TableHead>
-                <TableHead className="w-32">Audience</TableHead>
-                <TableHead className="w-40">Trigger</TableHead>
-                <TableHead className="w-36">Reminders</TableHead>
-                <TableHead className="w-40">Status</TableHead>
+                <TableHead className="w-36">Audience</TableHead>
+                <TableHead className="w-44">Trigger</TableHead>
+                <TableHead className="w-32">Reminders</TableHead>
+                <TableHead className="w-36">Status</TableHead>
+                <TableHead className="w-20 text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((c) => {
                 const cat = categoryMeta(c.categoryId);
+                const canEdit =
+                  c.status === "Scheduled" || c.status === "Pending approval";
                 return (
                   <TableRow
                     key={c.id}
@@ -207,23 +212,47 @@ function CampaignsPage() {
                     <TableCell className="align-top">
                       <ChannelIcons channels={c.channels} />
                     </TableCell>
-                    <TableCell className="align-top text-sm tabular-nums">
-                      {c.audienceCount.toLocaleString("en-IN")}{" "}
-                      <span className="text-xs text-muted-foreground">vendors</span>
+                    <TableCell className="align-top text-sm">
+                      <div className="tabular-nums font-medium">
+                        {c.audienceCount.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        vendors · {c.segment.replace(" Vendors", "")}
+                      </div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <TriggerPill
-                        type={c.triggerType}
-                        frequency={c.frequency}
-                      />
+                      <div className="text-sm">
+                        {c.triggerType === "One time" ? "One time" : "Recurring"}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {c.triggerType === "One time"
+                          ? c.firstSend.split(",")[0]
+                          : c.frequency}
+                      </div>
                     </TableCell>
                     <TableCell className="align-top text-sm">
-                      {c.reminders === 0
-                        ? "None"
-                        : `${c.reminders} reminder${c.reminders > 1 ? "s" : ""}`}
+                      {c.reminders === 0 ? (
+                        <span className="text-muted-foreground">n/a</span>
+                      ) : (
+                        <span className="font-mono text-xs">
+                          backoff ×{c.reminders}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="align-top">
                       <StatusPill status={c.status} />
+                    </TableCell>
+                    <TableCell
+                      className="align-top text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelected(c)}
+                        className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                      >
+                        {canEdit ? "Edit" : "View"}
+                      </button>
                     </TableCell>
                   </TableRow>
                 );
@@ -231,7 +260,7 @@ function CampaignsPage() {
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
                     No campaigns match these filters. Acknowledge a published
