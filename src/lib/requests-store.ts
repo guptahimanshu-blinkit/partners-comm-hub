@@ -341,7 +341,7 @@ export function deriveCampaign(
     triggerType: isOnce ? "One time" : "Recurring",
     frequency: freq,
     reminders: remindersFor(req.priority),
-    status: isOnce ? "Scheduled" : "Running",
+    status: computeCampaignStatus(isOnce, log.scheduledFor),
     attachment: req.attachment,
     cta: req.cta,
     ctaDestination: req.ctaDestination,
