@@ -5,11 +5,11 @@ import {
   AlarmClock,
   RefreshCcw,
   CheckCircle2,
-  Timer,
-  Clock,
   AlertTriangle,
   Sparkles,
+  UserRound,
   TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -37,48 +37,49 @@ export const Route = createFileRoute("/help/my-tickets")({
 });
 
 // ------------------ Sample data (vendor-scoped) ------------------
+// Deliberately different numbers from the internal scorecard so it's
+// clearly this vendor's own view, not a copy.
 
 const KPIS = {
-  slaAdherence: 82.4,
-  openAndBreached: 18.0,
-  reopenRate: 6.2,
-  fcr: 74.1,
+  slaAdherence: 88.6,
+  openAndBreached: 12.5,
+  reopenRate: 4.8,
+  fcr: 71.3,
 };
 
-const BREACHED_OPEN_COUNT = 3;
+const BREACHED_OPEN_COUNT = 2;
 
 const AGING = [
-  { bucket: "0–2h", pct: 22 },
-  { bucket: "2–12h", pct: 26 },
-  { bucket: "12–24h", pct: 18 },
-  { bucket: "24–48h", pct: 15 },
-  { bucket: "48–72h", pct: 11 },
-  { bucket: "72h+", pct: 8 },
+  { bucket: "0–2h", pct: 28 },
+  { bucket: "2–12h", pct: 31 },
+  { bucket: "12–24h", pct: 17 },
+  { bucket: "24–48h", pct: 12 },
+  { bucket: "48–72h", pct: 8 },
+  { bucket: "72h+", pct: 4 },
 ];
 
 interface CategoryRow {
   id: CategoryId;
-  open: number;
-  slaAdherence: number;
-  breached: number;
+  raised: number;
+  resolvedPct: number;
 }
 
 const CATEGORY_ROWS: CategoryRow[] = [
-  { id: "action_required", open: 6, slaAdherence: 71.0, breached: 2 },
-  { id: "finance_payments", open: 9, slaAdherence: 78.5, breached: 2 },
-  { id: "reports_analytics", open: 4, slaAdherence: 88.0, breached: 0 },
-  { id: "daily_ops", open: 5, slaAdherence: 84.2, breached: 1 },
-  { id: "reminders", open: 2, slaAdherence: 95.0, breached: 0 },
-  { id: "account_access", open: 1, slaAdherence: 100.0, breached: 0 },
+  { id: "finance_payments", raised: 34, resolvedPct: 82.4 },
+  { id: "daily_ops", raised: 27, resolvedPct: 88.9 },
+  { id: "action_required", raised: 19, resolvedPct: 73.7 },
+  { id: "reports_analytics", raised: 12, resolvedPct: 91.7 },
+  { id: "reminders", raised: 7, resolvedPct: 100.0 },
+  { id: "account_access", raised: 3, resolvedPct: 100.0 },
 ];
 
-const SELF_SERVE = { self: 68, agent: 90 };
+const SELF_SERVE = { self: 61, agent: 41 };
 
 const WEEKS = [
-  { label: "Wk -3", raised: 42, resolved: 38 },
-  { label: "Wk -2", raised: 51, resolved: 44 },
-  { label: "Wk -1", raised: 47, resolved: 49 },
-  { label: "This week", raised: 39, resolved: 35 },
+  { label: "Wk -3", count: 32 },
+  { label: "Wk -2", count: 28 },
+  { label: "Wk -1", count: 25 },
+  { label: "This week", count: 17 },
 ];
 
 const CATEGORY_CHIP: Record<CategoryId, string> = {
@@ -111,7 +112,7 @@ function VendorTicketScorecardPage() {
             Ticket Scorecard
           </h1>
           <p className="text-sm text-muted-foreground">
-            Simulating: Your tickets · sample data only
+            Your tickets · sample data only
           </p>
         </header>
 
@@ -128,26 +129,26 @@ function VendorTicketScorecardPage() {
 
         <SectionCard
           title="Category Breakdown"
-          description="Your open tickets by PartnersBiz communication category."
+          description="Your tickets by PartnersBiz category, last 30 days."
         >
           <CategoryTable />
         </SectionCard>
 
-        <SectionCard
-          title="Self Serve Rate"
-          description="How many resolved tickets closed without needing an agent, last 30 days."
-        >
-          <SelfServe />
-        </SectionCard>
+        <div className="grid gap-4 md:grid-cols-2">
+          <SectionCard
+            title="Self Serve Rate"
+            description="Resolved without needing an agent, last 30 days."
+          >
+            <SelfServe />
+          </SectionCard>
 
-        <SectionCard
-          title="Ticket Volume Trend"
-          description="Raised vs resolved over the last 4 weeks."
-        >
-          <VolumeTrend />
-        </SectionCard>
-
-        <ResponseMedians />
+          <SectionCard
+            title="Ticket Volume Trend"
+            description="Tickets raised per week, last 4 weeks."
+          >
+            <VolumeTrend />
+          </SectionCard>
+        </div>
       </div>
     </AppShell>
   );
@@ -256,8 +257,8 @@ function BreachBanner() {
           {BREACHED_OPEN_COUNT} of your open tickets are past SLA.
         </span>{" "}
         Median resolution jumps from{" "}
-        <span className="font-semibold">2.5 hours</span> to{" "}
-        <span className="font-semibold text-destructive">41 hours</span> once a
+        <span className="font-semibold">1h 50m</span> to{" "}
+        <span className="font-semibold text-destructive">36 hours</span> once a
         ticket breaches.
       </p>
     </div>
@@ -313,7 +314,7 @@ function AgingChart() {
 
 function CategoryTable() {
   const rows = useMemo(
-    () => [...CATEGORY_ROWS].sort((a, b) => a.slaAdherence - b.slaAdherence),
+    () => [...CATEGORY_ROWS].sort((a, b) => b.raised - a.raised),
     [],
   );
   const labelFor = (id: CategoryId) =>
@@ -323,15 +324,14 @@ function CategoryTable() {
       <TableHeader>
         <TableRow>
           <TableHead>Category</TableHead>
-          <TableHead className="text-right">Tickets Open</TableHead>
-          <TableHead className="text-right">SLA Adherence</TableHead>
-          <TableHead className="text-right">Open &amp; Breached</TableHead>
+          <TableHead className="text-right">Tickets Raised</TableHead>
+          <TableHead className="text-right">Resolved</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((r) => {
-          const red = r.slaAdherence < 65;
-          const amber = !red && r.slaAdherence < 80;
+          const red = r.resolvedPct < 70;
+          const amber = !red && r.resolvedPct < 85;
           return (
             <TableRow key={r.id}>
               <TableCell>
@@ -344,7 +344,9 @@ function CategoryTable() {
                   {labelFor(r.id)}
                 </span>
               </TableCell>
-              <TableCell className="text-right tabular-nums">{r.open}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {r.raised}
+              </TableCell>
               <TableCell className="text-right">
                 <span
                   className={cn(
@@ -356,18 +358,8 @@ function CategoryTable() {
                         : "bg-cat-green/10 text-cat-green",
                   )}
                 >
-                  {r.slaAdherence.toFixed(1)}%
+                  {r.resolvedPct.toFixed(1)}%
                 </span>
-              </TableCell>
-              <TableCell
-                className={cn(
-                  "text-right tabular-nums",
-                  r.breached > 0
-                    ? "font-semibold text-foreground"
-                    : "text-muted-foreground",
-                )}
-              >
-                {r.breached}
               </TableCell>
             </TableRow>
           );
@@ -384,38 +376,37 @@ function SelfServe() {
   const selfPct = Math.round((SELF_SERVE.self / total) * 100);
   const agentPct = 100 - selfPct;
   return (
-    <div className="space-y-3">
-      <div className="flex items-baseline gap-3">
-        <Sparkles className="h-5 w-5 text-cat-green" />
-        <span className="text-4xl font-semibold text-foreground tabular-nums">
-          {selfPct}%
-        </span>
-        <span className="text-sm text-muted-foreground">
-          self-served ({SELF_SERVE.self} of {total} resolved, last 30 days)
-        </span>
+    <div className="grid grid-cols-2 gap-3">
+      <div className="rounded-lg border border-border bg-muted/40 p-4">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-cat-green" />
+          Resolved via self serve
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="text-3xl font-semibold text-foreground tabular-nums">
+            {SELF_SERVE.self}
+          </span>
+          <span className="text-sm font-semibold text-cat-green tabular-nums">
+            {selfPct}%
+          </span>
+        </div>
       </div>
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full bg-cat-green"
-          style={{ width: `${selfPct}%` }}
-        />
-        <div
-          className="h-full bg-muted-foreground/30"
-          style={{ width: `${agentPct}%` }}
-        />
+      <div className="rounded-lg border border-border bg-muted/40 p-4">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <UserRound className="h-3.5 w-3.5" />
+          Needed an agent
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="text-3xl font-semibold text-foreground tabular-nums">
+            {SELF_SERVE.agent}
+          </span>
+          <span className="text-sm font-semibold text-muted-foreground tabular-nums">
+            {agentPct}%
+          </span>
+        </div>
       </div>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-cat-green align-middle" />
-          {SELF_SERVE.self} resolved without an agent
-        </span>
-        <span>
-          <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-muted-foreground/30 align-middle" />
-          {SELF_SERVE.agent} needed an agent
-        </span>
-      </div>
-      <p className="text-[11px] text-muted-foreground">
-        Higher self-serve means faster resolution and no waiting.
+      <p className="col-span-2 text-[11px] text-muted-foreground">
+        Based on {total} tickets resolved in the last 30 days.
       </p>
     </div>
   );
@@ -424,103 +415,42 @@ function SelfServe() {
 // ------------------ Volume Trend ------------------
 
 function VolumeTrend() {
-  const max = Math.max(...WEEKS.flatMap((w) => [w.raised, w.resolved]));
-  const prev = WEEKS[WEEKS.length - 2];
-  const curr = WEEKS[WEEKS.length - 1];
-  const delta = ((curr.raised - prev.raised) / prev.raised) * 100;
-  const down = delta < 0;
+  const max = Math.max(...WEEKS.map((w) => w.count));
+  const first = WEEKS[0].count;
+  const last = WEEKS[WEEKS.length - 1].count;
+  const down = last < first;
+  const label = down ? "Trending down" : "Trending up";
+  const Icon = down ? TrendingDown : TrendingUp;
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-around gap-4 h-40">
+      <div className="flex items-end justify-around gap-4 h-32">
         {WEEKS.map((w) => (
           <div key={w.label} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-32 w-full items-end justify-center gap-1.5">
+            <div className="flex h-24 w-full items-end justify-center">
               <div
-                className="w-5 rounded-t-sm bg-primary/70"
-                style={{ height: `${(w.raised / max) * 100}%` }}
-                title={`Raised: ${w.raised}`}
-              />
-              <div
-                className="w-5 rounded-t-sm bg-cat-green/70"
-                style={{ height: `${(w.resolved / max) * 100}%` }}
-                title={`Resolved: ${w.resolved}`}
+                className="w-8 rounded-t-sm bg-primary/70"
+                style={{ height: `${(w.count / max) * 100}%` }}
+                title={`${w.count} tickets`}
               />
             </div>
             <div className="text-[11px] font-medium text-muted-foreground">
               {w.label}
             </div>
             <div className="text-[10px] tabular-nums text-muted-foreground">
-              {w.raised}/{w.resolved}
+              {w.count}
             </div>
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/70" />
-            Raised
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-cat-green/70" />
-            Resolved
-          </span>
-        </div>
-        <div
-          className={cn(
-            "flex items-center gap-1 font-medium tabular-nums",
-            down ? "text-cat-green" : "text-destructive",
-          )}
-        >
-          <TrendingDown
-            className={cn("h-3.5 w-3.5", !down && "rotate-180")}
-          />
-          {down ? "▼" : "▲"} {Math.abs(delta).toFixed(0)}% vs last week
-        </div>
+      <div
+        className={cn(
+          "flex items-center gap-1.5 border-t border-border pt-3 text-xs font-medium",
+          down ? "text-cat-green" : "text-destructive",
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" />
+        {label} — {Math.abs(last - first)} fewer tickets vs 3 weeks ago
       </div>
-    </div>
-  );
-}
-
-// ------------------ Response medians ------------------
-
-function ResponseMedians() {
-  const items = [
-    {
-      label: "Median First Reply",
-      value: "2h 05m",
-      target: "Target ≤ 4h",
-      icon: Timer,
-    },
-    {
-      label: "Median Reopen → Resolved",
-      value: "9h 12m",
-      target: "Target ≤ 12h",
-      icon: Clock,
-    },
-  ];
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {items.map((i) => {
-        const Icon = i.icon;
-        return (
-          <div
-            key={i.label}
-            className="rounded-xl border border-border bg-card p-4 shadow-sm"
-          >
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">{i.label}</span>
-              <Icon className="h-4 w-4" />
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-foreground">
-              {i.value}
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">
-              {i.target}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
