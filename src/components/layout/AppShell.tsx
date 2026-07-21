@@ -42,6 +42,7 @@ import {
   useRoleAssignments,
   isCategoryAssignedTo,
 } from "@/lib/role-assignments";
+import { usePublishLogs } from "@/lib/requests-store";
 
 interface NavItem {
   to: string;
