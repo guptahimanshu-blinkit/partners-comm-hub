@@ -226,7 +226,7 @@ const BREADCRUMBS: Array<{ match: (p: string) => boolean; trail: string[] }> = [
   { match: (p) => p === "/notifications", trail: ["Notification Centre"] },
   { match: (p) => p.startsWith("/notifications/settings"), trail: ["Preference Centre"] },
   { match: (p) => p.startsWith("/notifications/schedule"), trail: ["Workdesk", "Add New Notification"] },
-  { match: (p) => p.startsWith("/notifications/escalation-queue"), trail: ["Help & Support", "Escalation Queue"] },
+  
   { match: (p) => p.startsWith("/notifications/send-calendar"), trail: ["Send Calendar"] },
   { match: (p) => p.startsWith("/requests"), trail: ["Workdesk", "Requests"] },
   { match: (p) => p.startsWith("/comms-performance"), trail: ["Workdesk", "Comms Performance"] },
