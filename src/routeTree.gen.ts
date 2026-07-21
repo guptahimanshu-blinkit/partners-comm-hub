@@ -20,6 +20,7 @@ import { Route as NotificationsSettingsRouteImport } from './routes/notification
 import { Route as NotificationsSendCalendarRouteImport } from './routes/notifications.send-calendar'
 import { Route as NotificationsScheduleRouteImport } from './routes/notifications.schedule'
 import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
+import { Route as HelpTicketScorecardRouteImport } from './routes/help.ticket-scorecard'
 
 const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
   id: '/vendor-delivery-profiles',
@@ -78,6 +79,11 @@ const NotificationsEscalationQueueRoute =
     path: '/notifications/escalation-queue',
     getParentRoute: () => rootRouteImport,
   } as any)
+const HelpTicketScorecardRoute = HelpTicketScorecardRouteImport.update({
+  id: '/help/ticket-scorecard',
+  path: '/help/ticket-scorecard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/help/ticket-scorecard'
     | '/notifications/escalation-queue'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/help/ticket-scorecard'
     | '/notifications/escalation-queue'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/help/ticket-scorecard'
     | '/notifications/escalation-queue'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   RequestsRoute: typeof RequestsRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
+  HelpTicketScorecardRoute: typeof HelpTicketScorecardRoute
   NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsScheduleRoute: typeof NotificationsScheduleRoute
   NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
@@ -254,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsEscalationQueueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help/ticket-scorecard': {
+      id: '/help/ticket-scorecard'
+      path: '/help/ticket-scorecard'
+      fullPath: '/help/ticket-scorecard'
+      preLoaderRoute: typeof HelpTicketScorecardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -264,6 +284,7 @@ const rootRouteChildren: RootRouteChildren = {
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   RequestsRoute: RequestsRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
+  HelpTicketScorecardRoute: HelpTicketScorecardRoute,
   NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsScheduleRoute: NotificationsScheduleRoute,
   NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,

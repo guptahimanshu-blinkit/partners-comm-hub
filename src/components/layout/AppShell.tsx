@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Radio,
   BarChart3,
+  ClipboardCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -84,6 +85,12 @@ const SUPPORT_NAV: NavItem[] = [
     label: "Escalation Queue",
     icon: ShieldAlert,
     roles: ["vendor_admin", "vendor_employee"],
+  },
+  {
+    to: "/help/ticket-scorecard",
+    label: "Ticket Scorecard",
+    icon: ClipboardCheck,
+    roles: ["internal_ops"],
   },
 ];
 
