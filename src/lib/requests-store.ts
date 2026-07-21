@@ -457,8 +457,71 @@ function seedCampaigns(): Campaign[] {
       "3 WhatsApp deliveries bounced (invalid numbers). Retry queued.",
   });
 
+  // 4. Scheduled — WhatsApp only, Low Tech vendors
+  list.push({
+    id: "CMP-1903",
+    requestId: "REQ-CMP-WA",
+    templateId: "APOLLO-3320CD",
+    name: "Weekend Store Closure Alert",
+    categoryId: "daily_ops",
+    priority: "P2",
+    purpose:
+      "One-off WhatsApp alert to Low Tech vendors about weekend DC closure windows.",
+    commType: "High frequency",
+    channels: ["WhatsApp"],
+    segment: "Low Tech Vendors",
+    audienceCount: 640,
+    triggerType: "One time",
+    frequency: "Once",
+    reminders: 1,
+    status: "Scheduled",
+    attachment: "None",
+    cta: "None",
+    formulaFlags: ["None"],
+    whatsappMessage:
+      "Heads up: Sector 63 DC will be closed this Sunday (20 Jul). Please reschedule inbound appointments via PartnersBiz.",
+    approvedBy: "Aisha Khan",
+    acknowledgedAt: "18 Jul 2026, 04:10 PM",
+    firstSend: "19 Jul 2026, 08:00 AM",
+    submitterName: "Priya Nair",
+    requestApprovedAt: "18 Jul 2026, 03:30 PM",
+    publishedAt: iso(300),
+  });
+
+  // 5. Pending approval — Email + Dashboard, awaiting acknowledgement
+  list.push({
+    id: "CMP-1904",
+    requestId: "REQ-CMP-PENDING",
+    templateId: "APOLLO-6644EE",
+    name: "MoM Spend Report — July Cohort",
+    categoryId: "reports_analytics",
+    priority: "P3",
+    purpose:
+      "Monthly spend digest with Excel attachment, currently awaiting Approver acknowledgement.",
+    commType: "Periodic",
+    channels: ["Email", "Dashboard"],
+    segment: "Tech Enabled Vendors",
+    audienceCount: 1240,
+    triggerType: "Recurring",
+    frequency: "Monthly",
+    reminders: 0,
+    status: "Pending approval",
+    attachment: "Excel Export",
+    cta: "Direct Link",
+    ctaDestination: "https://partnersbiz.blinkit.com/reports/spend",
+    formulaFlags: ["None"],
+    approvedBy: "—",
+    acknowledgedAt: "Awaiting acknowledgement",
+    firstSend: "22 Jul 2026, 09:00 AM",
+    submitterName: "Rahul Deshmukh",
+    requestApprovedAt: "17 Jul 2026, 06:00 PM",
+    publishedAt: iso(60),
+  });
+
   return list;
 }
+
+
 
 
 
