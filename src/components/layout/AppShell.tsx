@@ -42,6 +42,7 @@ import {
   useRoleAssignments,
   isCategoryAssignedTo,
 } from "@/lib/role-assignments";
+import { usePublishLogs } from "@/lib/requests-store";
 
 interface NavItem {
   to: string;
@@ -121,6 +122,10 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { role, internalRole, employeeRole } = useRole();
   const { assignments } = useRoleAssignments();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const publishLogs = usePublishLogs();
+  const pendingReviewCount = publishLogs.filter(
+    (l) => l.status === "Pending Review",
+  ).length;
   const items = NAV.filter((n) => {
     if (!n.roles.includes(role)) return false;
     if (
@@ -142,6 +147,11 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         : pathname.startsWith(item.to);
     const Icon = item.icon;
     const label = item.label;
+    const showBadge =
+      item.to === "/requests" &&
+      role === "internal_ops" &&
+      internalRole === "Approver" &&
+      pendingReviewCount > 0;
     return (
       <Link
         key={item.to}
@@ -156,6 +166,11 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
       >
         <Icon className="h-[18px] w-[18px] shrink-0" />
         <span className="truncate">{label}</span>
+        {showBadge && (
+          <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-cat-amber-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-amber">
+            {pendingReviewCount}
+          </span>
+        )}
       </Link>
     );
   };

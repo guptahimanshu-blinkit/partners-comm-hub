@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/lib/role-context";
-import { useRequests } from "@/lib/requests-store";
+import { useRequests, addPublishLog } from "@/lib/requests-store";
 
 export const Route = createFileRoute("/notifications/schedule")({
   head: () => ({
@@ -38,7 +38,27 @@ function ScheduleNotificationPage() {
 
   const submit = () => {
     if (!selected) return;
-    toast.success(`${selected.templateName} scheduled`);
+    const scheduledDisplay = scheduleAt
+      ? new Date(scheduleAt).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Immediately";
+    addPublishLog({
+      id: `PUB-${Math.floor(1000 + Math.random() * 9000)}`,
+      requestId: selected.id,
+      templateId: selected.templateId,
+      templateName: selected.templateName,
+      segment,
+      scheduledFor: scheduledDisplay,
+      submitterName: "You (Template Submitter)",
+      publishedAt: new Date().toISOString(),
+      status: "Pending Review",
+    });
+    toast.success(`${selected.templateName} scheduled — Approver notified`);
     setTemplateId("");
     setScheduleAt("");
     setSegment("All vendors");

@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import type { CategoryId } from "./mock-data";
 
-export type RequestStatus = "Pending" | "Approved" | "Rejected";
+export type RequestStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Rejected Post Publish";
 export type RequestType = "Template Approval";
 export type PriorityLevel = "P1" | "P2" | "P3";
 export type FrequencyOption = "Once" | "Daily" | "Weekly" | "Monthly";
@@ -116,6 +120,135 @@ export function useRequests(): TemplateRequest[] {
     };
   }, []);
   return REQUESTS;
+}
+
+// -------- Publish log (post-publish confirmation loop) --------
+
+export type PublishLogStatus = "Pending Review" | "Acknowledged" | "Flagged";
+
+export interface PublishLog {
+  id: string;
+  requestId: string;
+  templateId: string;
+  templateName: string;
+  segment: string;
+  scheduledFor: string; // display string
+  submitterName: string;
+  publishedAt: string; // iso
+  status: PublishLogStatus;
+  flagReason?: string;
+  flagCategory?: RejectionCategory;
+  flaggedAt?: string;
+}
+
+let PUBLISH_LOGS: PublishLog[] = seedPublishLogs();
+const logListeners = new Set<() => void>();
+function emitLogs() {
+  logListeners.forEach((l) => l());
+}
+
+export function getPublishLogs(): PublishLog[] {
+  return PUBLISH_LOGS;
+}
+
+export function addPublishLog(log: PublishLog) {
+  PUBLISH_LOGS = [log, ...PUBLISH_LOGS];
+  emitLogs();
+}
+
+export function acknowledgeLog(id: string) {
+  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
+    l.id === id ? { ...l, status: "Acknowledged" as const } : l,
+  );
+  emitLogs();
+}
+
+export function flagLog(
+  id: string,
+  reason: string,
+  category: RejectionCategory,
+) {
+  const log = PUBLISH_LOGS.find((l) => l.id === id);
+  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
+    l.id === id
+      ? {
+          ...l,
+          status: "Flagged" as const,
+          flagReason: reason,
+          flagCategory: category,
+          flaggedAt: nowStamp(),
+        }
+      : l,
+  );
+  emitLogs();
+  if (log) {
+    REQUESTS = REQUESTS.map((r) =>
+      r.id === log.requestId
+        ? {
+            ...r,
+            status: "Rejected Post Publish" as const,
+            rejectedAt: nowStamp(),
+            rejectionReason: reason,
+            rejectionCategory: category,
+          }
+        : r,
+    );
+    emit();
+  }
+}
+
+export function usePublishLogs(): PublishLog[] {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const l = () => setTick((t) => t + 1);
+    logListeners.add(l);
+    return () => {
+      logListeners.delete(l);
+    };
+  }, []);
+  return PUBLISH_LOGS;
+}
+
+function seedPublishLogs(): PublishLog[] {
+  return [
+    {
+      id: "PUB-2003",
+      requestId: "REQ-1003",
+      templateId: "APOLLO-9E5B22",
+      templateName: "Payment on Hold — Invoice Rejection",
+      segment: "Tech Enabled Vendors",
+      scheduledFor: "18 Jul 2026, 09:00 AM",
+      submitterName: "Nikhil Rao",
+      publishedAt: iso(120),
+      status: "Pending Review",
+    },
+    {
+      id: "PUB-2002",
+      requestId: "REQ-SEED-A",
+      templateId: "APOLLO-8410F2",
+      templateName: "Fill Rate Weekly Digest — North",
+      segment: "Tech Enabled Vendors",
+      scheduledFor: "16 Jul 2026, 10:30 AM",
+      submitterName: "Rahul Deshmukh",
+      publishedAt: iso(600),
+      status: "Acknowledged",
+    },
+    {
+      id: "PUB-2001",
+      requestId: "REQ-SEED-B",
+      templateId: "APOLLO-77BC09",
+      templateName: "Weekend PO Reminder — Bulk",
+      segment: "All vendors",
+      scheduledFor: "14 Jul 2026, 08:00 AM",
+      submitterName: "Priya Nair",
+      publishedAt: iso(2400),
+      status: "Flagged",
+      flagReason:
+        "Overlaps with the daily PO reminder already going out — please consolidate.",
+      flagCategory: "Clubbing Conflict",
+      flaggedAt: "14 Jul 2026, 11:20 AM",
+    },
+  ];
 }
 
 export function nowStamp(): string {
@@ -313,6 +446,65 @@ function seed(): TemplateRequest[] {
       status: "Pending",
       submittedBy: "Kavya Menon",
       submittedAt: iso(12),
+    },
+    {
+      id: "REQ-SEED-A",
+      requestType: "Template Approval",
+      templateId: "APOLLO-8410F2",
+      templateName: "Fill Rate Weekly Digest — North",
+      email: "rahul.d@zomato.com",
+      team: ["Analytics"],
+      slackPoc: "@rahul.d",
+      purpose: "Weekly fill rate digest for North region vendors.",
+      sentTo: ["Tech Enabled Vendors"],
+      emailAttachmentsName: "fillrate_north.xlsx",
+      vendorListName: "vendors_north.csv",
+      manufacturerListName: "-",
+      subject: "Your weekly fill rate digest",
+      formulaFlags: ["Formula Attachment"],
+      losesMoneyOrTime: "No",
+      commType: "Periodic",
+      categoryId: "reports_analytics",
+      priority: "P3",
+      attachment: "Excel Export",
+      cta: "Direct Link",
+      ctaDestination: "https://partnersbiz.blinkit.com/reports/fill-rate",
+      frequency: ["Weekly"],
+      status: "Approved",
+      submittedBy: "Rahul Deshmukh",
+      submittedAt: iso(4320),
+      approvedAt: "15 Jul 2026, 03:10 PM",
+    },
+    {
+      id: "REQ-SEED-B",
+      requestType: "Template Approval",
+      templateId: "APOLLO-77BC09",
+      templateName: "Weekend PO Reminder — Bulk",
+      email: "priya.n@zomato.com",
+      team: ["Supply Chain"],
+      slackPoc: "@priya.n",
+      purpose: "Weekend bulk reminder for open POs across all vendors.",
+      sentTo: ["Tech Enabled Vendors", "Low Tech Vendors"],
+      emailAttachmentsName: "-",
+      vendorListName: "vendors_all.csv",
+      manufacturerListName: "-",
+      subject: "Weekend PO Reminder",
+      formulaFlags: ["None"],
+      losesMoneyOrTime: "No",
+      commType: "Pre emptive",
+      categoryId: "reminders",
+      priority: "P2",
+      attachment: "None",
+      cta: "Direct Link",
+      ctaDestination: "https://partnersbiz.blinkit.com/po",
+      frequency: ["Once"],
+      status: "Rejected Post Publish",
+      submittedBy: "Priya Nair",
+      submittedAt: iso(5760),
+      rejectedAt: "14 Jul 2026, 11:20 AM",
+      rejectionReason:
+        "Overlaps with the daily PO reminder already going out — please consolidate.",
+      rejectionCategory: "Clubbing Conflict",
     },
   ];
 }

@@ -54,6 +54,10 @@ import {
   timeWaiting,
   COMM_TYPE_TO_CATEGORY,
   CATEGORY_PRIORITY,
+  usePublishLogs,
+  acknowledgeLog,
+  flagLog,
+  type PublishLog,
   type TemplateRequest,
   type FrequencyOption,
   type AttachmentOption,
@@ -195,19 +199,24 @@ function RequestsPage() {
 
 // ------- Small helpers -------
 function StatusTag({ status }: { status: TemplateRequest["status"] }) {
-  const map = {
-    Pending: "bg-cat-amber-soft text-cat-amber",
-    Approved: "bg-cat-green-soft text-cat-green",
-    Rejected: "bg-cat-red-soft text-cat-red",
-  } as const;
+  const map: Record<TemplateRequest["status"], { cls: string; label: string }> = {
+    Pending: { cls: "bg-cat-amber-soft text-cat-amber", label: "Pending" },
+    Approved: { cls: "bg-cat-green-soft text-cat-green", label: "Approved" },
+    Rejected: { cls: "bg-cat-red-soft text-cat-red", label: "Rejected" },
+    "Rejected Post Publish": {
+      cls: "bg-cat-red-soft text-cat-red",
+      label: "Rejected",
+    },
+  };
+  const { cls, label } = map[status];
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        map[status],
+        cls,
       )}
     >
-      {status}
+      {label}
     </span>
   );
 }
@@ -503,7 +512,10 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
         <TableBody>
           {requests.map((r) => {
             const isExpanded = expanded === r.id;
-            const canExpand = r.status === "Rejected";
+            const isRejected =
+              r.status === "Rejected" || r.status === "Rejected Post Publish";
+            const canExpand = isRejected;
+            const postPublish = r.status === "Rejected Post Publish";
             return (
               <>
                 <TableRow
@@ -513,7 +525,16 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                     canExpand && setExpanded(isExpanded ? null : r.id)
                   }
                 >
-                  <TableCell className="font-medium">{r.templateName}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{r.templateName}</span>
+                      {postPublish && (
+                        <span className="inline-flex items-center rounded-full bg-cat-red-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-red">
+                          Flagged after scheduling
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {r.requestType}
                   </TableCell>
@@ -535,6 +556,11 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                   <TableRow key={r.id + "-exp"}>
                     <TableCell colSpan={4} className="bg-muted/30">
                       <div className="space-y-2 p-2">
+                        {postPublish && (
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
+                            Flagged after scheduling
+                          </p>
+                        )}
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Reason Category:
@@ -543,7 +569,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                         </div>
                         <p className="text-sm">{r.rejectionReason}</p>
                         <p className="text-xs text-muted-foreground">
-                          Rejected at {r.rejectedAt}
+                          {postPublish ? "Flagged" : "Rejected"} at {r.rejectedAt}
                         </p>
                       </div>
                     </TableCell>
@@ -1031,13 +1057,15 @@ function ApproverView() {
   }
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h2 className="text-base font-semibold">Pending Approvals</h2>
-        <p className="text-xs text-muted-foreground">
-          {pending.length} request{pending.length === 1 ? "" : "s"} waiting for review.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PublishedFeed />
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold">Pending Approvals</h2>
+          <p className="text-xs text-muted-foreground">
+            {pending.length} request{pending.length === 1 ? "" : "s"} waiting for review.
+          </p>
+        </div>
       <div className="rounded-xl border border-border bg-card">
         <Table>
           <TableHeader>
@@ -1087,6 +1115,7 @@ function ApproverView() {
             )}
           </TableBody>
         </Table>
+      </div>
       </div>
     </div>
   );
@@ -1405,3 +1434,202 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
   );
 }
 
+
+// ---------- Published feed (post-publish confirmation loop) ----------
+
+function PublishedFeed() {
+  const logs = usePublishLogs();
+  const [flagId, setFlagId] = useState<string | null>(null);
+  const flagTarget = logs.find((l) => l.id === flagId) ?? null;
+  const pendingCount = logs.filter((l) => l.status === "Pending Review").length;
+
+  return (
+    <section className="space-y-3 rounded-xl border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold">Published Templates</h2>
+          <p className="text-xs text-muted-foreground">
+            Post-publish activity from Submitters. Acknowledge if it looks fine,
+            or flag it to reject after scheduling.
+          </p>
+        </div>
+        {pendingCount > 0 && (
+          <span className="inline-flex items-center rounded-full bg-cat-amber-soft px-2 py-0.5 text-[11px] font-semibold text-cat-amber">
+            {pendingCount} pending review
+          </span>
+        )}
+      </div>
+
+      <ul className="divide-y divide-border">
+        {logs.map((l) => (
+          <li key={l.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-sm text-foreground">
+                <span className="font-semibold">{l.submitterName}</span>{" "}
+                published{" "}
+                <span className="font-semibold">{l.templateName}</span> to{" "}
+                <span className="font-medium">{l.segment}</span>, scheduled for{" "}
+                <span className="font-medium">{l.scheduledFor}</span>.
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {l.templateId} · published {timeWaiting(l.publishedAt)} ago
+              </p>
+              {l.status === "Flagged" && (
+                <div className="mt-2 rounded-lg border border-cat-red/30 bg-cat-red-soft/40 p-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold uppercase tracking-wider text-cat-red text-[10px]">
+                      Flagged
+                    </span>
+                    <Badge variant="outline">{l.flagCategory}</Badge>
+                  </div>
+                  <p className="mt-1 text-foreground">{l.flagReason}</p>
+                  {l.flaggedAt && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Flagged at {l.flaggedAt} · request marked Rejected Post Publish
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              {l.status === "Pending Review" ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      acknowledgeLog(l.id);
+                      toast.success("Acknowledged");
+                    }}
+                    className="gap-1"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Acknowledge
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setFlagId(l.id)}
+                    className="gap-1 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
+                  >
+                    <XCircle className="h-3.5 w-3.5" /> Flag for Review
+                  </Button>
+                </>
+              ) : l.status === "Acknowledged" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-cat-green-soft px-2 py-0.5 text-[11px] font-semibold text-cat-green">
+                  <CheckCircle2 className="h-3 w-3" /> Acknowledged
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-cat-red-soft px-2 py-0.5 text-[11px] font-semibold text-cat-red">
+                  <XCircle className="h-3 w-3" /> Rejected Post Publish
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
+        {logs.length === 0 && (
+          <li className="py-6 text-center text-sm text-muted-foreground">
+            No published templates yet.
+          </li>
+        )}
+      </ul>
+
+      <FlagForReviewDialog
+        log={flagTarget}
+        onClose={() => setFlagId(null)}
+      />
+    </section>
+  );
+}
+
+function FlagForReviewDialog({
+  log,
+  onClose,
+}: {
+  log: PublishLog | null;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [reasonCat, setReasonCat] = useState<RejectionCategory | "">("");
+
+  const submit = () => {
+    if (!log) return;
+    if (!reason.trim() || !reasonCat) {
+      toast.error("Reason and category are required");
+      return;
+    }
+    flagLog(log.id, reason.trim(), reasonCat as RejectionCategory);
+    toast.success("Flagged — request marked Rejected Post Publish");
+    setReason("");
+    setReasonCat("");
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={!!log}
+      onOpenChange={(o) => {
+        if (!o) {
+          setReason("");
+          setReasonCat("");
+          onClose();
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Flag for Review</DialogTitle>
+          <DialogDescription>
+            {log ? (
+              <>
+                Flagging <span className="font-medium">{log.templateName}</span>{" "}
+                will reject the linked request post-publish and notify the
+                submitter.
+              </>
+            ) : (
+              "Provide a rejection reason."
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-[13px]">
+              Reason for Rejection<span className="ml-0.5 text-cat-red">*</span>
+            </Label>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px]">
+              Reason Category<span className="ml-0.5 text-cat-red">*</span>
+            </Label>
+            <Select
+              value={reasonCat}
+              onValueChange={(v) => setReasonCat(v as RejectionCategory)}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {REJECTION_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={submit}>Confirm Flag</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
