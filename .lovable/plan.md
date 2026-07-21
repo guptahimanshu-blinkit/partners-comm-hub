@@ -1,76 +1,58 @@
-## Add New Notification revamp (Workdesk, single screen)
+## Replace vendor Ticket Scorecard with a Help & Support ticket list
 
-Keep everything on one page, keep the yellow Workdesk accent as the page chrome. The form container itself takes on the selected category's color as a left border + header strip so approvers get a glance-level read. All PartnersBiz visual conventions stay.
+Rebuild `/help/my-tickets` as a real support-desk view. All previous content on this page (KPI tiles, breach banner, aging chart, category breakdown, self-serve tiles, volume trend) is removed.
 
-### Final field order (top → bottom)
+### New page layout
 
-1. **Notification Type** (existing, kept first)
-   - Dropdown filtered to Approved-request templates only.
-   - Each option: colored dot + template name + faint category label.
-   - Category → dot color:
-     - Action Required → red
-     - Finance & Payments → amber
-     - Reports & Analytics → green
-     - Daily Ops Updates → blue
-     - Reminders → purple
-     - Account & Access → grey
-   - Helper note kept: "Only templates with an approved request are selectable here."
+Header
+- Title: "Help & Support" · subtitle "Your raised tickets · sample data only".
+- Same breadcrumb + role gating as today (Vendor Admin, or Vendor Employee with Reports & Analytics access).
 
-2. **Target Level** — dropdown: `Vendor`, `Manufacturer`.
+Category pills (horizontal, scrollable on mobile)
+- GRN & Discrepancy Note · Appointment · Payment · Purchase Order · Returns · Login Issues · Onboarding · Fees & Charges · Other
+- First pill "All" is selected by default.
+- Each pill shows a small count badge of tickets in that category. Clicking a pill filters the table below.
 
-3. **Segment** — dropdown:
-   - `All vendors`
-   - `Vendors with pending dues`
-   - `Custom segment (query)`
-   - Directly below, a read-only line: **Estimated recipients: N** (sample data, updates on segment change).
+Filter row (right-aligned, under pills)
+- Status dropdown: All, Open, In Progress, Awaiting Vendor, Resolved, Closed
+- Sort By dropdown: Newest first, Oldest first, Recently updated, Status
 
-4. **Recipient Method** — two selectable tiles (single-select, radio-style):
-   - `Role based` — subtitle "Finance POC + Owner roles from directory."
-   - `Ad-hoc upload` — subtitle "Upload extra recipients via file." Shows a stub file-picker + parsed-row confirmation line when a file is chosen (sample only).
+Ticket list table
+- Columns: Ticket Id · Ticket details · Raised on · Updated at · Status
+- Ticket details = short title + one-line description underneath (muted).
+- Status = colored pill (Open=blue, In Progress=amber, Awaiting Vendor=purple, Resolved=green, Closed=grey).
+- Rows are clickable for future detail view, but no detail panel in this pass (visual affordance only).
+- Empty state: "No tickets match these filters."
 
-5. **Schedule Type** — segmented toggle: `One time` | `Recurring`.
-   - One time → single `datetime-local` field (replaces the current "Schedule at").
-   - Recurring → two side-by-side controls: weekday multi-select (Mon–Sun chips) + time picker. No date field in this mode.
+### Sample data
 
-6. **Submit** — primary button "Schedule Notification" at the bottom, disabled until Notification Type + a valid schedule are set.
+~14 sample tickets spread across the 9 categories so every pill shows a non-zero count and the Status filter has variety. Example rows:
 
-### Sample data to preload
-
-- **Estimated recipients per segment**
-  - All vendors → 4,812
-  - Vendors with pending dues → 612
-  - Custom segment (query) → 187
-- **Target Level** default: Vendor.
-- **Recipient Method** default: Role based.
-- **Schedule Type** default: One time.
-- **Ad-hoc upload stub**: on file pick shows "recipients_wave2.xlsx parsed · 884 rows valid · 6 rejected" (static, no real parse).
-
-### Category color wiring
-
-- Reuse existing `cat-*` tokens already in the theme; no new palette.
-- When Notification Type is selected, apply matching color as:
-  - a 4px left border on the form card, and
-  - a small colored dot + category label in the card header ("Category: Finance & Payments").
-- When nothing is selected, card uses the default border.
-
-### Publish-log payload
-
-Keep the existing `addPublishLog` call. Extend the `segment` string sent to the log to include target level + recipient method for the approver's feed, e.g. `"Vendor · Vendors with pending dues · Role based"`. `scheduledFor` becomes either the one-time datetime string or `"Recurring · Mon, Wed · 09:30"`.
-
-### Out of scope (explicitly not doing)
-
-- No multi-step wizard, no Basics/Audience/Messages/Schedule/Reminders/Review tabs.
-- No dark sidebar, no Pulse palette, no restyling of AppShell.
-- No new backend, no persistence beyond the existing in-memory store.
-- No changes to Requests, Templates, or any other Workdesk screen.
+- TKT-8821 · "GRN quantity mismatch — Kolkata K4" · 18 Jul 2026 · 20 Jul 2026 · Awaiting Vendor · GRN & Discrepancy Note
+- TKT-8817 · "Payment not received for invoice INV-99213" · 16 Jul 2026 · 19 Jul 2026 · In Progress · Payment
+- TKT-8804 · "Slot booking failed for Bengaluru DC" · 14 Jul 2026 · 15 Jul 2026 · Resolved · Appointment
+- TKT-8790 · "PO not visible in portal" · 12 Jul 2026 · 12 Jul 2026 · Open · Purchase Order
+- TKT-8782 · "Return pickup delayed by 4 days" · 11 Jul 2026 · 13 Jul 2026 · In Progress · Returns
+- TKT-8770 · "OTP not received on login" · 10 Jul 2026 · 10 Jul 2026 · Resolved · Login Issues
+- TKT-8755 · "Onboarding document rejected — GST proof" · 08 Jul 2026 · 09 Jul 2026 · Awaiting Vendor · Onboarding
+- TKT-8741 · "Storage fee reversal request" · 06 Jul 2026 · 08 Jul 2026 · Closed · Fees & Charges
+- …plus a few more so every category has ≥1 ticket.
 
 ### Files touched
 
-- `src/routes/notifications.schedule.tsx` — full rewrite of the form body; route, auth guard, and publish-log call preserved.
-- No new files, no store schema changes.
+- `src/routes/help.my-tickets.tsx` — full rewrite. Keep the route id, `head()` title, role gate, and `AppShell` wrapper; replace everything inside.
+- No sidebar/breadcrumb changes (page stays under "Help & Support / Ticket Scorecard" or I can rename the breadcrumb label to "My Tickets" — say the word).
+- No store changes, no new files. Sample data lives at the top of the route file.
+
+### Out of scope
+
+- Ticket detail drawer / modal.
+- Raise-new-ticket flow.
+- Any real backend or persistence.
+- Vendor Admin vs Employee view differences beyond the existing access gate.
 
 ### Confirm before I build
 
-1. Field order above (Notification Type → Target Level → Segment + Estimated recipients → Recipient Method → Schedule Type → Submit) — good?
-2. Sample estimated-recipients numbers (4,812 / 612 / 187) — good, or want different figures?
-3. Category → color mapping matches your list — good?
+1. Full removal of the old scorecard content on this page — good?
+2. Category list above (9 pills, plus "All") — correct order and labels?
+3. Breadcrumb label: keep "Ticket Scorecard" or rename to "My Tickets"?

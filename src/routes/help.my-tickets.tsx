@@ -1,18 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import {
-  ShieldCheck,
-  AlarmClock,
-  RefreshCcw,
-  CheckCircle2,
-  AlertTriangle,
-  Sparkles,
-  UserRound,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -23,7 +20,6 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
-import { CATEGORIES, type CategoryId } from "@/lib/mock-data";
 import {
   useRoleAssignments,
   isCategoryAssignedTo,
@@ -31,69 +27,207 @@ import {
 
 export const Route = createFileRoute("/help/my-tickets")({
   head: () => ({
-    meta: [{ title: "Ticket Scorecard — PartnersBiz Comms Centre" }],
+    meta: [{ title: "Help & Support — PartnersBiz Comms Centre" }],
   }),
-  component: VendorTicketScorecardPage,
+  component: VendorTicketsPage,
 });
 
-// ------------------ Sample data (vendor-scoped) ------------------
-// Deliberately different numbers from the internal scorecard so it's
-// clearly this vendor's own view, not a copy.
+// ------------------ Types & sample data ------------------
 
-const KPIS = {
-  slaAdherence: 88.6,
-  openAndBreached: 12.5,
-  reopenRate: 4.8,
-  fcr: 71.3,
-};
+type TicketCategory =
+  | "GRN & Discrepancy Note"
+  | "Appointment"
+  | "Payment"
+  | "Purchase Order"
+  | "Returns"
+  | "Login Issues"
+  | "Onboarding"
+  | "Fees & Charges"
+  | "Other";
 
-const BREACHED_OPEN_COUNT = 2;
+type TicketStatus =
+  | "Open"
+  | "In Progress"
+  | "Awaiting Vendor"
+  | "Resolved"
+  | "Closed";
 
-const AGING = [
-  { bucket: "0–2h", pct: 28 },
-  { bucket: "2–12h", pct: 31 },
-  { bucket: "12–24h", pct: 17 },
-  { bucket: "24–48h", pct: 12 },
-  { bucket: "48–72h", pct: 8 },
-  { bucket: "72h+", pct: 4 },
-];
-
-interface CategoryRow {
-  id: CategoryId;
-  raised: number;
-  resolvedPct: number;
+interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  raisedOn: string; // ISO
+  updatedAt: string; // ISO
+  status: TicketStatus;
+  category: TicketCategory;
 }
 
-const CATEGORY_ROWS: CategoryRow[] = [
-  { id: "finance_payments", raised: 34, resolvedPct: 82.4 },
-  { id: "daily_ops", raised: 27, resolvedPct: 88.9 },
-  { id: "action_required", raised: 19, resolvedPct: 73.7 },
-  { id: "reports_analytics", raised: 12, resolvedPct: 91.7 },
-  { id: "reminders", raised: 7, resolvedPct: 100.0 },
-  { id: "account_access", raised: 3, resolvedPct: 100.0 },
+const CATEGORIES: TicketCategory[] = [
+  "GRN & Discrepancy Note",
+  "Appointment",
+  "Payment",
+  "Purchase Order",
+  "Returns",
+  "Login Issues",
+  "Onboarding",
+  "Fees & Charges",
+  "Other",
 ];
 
-const SELF_SERVE = { self: 61, agent: 41 };
-
-const WEEKS = [
-  { label: "Wk -3", count: 32 },
-  { label: "Wk -2", count: 28 },
-  { label: "Wk -1", count: 25 },
-  { label: "This week", count: 17 },
+const STATUSES: TicketStatus[] = [
+  "Open",
+  "In Progress",
+  "Awaiting Vendor",
+  "Resolved",
+  "Closed",
 ];
 
-const CATEGORY_CHIP: Record<CategoryId, string> = {
-  action_required: "bg-cat-red/10 text-cat-red",
-  finance_payments: "bg-cat-amber/10 text-cat-amber",
-  reports_analytics: "bg-cat-green/10 text-cat-green",
-  daily_ops: "bg-cat-blue/10 text-cat-blue",
-  reminders: "bg-cat-purple/10 text-cat-purple",
-  account_access: "bg-cat-grey/10 text-cat-grey",
+const TICKETS: Ticket[] = [
+  {
+    id: "TKT-8821",
+    title: "GRN quantity mismatch — Kolkata K4",
+    description: "Received 480 units against PO for 500. Awaiting DC reconciliation.",
+    raisedOn: "2026-07-18",
+    updatedAt: "2026-07-20",
+    status: "Awaiting Vendor",
+    category: "GRN & Discrepancy Note",
+  },
+  {
+    id: "TKT-8817",
+    title: "Payment not received for invoice INV-99213",
+    description: "Cleared on portal 6 days ago, funds not credited to registered account.",
+    raisedOn: "2026-07-16",
+    updatedAt: "2026-07-19",
+    status: "In Progress",
+    category: "Payment",
+  },
+  {
+    id: "TKT-8811",
+    title: "Discrepancy note raised on batch B-4421",
+    description: "3 units damaged in transit, need credit note against dispatch.",
+    raisedOn: "2026-07-15",
+    updatedAt: "2026-07-17",
+    status: "Open",
+    category: "GRN & Discrepancy Note",
+  },
+  {
+    id: "TKT-8804",
+    title: "Slot booking failed for Bengaluru DC",
+    description: "Appointment portal shows no slots for next 48h. Blocking dispatch.",
+    raisedOn: "2026-07-14",
+    updatedAt: "2026-07-15",
+    status: "Resolved",
+    category: "Appointment",
+  },
+  {
+    id: "TKT-8798",
+    title: "Reschedule appointment for Chennai DC",
+    description: "Truck delayed by 6h, need next available window on 16 Jul.",
+    raisedOn: "2026-07-13",
+    updatedAt: "2026-07-14",
+    status: "Closed",
+    category: "Appointment",
+  },
+  {
+    id: "TKT-8790",
+    title: "PO not visible in portal",
+    description: "PO-77821 emailed by CM but not listed in Open POs tab.",
+    raisedOn: "2026-07-12",
+    updatedAt: "2026-07-12",
+    status: "Open",
+    category: "Purchase Order",
+  },
+  {
+    id: "TKT-8785",
+    title: "PO quantity change requested",
+    description: "Need to reduce PO-77733 line 4 from 200 to 150 units.",
+    raisedOn: "2026-07-11",
+    updatedAt: "2026-07-14",
+    status: "In Progress",
+    category: "Purchase Order",
+  },
+  {
+    id: "TKT-8782",
+    title: "Return pickup delayed by 4 days",
+    description: "RTO-3391 was scheduled 07 Jul, still awaiting pickup.",
+    raisedOn: "2026-07-11",
+    updatedAt: "2026-07-13",
+    status: "In Progress",
+    category: "Returns",
+  },
+  {
+    id: "TKT-8770",
+    title: "OTP not received on login",
+    description: "Multiple retries on registered mobile, no SMS received.",
+    raisedOn: "2026-07-10",
+    updatedAt: "2026-07-10",
+    status: "Resolved",
+    category: "Login Issues",
+  },
+  {
+    id: "TKT-8762",
+    title: "Locked out after password reset",
+    description: "Reset flow completed but portal keeps returning invalid credentials.",
+    raisedOn: "2026-07-09",
+    updatedAt: "2026-07-11",
+    status: "Awaiting Vendor",
+    category: "Login Issues",
+  },
+  {
+    id: "TKT-8755",
+    title: "Onboarding document rejected — GST proof",
+    description: "GST certificate marked illegible, please share high-res copy.",
+    raisedOn: "2026-07-08",
+    updatedAt: "2026-07-09",
+    status: "Awaiting Vendor",
+    category: "Onboarding",
+  },
+  {
+    id: "TKT-8741",
+    title: "Storage fee reversal request",
+    description: "Charged storage fee despite pickup within free window on 02 Jul.",
+    raisedOn: "2026-07-06",
+    updatedAt: "2026-07-08",
+    status: "Closed",
+    category: "Fees & Charges",
+  },
+  {
+    id: "TKT-8733",
+    title: "Late shipment penalty clarification",
+    description: "Need breakdown of penalty applied to invoice INV-98120.",
+    raisedOn: "2026-07-05",
+    updatedAt: "2026-07-07",
+    status: "Resolved",
+    category: "Fees & Charges",
+  },
+  {
+    id: "TKT-8720",
+    title: "General query — vendor portal training",
+    description: "Requesting a walkthrough session for two new team members.",
+    raisedOn: "2026-07-03",
+    updatedAt: "2026-07-04",
+    status: "Open",
+    category: "Other",
+  },
+];
+
+// ------------------ Style maps ------------------
+
+const STATUS_STYLE: Record<TicketStatus, string> = {
+  Open: "bg-cat-blue/10 text-cat-blue",
+  "In Progress": "bg-cat-amber/10 text-cat-amber",
+  "Awaiting Vendor": "bg-cat-purple/10 text-cat-purple",
+  Resolved: "bg-cat-green/10 text-cat-green",
+  Closed: "bg-muted text-muted-foreground",
 };
 
 // ------------------ Page ------------------
 
-function VendorTicketScorecardPage() {
+type CategoryFilter = "All" | TicketCategory;
+type StatusFilter = "All" | TicketStatus;
+type SortKey = "newest" | "oldest" | "updated" | "status";
+
+function VendorTicketsPage() {
   const { role, employeeRole } = useRole();
   const { assignments } = useRoleAssignments();
 
@@ -102,355 +236,234 @@ function VendorTicketScorecardPage() {
     (role === "vendor_employee" &&
       isCategoryAssignedTo("reports_analytics", employeeRole, assignments));
 
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [sortKey, setSortKey] = useState<SortKey>("newest");
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { All: TICKETS.length };
+    CATEGORIES.forEach((c) => {
+      map[c] = TICKETS.filter((t) => t.category === c).length;
+    });
+    return map;
+  }, []);
+
+  const filtered = useMemo(() => {
+    let list = TICKETS.slice();
+    if (categoryFilter !== "All")
+      list = list.filter((t) => t.category === categoryFilter);
+    if (statusFilter !== "All")
+      list = list.filter((t) => t.status === statusFilter);
+
+    switch (sortKey) {
+      case "newest":
+        list.sort((a, b) => b.raisedOn.localeCompare(a.raisedOn));
+        break;
+      case "oldest":
+        list.sort((a, b) => a.raisedOn.localeCompare(b.raisedOn));
+        break;
+      case "updated":
+        list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        break;
+      case "status":
+        list.sort(
+          (a, b) => STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status),
+        );
+        break;
+    }
+    return list;
+  }, [categoryFilter, statusFilter, sortKey]);
+
   if (!canSee) return <Navigate to="/notifications" replace />;
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Ticket Scorecard
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Your tickets · sample data only
-          </p>
+      <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
+        <header className="flex items-start gap-3">
+          <div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+            <LifeBuoy className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Help & Support
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Your raised tickets · sample data only
+            </p>
+          </div>
         </header>
 
-        <KpiRow />
+        {/* Category pills */}
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <CategoryPill
+            label="All"
+            count={counts["All"]}
+            active={categoryFilter === "All"}
+            onClick={() => setCategoryFilter("All")}
+          />
+          {CATEGORIES.map((c) => (
+            <CategoryPill
+              key={c}
+              label={c}
+              count={counts[c] ?? 0}
+              active={categoryFilter === c}
+              onClick={() => setCategoryFilter(c)}
+            />
+          ))}
+        </div>
 
-        {BREACHED_OPEN_COUNT > 0 && <BreachBanner />}
+        {/* Filter row */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground">
+              Status
+            </label>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+            >
+              <SelectTrigger className="h-9 w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All</SelectItem>
+                {STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <SectionCard
-          title="Open Aging Distribution"
-          description="Share of your open tickets by age. Older buckets are at higher SLA risk."
-        >
-          <AgingChart />
-        </SectionCard>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground">
+              Sort By
+            </label>
+            <Select
+              value={sortKey}
+              onValueChange={(v) => setSortKey(v as SortKey)}
+            >
+              <SelectTrigger className="h-9 w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="updated">Recently updated</SelectItem>
+                <SelectItem value="status">Status</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-        <SectionCard
-          title="Category Breakdown"
-          description="Your tickets by PartnersBiz category, last 30 days."
-        >
-          <CategoryTable />
-        </SectionCard>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <SectionCard
-            title="Self Serve Rate"
-            description="Resolved without needing an agent, last 30 days."
-          >
-            <SelfServe />
-          </SectionCard>
-
-          <SectionCard
-            title="Ticket Volume Trend"
-            description="Tickets raised per week, last 4 weeks."
-          >
-            <VolumeTrend />
-          </SectionCard>
+        {/* Ticket list */}
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-32">Ticket Id</TableHead>
+                <TableHead>Ticket details</TableHead>
+                <TableHead className="w-32">Raised on</TableHead>
+                <TableHead className="w-32">Updated at</TableHead>
+                <TableHead className="w-40">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((t) => (
+                <TableRow key={t.id} className="cursor-pointer">
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {t.id}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{t.title}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                      {t.description}
+                    </div>
+                    <div className="mt-1 inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {t.category}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs tabular-nums text-muted-foreground">
+                    {formatDate(t.raisedOn)}
+                  </TableCell>
+                  <TableCell className="text-xs tabular-nums text-muted-foreground">
+                    {formatDate(t.updatedAt)}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                        STATUS_STYLE[t.status],
+                      )}
+                    >
+                      {t.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    No tickets match these filters.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </AppShell>
   );
 }
 
-// ------------------ Section card ------------------
+// ------------------ Bits ------------------
 
-function SectionCard({
-  title,
-  description,
-  children,
+function CategoryPill({
+  label,
+  count,
+  active,
+  onClick,
 }: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-      <header className="mb-4">
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
-        {description && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        )}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-// ------------------ KPI tiles ------------------
-
-function KpiRow() {
-  const kpis = [
-    {
-      label: "SLA Adherence Rate",
-      value: `${KPIS.slaAdherence.toFixed(1)}%`,
-      target: "Target ≥ 95%",
-      icon: ShieldCheck,
-      red: KPIS.slaAdherence < 65,
-    },
-    {
-      label: "Open & SLA Breached",
-      value: `${KPIS.openAndBreached.toFixed(1)}%`,
-      target: "% of your open tickets",
-      icon: AlarmClock,
-      red: KPIS.openAndBreached > 35,
-    },
-    {
-      label: "Reopen Rate",
-      value: `${KPIS.reopenRate.toFixed(1)}%`,
-      target: "Target ≤ 5%",
-      icon: RefreshCcw,
-      red: false,
-    },
-    {
-      label: "First Contact Resolution",
-      value: `${KPIS.fcr.toFixed(1)}%`,
-      target: "Target ≥ 70%",
-      icon: CheckCircle2,
-      red: false,
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {kpis.map((k) => {
-        const Icon = k.icon;
-        return (
-          <div
-            key={k.label}
-            className={cn(
-              "rounded-xl border bg-card p-4 shadow-sm",
-              k.red ? "border-destructive/40 bg-destructive/5" : "border-border",
-            )}
-          >
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">{k.label}</span>
-              <Icon className="h-4 w-4" />
-            </div>
-            <div
-              className={cn(
-                "mt-2 text-2xl font-semibold",
-                k.red ? "text-destructive" : "text-foreground",
-              )}
-            >
-              {k.value}
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">
-              {k.target}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ------------------ Breach callout ------------------
-
-function BreachBanner() {
-  return (
-    <div className="flex gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
-      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-      <p className="text-sm leading-relaxed text-foreground">
-        <span className="font-semibold text-destructive">
-          {BREACHED_OPEN_COUNT} of your open tickets are past SLA.
-        </span>{" "}
-        Median resolution jumps from{" "}
-        <span className="font-semibold">1h 50m</span> to{" "}
-        <span className="font-semibold text-destructive">36 hours</span> once a
-        ticket breaches.
-      </p>
-    </div>
-  );
-}
-
-// ------------------ Aging chart ------------------
-
-function AgingChart() {
-  const max = Math.max(...AGING.map((a) => a.pct));
-  return (
-    <div className="space-y-2.5">
-      {AGING.map((a) => {
-        const width = (a.pct / max) * 100;
-        const red = a.bucket === "48–72h" || a.bucket === "72h+";
-        const amber = a.bucket === "24–48h";
-        return (
-          <div key={a.bucket} className="flex items-center gap-3">
-            <div className="w-16 shrink-0 text-xs font-medium text-muted-foreground">
-              {a.bucket}
-            </div>
-            <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-muted">
-              <div
-                className={cn(
-                  "flex h-full items-center justify-end rounded-md pr-2 text-[11px] font-semibold text-white",
-                  red
-                    ? "bg-destructive/80"
-                    : amber
-                      ? "bg-amber-500/80"
-                      : "bg-primary/70",
-                )}
-                style={{ width: `${width}%` }}
-              >
-                {width > 12 ? `${a.pct}%` : ""}
-              </div>
-              {width <= 12 && (
-                <span
-                  className="absolute inset-y-0 flex items-center pl-[calc(var(--w)_+_8px)] text-[11px] font-semibold text-foreground"
-                  style={{ ["--w" as string]: `${width}%` }}
-                >
-                  {a.pct}%
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ------------------ Category breakdown ------------------
-
-function CategoryTable() {
-  const rows = useMemo(
-    () => [...CATEGORY_ROWS].sort((a, b) => b.raised - a.raised),
-    [],
-  );
-  const labelFor = (id: CategoryId) =>
-    CATEGORIES.find((c) => c.id === id)?.label ?? id;
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Category</TableHead>
-          <TableHead className="text-right">Tickets Raised</TableHead>
-          <TableHead className="text-right">Resolved</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((r) => {
-          const red = r.resolvedPct < 70;
-          const amber = !red && r.resolvedPct < 85;
-          return (
-            <TableRow key={r.id}>
-              <TableCell>
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
-                    CATEGORY_CHIP[r.id],
-                  )}
-                >
-                  {labelFor(r.id)}
-                </span>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {r.raised}
-              </TableCell>
-              <TableCell className="text-right">
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums",
-                    red
-                      ? "bg-destructive/10 text-destructive"
-                      : amber
-                        ? "bg-amber-500/10 text-amber-600"
-                        : "bg-cat-green/10 text-cat-green",
-                  )}
-                >
-                  {r.resolvedPct.toFixed(1)}%
-                </span>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
-}
-
-// ------------------ Self Serve Rate ------------------
-
-function SelfServe() {
-  const total = SELF_SERVE.self + SELF_SERVE.agent;
-  const selfPct = Math.round((SELF_SERVE.self / total) * 100);
-  const agentPct = 100 - selfPct;
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      <div className="rounded-lg border border-border bg-muted/40 p-4">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5 text-cat-green" />
-          Resolved via self serve
-        </div>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-3xl font-semibold text-foreground tabular-nums">
-            {SELF_SERVE.self}
-          </span>
-          <span className="text-sm font-semibold text-cat-green tabular-nums">
-            {selfPct}%
-          </span>
-        </div>
-      </div>
-      <div className="rounded-lg border border-border bg-muted/40 p-4">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <UserRound className="h-3.5 w-3.5" />
-          Needed an agent
-        </div>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-3xl font-semibold text-foreground tabular-nums">
-            {SELF_SERVE.agent}
-          </span>
-          <span className="text-sm font-semibold text-muted-foreground tabular-nums">
-            {agentPct}%
-          </span>
-        </div>
-      </div>
-      <p className="col-span-2 text-[11px] text-muted-foreground">
-        Based on {total} tickets resolved in the last 30 days.
-      </p>
-    </div>
-  );
-}
-
-// ------------------ Volume Trend ------------------
-
-function VolumeTrend() {
-  const max = Math.max(...WEEKS.map((w) => w.count));
-  const first = WEEKS[0].count;
-  const last = WEEKS[WEEKS.length - 1].count;
-  const down = last < first;
-  const label = down ? "Trending down" : "Trending up";
-  const Icon = down ? TrendingDown : TrendingUp;
-  return (
-    <div className="space-y-4">
-      <div className="flex items-end justify-around gap-4 h-32">
-        {WEEKS.map((w) => (
-          <div key={w.label} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-24 w-full items-end justify-center">
-              <div
-                className="w-8 rounded-t-sm bg-primary/70"
-                style={{ height: `${(w.count / max) * 100}%` }}
-                title={`${w.count} tickets`}
-              />
-            </div>
-            <div className="text-[11px] font-medium text-muted-foreground">
-              {w.label}
-            </div>
-            <div className="text-[10px] tabular-nums text-muted-foreground">
-              {w.count}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-foreground hover:bg-muted",
+      )}
+    >
+      <span>{label}</span>
+      <span
         className={cn(
-          "flex items-center gap-1.5 border-t border-border pt-3 text-xs font-medium",
-          down ? "text-cat-green" : "text-destructive",
+          "inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums",
+          active
+            ? "bg-primary-foreground/20 text-primary-foreground"
+            : "bg-muted text-muted-foreground",
         )}
       >
-        <Icon className="h-3.5 w-3.5" />
-        {label} — {Math.abs(last - first)} fewer tickets vs 3 weeks ago
-      </div>
-    </div>
+        {count}
+      </span>
+    </button>
   );
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
