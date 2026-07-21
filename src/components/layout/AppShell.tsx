@@ -81,6 +81,12 @@ const NAV: NavItem[] = [
     icon: CalendarPlus,
     roles: ["internal_ops"],
   },
+  {
+    to: "/help/my-tickets",
+    label: "Ticket Scorecard",
+    icon: ClipboardCheck,
+    roles: ["vendor_admin", "vendor_employee"],
+  },
 ];
 
 const SUPPORT_NAV: NavItem[] = [
@@ -89,12 +95,6 @@ const SUPPORT_NAV: NavItem[] = [
     label: "Ticket Scorecard",
     icon: ClipboardCheck,
     roles: ["internal_ops"],
-  },
-  {
-    to: "/help/my-tickets",
-    label: "Ticket Scorecard",
-    icon: ClipboardCheck,
-    roles: ["vendor_admin", "vendor_employee"],
   },
 ];
 
