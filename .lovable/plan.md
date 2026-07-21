@@ -1,61 +1,86 @@
-# Comms Performance (Workdesk — Pulse metrics)
+# Ticket Scorecard — Internal Ops (Blinkit)
 
-New sidebar item under Internal Ops (Blinkit), sitting directly next to **Requests**, visible to both Template Submitter and Approver sub-roles. Route: `/comms-performance`. Page subtitle: **"Simulating: Pulse metrics"** (same treatment as Requests' "Simulating: Workdesk" subtitle).
+New route `/help/ticket-scorecard` (simulating: Support analytics), added to the **Help & Support** sidebar section for Internal Ops, visible to both **Template Submitter** and **Approver**. Sits where "Escalation Queue" used to appear for Internal Ops.
+
+Matches existing Workdesk aesthetic (same header/subtitle pattern, card grid, muted borders, semantic tokens).
+
+## Page header
+- Title: **Ticket Scorecard**
+- Subtitle: **Simulating: Support analytics**
+- Right-aligned filter row: Date range (Last 7d / 30d / 90d — default 30d), Team (All / Catalog / Finance / Supply Chain / Tech), Priority (All / P1 / P2 / P3).
 
 ## Layout
 
-Single scrollable page, sectioned with the same card styling used in Requests / Review Queue. A sticky top row of 4 KPI tiles (Avg CTR, Bounce rate, Non-openers, Avg quality score) sits above the sections. Each section below is a titled card with a short one-line description and a table or compact chart.
-
 ```text
-┌────────────────────────────────────────────────┐
-│ KPI tiles: CTR | Bounce | Non-openers | Score  │
-├────────────────────────────────────────────────┤
-│ 1. Template-level CTR                          │
-│ 2. Time-of-day CTR (announcement mailers)      │
-│ 3. Bounce tracker                              │
-│ 4. Non-opener tracker  [Suppress & route →]    │
-│ 5. Finance mail CTR (configuration level)      │
-│ 6. Content quality score (≥9 to publish)       │
-└────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│  KPI TILES  (4 across)                                        │
+│  SLA Adherence │ Open & SLA Breached │ Reopen Rate │ FCR Rate │
+├───────────────────────────────────────────────────────────────┤
+│  Open Aging Distribution (horizontal bar chart, full width)   │
+├──────────────────────────────┬────────────────────────────────┤
+│  Team-level Breach Hotspots  │  DIY vs Agent Resolution Split │
+│  (table)                     │  (donut + legend)              │
+├──────────────────────────────┴────────────────────────────────┤
+│  Response Time Medians  (2 stat cards side by side)           │
+│  Agent First Reply  │  Reopen → Resolved                      │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ## Sections & sample data
 
-**1. Template-level CTR table**
-Columns: Template ID · Name · Category · Sends · Opens · Clicks · CTR% · Trend (▲/▼ vs prior 7d).
-Sample rows: APOLLO-100234 "PO Extension Approved" (Finance, 12,430 sends, 41.2% CTR ▲), APOLLO-100311 "Weekly Fill Rate Digest" (Reports, 8,120, 22.8% ▼), APOLLO-100355 "Invoice Rejected" (Finance, 3,220, 58.6% ▲), APOLLO-100402 "Catalogue Update Required" (Action Required, 9,880, 34.1% ▼), APOLLO-100455 "Monthly Spends Summary" (Reports, 6,540, 18.2% ▼).
+**1. KPI tiles (top row, 4 cards)**
+- SLA Adherence — `92.4%` (target ≥95%)
+- Open & SLA Breached — `7.1%` of open tickets
+- Reopen Rate — `4.8%` (last 30d)
+- First Contact Resolution — `68.2%`
 
-**2. Time-of-day CTR — announcement mailers**
-Compact 24-bucket bar strip (CSS bars, no chart lib) showing CTR by send hour, filtered to Announcement category templates only. Peak marker at best hour. Sample: peak 10:00 (46%), secondary 16:00 (39%), trough 02:00 (4%). One-line insight: "Best window: 10:00–11:00 IST."
+Each tile shows value, label, and a small delta vs previous period (e.g. `▲ 1.2pp`).
 
-**3. Bounce tracker**
-Table of recent sends with hard/soft bounces. Columns: Template ID · Sent · Delivered · Hard bounce · Soft bounce · Bounce% · Top reason.
-Sample: 3 rows with reasons "Invalid mailbox", "Mailbox full", "Domain not found". Row-level badge turns red at >5% bounce.
+**2. Open Aging Distribution** — horizontal bars, count per bucket
+- `< 4h` : 42
+- `4–24h` : 31
+- `1–3d` : 18
+- `3–7d` : 9
+- `> 7d` : 4 (breach zone)
 
-**4. Non-opener tracker**
-Vendors who haven't opened last N sends of a given template. Columns: Vendor · Tenant · Template · Consecutive non-opens · Last opened · Action.
-Action column has two buttons per row: **Suppress** (removes from next send, shows toast "Suppressed for this template") and **Route to Help & Support** (creates a Help & Support ticket stub, shows toast "Ticket raised with Help & Support"). Pure client-side state, no backend.
-Sample: 6 vendors, 4–12 consecutive non-opens, mix of Tech Enabled / Low Tech.
+**3. Team-level Breach Hotspots** — table
+Columns: Team · Open tickets · Breached · Breach % · Median age
+Sample rows: Catalog 34/6/17.6%/2.1d · Finance 22/2/9.1%/1.4d · Supply Chain 19/4/21.0%/2.8d · Tech 29/1/3.4%/0.9d.
+Sorted by Breach % desc.
 
-**5. Finance mail CTR — configuration level**
-Groups Finance templates by their inherited configuration (Channel × Batching × Escalation) from the Requests categorization output. Columns: Configuration signature · Templates in group · Total sends · Avg CTR · Best template · Worst template.
-Sample: 3 configuration groups (e.g., "Mail + Immediate + P1", "Mail + Daily digest + P2", "Mail+WhatsApp + Immediate + P1") with 2–4 templates each.
+**4. DIY vs Agent Resolution Split** — donut
+- DIY (self-serve via Help articles / auto-resolve): `38%`
+- Agent-resolved: `62%`
+Legend with counts (e.g. 412 DIY / 673 Agent, last 30d).
 
-**6. Content quality score per template**
-Columns: Template ID · Name · Subject score /3 · Body score /3 · CTA score /3 · **Total /9** · Status.
-Status: **Publishable** when total ≥ 9, **Needs revision** otherwise. A helper line above: "Templates must score 9/9 to be publishable." Rows below 9 show a red badge and a "View gaps" link that opens a dialog listing which sub-scores fell short (mock reasons like "Subject > 60 chars", "CTA verb missing", "Body readability low").
-Sample: 6 templates, 3 at 9/9 Publishable, 3 at 7–8 Needs revision.
+**5. Response Time Medians** — two stat cards
+- Median Agent First Reply — `1h 42m` (target ≤2h)
+- Median Reopen → Resolved — `6h 18m` (target ≤8h)
 
-## Wiring
+## Threshold color logic (semantic tokens, not hardcoded)
 
-- Add nav item in `src/components/layout/AppShell.tsx` for `internal_ops` right after Requests, visible to both sub-roles.
-- New route `src/routes/comms-performance.tsx`.
-- Mock data inline in the route file (or a small `src/lib/comms-performance-mock.ts` if it grows).
-- Non-opener Suppress/Route actions update local component state + `toast` only; no store changes.
-- Reuse existing Card / Table / Badge / Button / Dialog primitives and existing color tokens — no new design system work.
+Applied to KPI values, breach % cells, and aging buckets:
 
-## Out of scope
+| Metric | Good (green) | Watch (amber) | Breach (red) |
+|---|---|---|---|
+| SLA Adherence | ≥ 95% | 90–94.9% | < 90% |
+| Open & SLA Breached | ≤ 5% | 5–10% | > 10% |
+| Reopen Rate | ≤ 5% | 5–10% | > 10% |
+| FCR Rate | ≥ 70% | 60–69.9% | < 60% |
+| Breach % (team row) | ≤ 5% | 5–15% | > 15% |
+| Aging bucket | `<4h`, `4–24h` neutral | `1–3d`, `3–7d` amber | `>7d` red |
+| Median First Reply | ≤ 2h | 2–4h | > 4h |
+| Median Reopen→Resolved | ≤ 8h | 8–16h | > 16h |
 
-No real analytics wiring, no cross-linking into Requests (score is display-only here), no changes to publish gating in Requests (the 9/9 rule is shown here as a reporting view; enforcement in Requests can be a follow-up if you want it).
+Colors use existing tokens: `text-primary` (green brand) for Good, `text-amber-600` equivalent via semantic amber token, `text-destructive` for Breach. Backgrounds use `/10` opacity chips for cell highlights, matching the pattern already used in Comms Performance bounce/quality tables.
 
-Please confirm the layout and sample data above, or tell me what to adjust, and I'll build it.
+## Technical notes
+- New file: `src/routes/help.ticket-scorecard.tsx`.
+- Nav: add entry in `AppShell.tsx` Help & Support section for Internal Ops (both sub-roles); Vendor sidebars untouched.
+- No new store — all sample data inline in the route, same pattern as `comms-performance.tsx`.
+- Donut = simple SVG or CSS conic-gradient (no new deps), consistent with existing charts.
+
+## Please confirm before I build
+1. **Layout** above (KPI row → aging chart → hotspots + DIY/Agent → response medians) — good, or reorder?
+2. **Threshold bands** in the table above — good, or adjust any cutoffs?
+3. Route path `/help/ticket-scorecard` under Help & Support — OK?
