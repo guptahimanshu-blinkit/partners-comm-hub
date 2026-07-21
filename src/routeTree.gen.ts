@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendorDeliveryProfilesRouteImport } from './routes/vendor-delivery-profiles'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
+import { Route as CommsPerformanceRouteImport } from './routes/comms-performance'
 import { Route as AddCommunicationRouteImport } from './routes/add-communication'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
@@ -33,6 +34,11 @@ const RequestsRoute = RequestsRouteImport.update({
 const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
   id: '/po-extension-request',
   path: '/po-extension-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommsPerformanceRoute = CommsPerformanceRouteImport.update({
+  id: '/comms-performance',
+  path: '/comms-performance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AddCommunicationRoute = AddCommunicationRouteImport.update({
@@ -76,6 +82,7 @@ const NotificationsEscalationQueueRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
+  '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
+  '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
+  '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/add-communication'
+    | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/add-communication'
+    | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/add-communication'
+    | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
@@ -152,6 +164,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddCommunicationRoute: typeof AddCommunicationRoute
+  CommsPerformanceRoute: typeof CommsPerformanceRoute
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   RequestsRoute: typeof RequestsRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
@@ -183,6 +196,13 @@ declare module '@tanstack/react-router' {
       path: '/po-extension-request'
       fullPath: '/po-extension-request'
       preLoaderRoute: typeof PoExtensionRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comms-performance': {
+      id: '/comms-performance'
+      path: '/comms-performance'
+      fullPath: '/comms-performance'
+      preLoaderRoute: typeof CommsPerformanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/add-communication': {
@@ -240,6 +260,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddCommunicationRoute: AddCommunicationRoute,
+  CommsPerformanceRoute: CommsPerformanceRoute,
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   RequestsRoute: RequestsRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,

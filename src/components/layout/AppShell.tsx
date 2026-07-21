@@ -12,6 +12,8 @@ import {
   Menu,
   ChevronDown,
   Radio,
+  BarChart3,
+
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -65,6 +67,13 @@ const NAV: NavItem[] = [
     icon: Inbox,
     roles: ["internal_ops"],
   },
+  {
+    to: "/comms-performance",
+    label: "Comms Performance",
+    icon: BarChart3,
+    roles: ["internal_ops"],
+  },
+
   {
     to: "/notifications/schedule",
     label: "Add New Notification",

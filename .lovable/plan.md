@@ -1,81 +1,61 @@
-## Goal
+# Comms Performance (Workdesk — Pulse metrics)
 
-Replace the "Comms Review Queue" area with a new general-purpose **Requests** section under Internal Ops (Blinkit), visible to both Template Submitter and Approver. Structure it as a reusable request/approval system, with "Template Approval" as the only Request Type for now.
+New sidebar item under Internal Ops (Blinkit), sitting directly next to **Requests**, visible to both Template Submitter and Approver sub-roles. Route: `/comms-performance`. Page subtitle: **"Simulating: Pulse metrics"** (same treatment as Requests' "Simulating: Workdesk" subtitle).
 
-## Sidebar & routing
+## Layout
 
-- In `src/components/layout/AppShell.tsx`:
-  - Rename the existing entry to **Requests** (icon: `Inbox`) pointing to `/requests`, visible to both `Template Submitter` and `Approver` (Submitter no longer sees a "Submit Template" alias — all request activity lives under Requests).
-  - Remove the old `/notifications/review-queue` reference. Keep other Internal Ops items untouched.
-- Add new route file `src/routes/requests.tsx` and delete `src/routes/notifications.review-queue.tsx`.
-- Under this section, subtitle in the page header reads **"Simulating: Workdesk"** whenever the route is active.
+Single scrollable page, sectioned with the same card styling used in Requests / Review Queue. A sticky top row of 4 KPI tiles (Avg CTR, Bounce rate, Non-openers, Avg quality score) sits above the sections. Each section below is a titled card with a short one-line description and a table or compact chart.
 
-## Shared request store
+```text
+┌────────────────────────────────────────────────┐
+│ KPI tiles: CTR | Bounce | Non-openers | Score  │
+├────────────────────────────────────────────────┤
+│ 1. Template-level CTR                          │
+│ 2. Time-of-day CTR (announcement mailers)      │
+│ 3. Bounce tracker                              │
+│ 4. Non-opener tracker  [Suppress & route →]    │
+│ 5. Finance mail CTR (configuration level)      │
+│ 6. Content quality score (≥9 to publish)       │
+└────────────────────────────────────────────────┘
+```
 
-- Add `src/lib/requests-store.ts`: in-memory store (module-level array + simple subscribe hook) holding request objects with fields matching the form + status (`Pending | Approved | Rejected`), `submittedAt`, `submittedBy`, `approvedAt?`, `rejectedAt?`, `rejectionReason?`, `rejectionCategory?`.
-- Preload 4–5 sample requests across statuses (mix of Submitters/Teams, one Rejected with reason, one Low-Tech WhatsApp variant).
+## Sections & sample data
 
-## Requests page (`/requests`)
+**1. Template-level CTR table**
+Columns: Template ID · Name · Category · Sends · Opens · Clicks · CTR% · Trend (▲/▼ vs prior 7d).
+Sample rows: APOLLO-100234 "PO Extension Approved" (Finance, 12,430 sends, 41.2% CTR ▲), APOLLO-100311 "Weekly Fill Rate Digest" (Reports, 8,120, 22.8% ▼), APOLLO-100355 "Invoice Rejected" (Finance, 3,220, 58.6% ▲), APOLLO-100402 "Catalogue Update Required" (Action Required, 9,880, 34.1% ▼), APOLLO-100455 "Monthly Spends Summary" (Reports, 6,540, 18.2% ▼).
 
-Single route that renders one of two views based on `internalRole`:
+**2. Time-of-day CTR — announcement mailers**
+Compact 24-bucket bar strip (CSS bars, no chart lib) showing CTR by send hour, filtered to Announcement category templates only. Peak marker at best hour. Sample: peak 10:00 (46%), secondary 16:00 (39%), trough 02:00 (4%). One-line insight: "Best window: 10:00–11:00 IST."
 
-### Submitter view
-- Header + "Simulating: Workdesk" subtitle + **New Request** button.
-- Below: **My Requests** table — columns: Template Name, Request Type, Status (colored tag: amber/green/red), Submitted At.
-- Rejected rows expand inline to show Reason + Reason Category.
+**3. Bounce tracker**
+Table of recent sends with hard/soft bounces. Columns: Template ID · Sent · Delivered · Hard bounce · Soft bounce · Bounce% · Top reason.
+Sample: 3 rows with reasons "Invalid mailbox", "Mailbox full", "Domain not found". Row-level badge turns red at >5% bounce.
 
-### New Request form (dialog or full panel)
-Fields, in order, all matching existing app styling:
-1. **Request Type** — Select, single option "Template Approval" (locked default, visibly present).
-2. Template ID (input, placeholder "Paste the Template ID copied from Apollo").
-3. Template Name (input).
-4. Email (input, placeholder "abc@zomato.com").
-5. Team (multi-select, max 2, placeholder "Pick your options").
-6. Slack ID of internal POC (user dropdown — mock user list).
-7. Purpose of the mailer (textarea).
-8. Mail will be sent to (multi-select, max 2 — vendor segment options).
-9. Email Attachments (file upload input).
-10. Vendor ID list (file upload).
-11. Manufacturer ID list (file upload).
-12. Subject line (input).
-13. Does this include any formula-generated attachment or table in mail body (multi-select, max 2: Formula Attachment / Table in Body / None).
+**4. Non-opener tracker**
+Vendors who haven't opened last N sends of a given template. Columns: Vendor · Tenant · Template · Consecutive non-opens · Last opened · Action.
+Action column has two buttons per row: **Suppress** (removes from next send, shows toast "Suppressed for this template") and **Route to Help & Support** (creates a Help & Support ticket stub, shows toast "Ticket raised with Help & Support"). Pure client-side state, no backend.
+Sample: 6 vendors, 4–12 consecutive non-opens, mix of Tech Enabled / Low Tech.
 
-**Comms Categorization (inline, same form):**
-- "Does the vendor lose money or time if this is ignored?" Yes/No.
-- Yes → Category = Action Required (red), Priority = P1.
-- No → "What type of communication is this?" with Financial → Finance & Payments, Periodic → Reports & Analytics, High frequency → Daily Ops Updates, Pre-emptive → Reminders, Security → Account & Access; Priority per category (reuse mapping already used in Add Communication / role-routing).
+**5. Finance mail CTR — configuration level**
+Groups Finance templates by their inherited configuration (Channel × Batching × Escalation) from the Requests categorization output. Columns: Configuration signature · Templates in group · Total sends · Avg CTR · Best template · Worst template.
+Sample: 3 configuration groups (e.g., "Mail + Immediate + P1", "Mail + Daily digest + P2", "Mail+WhatsApp + Immediate + P1") with 2–4 templates each.
 
-**Inherited config panel (read-only)** — Channel, Batching, Escalation, Portal Expiry from category profile; labeled "Inherited from category, not editable here."
+**6. Content quality score per template**
+Columns: Template ID · Name · Subject score /3 · Body score /3 · CTA score /3 · **Total /9** · Status.
+Status: **Publishable** when total ≥ 9, **Needs revision** otherwise. A helper line above: "Templates must score 9/9 to be publishable." Rows below 9 show a red badge and a "View gaps" link that opens a dialog listing which sub-scores fell short (mock reasons like "Subject > 60 chars", "CTA verb missing", "Body readability low").
+Sample: 6 templates, 3 at 9/9 Publishable, 3 at 7–8 Needs revision.
 
-**Attachment** dropdown: None (default) / PDF / Image / Excel Export.
-**Call to Action** dropdown: None (default) / Direct Link (reveals inline destination text field) / Autofilled Help & Support Ticket.
+## Wiring
 
-**Frequency of the mail to be sent** — multi-select as removable tag chips (max 2): Once / Daily / Weekly / Monthly, styled like existing selected-tag with X remove.
-**Email to CC** (optional, input).
-**Analyst POC** (optional, user dropdown).
+- Add nav item in `src/components/layout/AppShell.tsx` for `internal_ops` right after Requests, visible to both sub-roles.
+- New route `src/routes/comms-performance.tsx`.
+- Mock data inline in the route file (or a small `src/lib/comms-performance-mock.ts` if it grows).
+- Non-opener Suppress/Route actions update local component state + `toast` only; no store changes.
+- Reuse existing Card / Table / Badge / Button / Dialog primitives and existing color tokens — no new design system work.
 
-**WhatsApp panel (conditional)** — shown only if the selected "Mail will be sent to" segment includes any Low Tech vendors (cross-referenced against `vendor-delivery-profiles` seed data). Rendered as an actual WhatsApp bubble (pale green `#DCF8C6`, rounded, WhatsApp-style, NOT app card styling):
-- Message textarea, 300-char cap with live counter.
-- Frequency multi-select (same tag pattern, max 2).
-- Single Link or Phone Number CTA field.
-- Status tag: "Requires separate approval from WhatsApp Business API".
+## Out of scope
 
-**Submit** — pushes to shared store with status Pending, shows confirmation "Request submitted, status: Pending — {timestamp}", closes form, refreshes both Submitter's own list and Approver queue.
+No real analytics wiring, no cross-linking into Requests (score is display-only here), no changes to publish gating in Requests (the 9/9 rule is shown here as a reporting view; enforcement in Requests can be a follow-up if you want it).
 
-### Approver view
-- Header + "Simulating: Workdesk" subtitle.
-- Table of all `Pending` requests across submitters. Columns: Template Name, Request Type, Submitted By, Team, Submitted At, Time Waiting (computed from now - submittedAt).
-- Row click → full read-only view of the request exactly as submitted (all fields above, WhatsApp bubble if present), plus:
-  - **Approve** — single click, toast, status → Approved, records `approvedAt`.
-  - **Reject** — opens dialog with required Reason (textarea) + Reason Category (Content Issue / Wrong Category or Config / Clubbing Conflict / Missing Info / Compliance Concern). On confirm, status → Rejected, records `rejectedAt`.
-
-## Styling
-
-Reuse existing tokens, cards, inputs, selects, badges, and category color mapping from prior work. Only the WhatsApp bubble departs from app styling (WhatsApp look).
-
-## Files touched
-
-- Modify: `src/components/layout/AppShell.tsx`.
-- Add: `src/routes/requests.tsx`, `src/lib/requests-store.ts`.
-- Delete: `src/routes/notifications.review-queue.tsx`.
-- Reuse: existing category mapping, vendor delivery profiles data, WhatsAppBubble pattern (re-implemented inline in new route since old file is deleted).
+Please confirm the layout and sample data above, or tell me what to adjust, and I'll build it.
