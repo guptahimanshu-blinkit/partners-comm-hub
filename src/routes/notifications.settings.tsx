@@ -51,7 +51,8 @@ export const Route = createFileRoute("/notifications/settings")({
   component: SettingsPage,
 });
 
-const CHANNELS: Channel[] = ["Mail", "Portal", "Both"];
+type AdminChannel = "Mail" | "WhatsApp";
+const ADMIN_CHANNELS: AdminChannel[] = ["Mail", "WhatsApp"];
 type Digest = "Real-time" | "Daily" | "Weekly";
 
 function SettingsPage() {
