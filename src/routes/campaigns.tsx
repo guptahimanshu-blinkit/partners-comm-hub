@@ -182,17 +182,20 @@ function CampaignsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Campaign name</TableHead>
+                <TableHead>Campaign</TableHead>
                 <TableHead className="w-40">Channels</TableHead>
-                <TableHead className="w-32">Audience</TableHead>
-                <TableHead className="w-40">Trigger</TableHead>
-                <TableHead className="w-36">Reminders</TableHead>
-                <TableHead className="w-40">Status</TableHead>
+                <TableHead className="w-36">Audience</TableHead>
+                <TableHead className="w-44">Trigger</TableHead>
+                <TableHead className="w-32">Reminders</TableHead>
+                <TableHead className="w-36">Status</TableHead>
+                <TableHead className="w-20 text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((c) => {
                 const cat = categoryMeta(c.categoryId);
+                const canEdit =
+                  c.status === "Scheduled" || c.status === "Pending approval";
                 return (
                   <TableRow
                     key={c.id}
@@ -221,23 +224,47 @@ function CampaignsPage() {
                     <TableCell className="align-top">
                       <ChannelIcons channels={c.channels} />
                     </TableCell>
-                    <TableCell className="align-top text-sm tabular-nums">
-                      {c.audienceCount.toLocaleString("en-IN")}{" "}
-                      <span className="text-xs text-muted-foreground">vendors</span>
+                    <TableCell className="align-top text-sm">
+                      <div className="tabular-nums font-medium">
+                        {c.audienceCount.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        vendors · {c.segment.replace(" Vendors", "")}
+                      </div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <TriggerPill
-                        type={c.triggerType}
-                        frequency={c.frequency}
-                      />
+                      <div className="text-sm">
+                        {c.triggerType === "One time" ? "One time" : "Recurring"}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {c.triggerType === "One time"
+                          ? c.firstSend.split(",")[0]
+                          : c.frequency}
+                      </div>
                     </TableCell>
                     <TableCell className="align-top text-sm">
-                      {c.reminders === 0
-                        ? "None"
-                        : `${c.reminders} reminder${c.reminders > 1 ? "s" : ""}`}
+                      {c.reminders === 0 ? (
+                        <span className="text-muted-foreground">n/a</span>
+                      ) : (
+                        <span className="font-mono text-xs">
+                          backoff ×{c.reminders}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="align-top">
                       <StatusPill status={c.status} />
+                    </TableCell>
+                    <TableCell
+                      className="align-top text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelected(c)}
+                        className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                      >
+                        {canEdit ? "Edit" : "View"}
+                      </button>
                     </TableCell>
                   </TableRow>
                 );
@@ -245,7 +272,7 @@ function CampaignsPage() {
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
                     No campaigns match these filters. Acknowledge a published
