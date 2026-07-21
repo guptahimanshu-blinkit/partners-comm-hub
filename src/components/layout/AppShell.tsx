@@ -91,6 +91,13 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
   {
+    to: "/campaigns",
+    label: "Campaigns",
+    icon: Megaphone,
+    roles: ["internal_ops"],
+  },
+
+  {
     to: "/help/my-tickets",
     label: "Ticket Scorecard",
     icon: ClipboardCheck,
