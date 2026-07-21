@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import type { CategoryId } from "./mock-data";
 
-export type RequestStatus = "Pending" | "Approved" | "Rejected";
+export type RequestStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Rejected Post Publish";
 export type RequestType = "Template Approval";
 export type PriorityLevel = "P1" | "P2" | "P3";
 export type FrequencyOption = "Once" | "Daily" | "Weekly" | "Monthly";
