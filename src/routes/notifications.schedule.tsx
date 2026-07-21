@@ -46,7 +46,7 @@ function ScheduleNotificationPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-2xl p-4 sm:p-6">
+      <div className="workdesk mx-auto max-w-2xl p-4 sm:p-6">
         <div className="mb-1 flex items-center gap-2">
           <CalendarPlus className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
