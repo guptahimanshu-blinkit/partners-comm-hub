@@ -365,6 +365,14 @@ function CampaignDetail({
 
 function CampaignDetailBody({ c }: { c: Campaign }) {
   const cat = categoryMeta(c.categoryId);
+  const isWhatsAppOnly =
+    c.channels.length === 1 && c.channels[0] === "WhatsApp";
+  const hasHistory =
+    c.status === "Running" ||
+    c.status === "Failing" ||
+    c.status === "Completed";
+  const canEdit = c.status !== "Completed";
+
   return (
     <>
       <SheetHeader className="space-y-2 pr-8">
@@ -380,17 +388,49 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
             <SheetTitle className="text-left text-lg leading-snug">
               {c.name}
             </SheetTitle>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+              <StatusPill status={c.status} />
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]",
+                  "border-primary/30 bg-primary/10 text-foreground",
+                )}
+              >
+                {c.commType ?? cat.label}
+              </span>
               <span className="font-mono text-muted-foreground">
                 {c.templateId}
               </span>
-              <span className="text-muted-foreground/60">·</span>
-              <StatusPill status={c.status} />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Acknowledged by {c.approvedBy} on {c.acknowledgedAt}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span>
+                Owner:{" "}
+                <span className="font-medium text-foreground">
+                  {c.submitterName}
+                </span>
+              </span>
+              <span>·</span>
+              <span>
+                Ack by{" "}
+                <span className="font-medium text-foreground">
+                  {c.approvedBy}
+                </span>
+              </span>
+            </div>
           </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() =>
+                alert(
+                  "Edit flow is a prototype stub — edits happen on the source request in Workdesk / Requests.",
+                )
+              }
+              className="rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Edit
+            </button>
+          )}
         </div>
       </SheetHeader>
 
@@ -401,77 +441,85 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
         </div>
       )}
 
-      <Section title="Overview">
-        <Grid2>
-          <Field label="Category" value={cat.label} />
-          <Field label="Priority" value={c.priority} />
-          <Field label="Comm type" value={c.commType ?? "—"} />
-          <Field
-            label="Purpose"
-            value={c.purpose}
-            className="col-span-2"
-          />
-        </Grid2>
-      </Section>
-
-      <Section title="Delivery">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              Channels
-            </span>
-            <ChannelIcons channels={c.channels} />
-            <span className="text-xs text-muted-foreground">
-              {c.channels.join(" · ")}
-            </span>
-          </div>
-          <Grid2>
-            <Field label="Segment" value={c.segment} />
-            <Field
-              label="Audience"
-              value={`${c.audienceCount.toLocaleString("en-IN")} vendors`}
-            />
-          </Grid2>
-          {c.whatsappMessage && (
-            <div className="rounded-2xl bg-[#ECE5DD] p-3">
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#075E54]">
-                WhatsApp preview
-              </div>
-              <div className="ml-auto max-w-sm rounded-2xl rounded-tr-sm bg-[#DCF8C6] p-2.5 shadow-sm">
-                <p
-                  className="whitespace-pre-wrap text-[13px] leading-snug text-[#111]"
-                  style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
-                >
-                  {c.whatsappMessage}
-                </p>
-              </div>
+      {/* Configuration snapshot */}
+      <Section title="Configuration snapshot">
+        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Messages used
             </div>
-          )}
+            <div className="mt-1.5 space-y-1.5">
+              {c.channels.map((ch) => (
+                <div
+                  key={ch}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <ChannelIcons channels={[ch]} />
+                  <span className="font-medium">{c.name}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    · {ch}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 border-t border-border pt-3">
+            <Field
+              label="Trigger"
+              value={
+                c.triggerType === "One time"
+                  ? `One time · ${c.firstSend}`
+                  : `Recurring · ${c.frequency}`
+              }
+              className="col-span-2"
+            />
+            <Field
+              label="Reminder policy"
+              value={
+                c.reminders === 0
+                  ? "n/a"
+                  : `backoff ×${c.reminders} · ${c.priority === "P1" ? "+24h, +48h" : "+48h"}`
+              }
+            />
+            <Field label="Segment" value={c.segment} />
+          </div>
         </div>
       </Section>
 
-      <Section title="Schedule">
-        <Grid2>
-          <Field
-            label="Trigger"
-            value={
-              c.triggerType === "One time"
-                ? "One time"
-                : `Recurring · ${c.frequency}`
-            }
-          />
-          <Field label="First send" value={c.firstSend} />
-          <Field
-            label="Reminders"
-            value={
-              c.reminders === 0
-                ? "None"
-                : `${c.reminders} · ${c.priority === "P1" ? "+24h, +48h" : "+48h"}`
-            }
-          />
-          <Field label="Frequency" value={c.frequency} />
-        </Grid2>
+      {/* Funnel / receipts */}
+      <Section
+        title={
+          isWhatsAppOnly ? "WhatsApp delivery" : "Send funnel"
+        }
+      >
+        {hasHistory ? (
+          isWhatsAppOnly ? (
+            <WhatsAppReceipts audience={c.audienceCount} seed={c.id} />
+          ) : (
+            <SendFunnel audience={c.audienceCount} seed={c.id} />
+          )
+        ) : (
+          <p className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+            No send history yet — first send is scheduled for{" "}
+            <span className="font-medium text-foreground">{c.firstSend}</span>.
+          </p>
+        )}
       </Section>
+
+      {c.whatsappMessage && (
+        <Section title="WhatsApp preview">
+          <div className="rounded-2xl bg-[#ECE5DD] p-3">
+            <div className="ml-auto max-w-sm rounded-2xl rounded-tr-sm bg-[#DCF8C6] p-2.5 shadow-sm">
+              <p
+                className="whitespace-pre-wrap text-[13px] leading-snug text-[#111]"
+                style={{ fontFamily: "Helvetica, Arial, sans-serif" }}
+              >
+                {c.whatsappMessage}
+              </p>
+            </div>
+          </div>
+        </Section>
+      )}
 
       <Section title="Inherited configuration">
         <Grid2>
@@ -484,6 +532,13 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
               className="col-span-2 break-all"
             />
           )}
+          <Field label="Priority" value={c.priority} />
+          <Field label="Category" value={cat.label} />
+          <Field
+            label="Purpose"
+            value={c.purpose}
+            className="col-span-2"
+          />
           <Field
             label="Formula flags"
             value={c.formulaFlags.join(", ") || "None"}
@@ -512,11 +567,109 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
           )}
         </ol>
         <p className="mt-3 text-[11px] text-muted-foreground">
-          Read-only view · sample data. Edits happen on the source request in
-          Workdesk / Requests.
+          Sample data · edits happen on the source request in Workdesk / Requests.
         </p>
       </Section>
     </>
+  );
+}
+
+// Deterministic pseudo-random from a string seed
+function hashSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) / 2 ** 31;
+}
+
+function SendFunnel({ audience, seed }: { audience: number; seed: string }) {
+  const r = hashSeed(seed);
+  const delivered = Math.round(audience * (0.94 + r * 0.04));
+  const opened = Math.round(delivered * (0.42 + r * 0.15));
+  const clicked = Math.round(opened * (0.28 + r * 0.12));
+  const goal = Math.round(clicked * (0.35 + r * 0.2));
+  const steps = [
+    { label: "Targeted", value: audience, tone: "base" as const },
+    { label: "Delivered", value: delivered, tone: "base" as const },
+    { label: "Opened", value: opened, tone: "base" as const },
+    { label: "Clicked", value: clicked, tone: "base" as const },
+    { label: "Goal reached", value: goal, tone: "goal" as const },
+  ];
+  return (
+    <div className="space-y-1.5">
+      {steps.map((s) => {
+        const pct = audience > 0 ? (s.value / audience) * 100 : 0;
+        return (
+          <div key={s.label} className="space-y-1">
+            <div className="flex items-baseline justify-between text-xs">
+              <span className="font-medium text-foreground">{s.label}</span>
+              <span className="tabular-nums text-muted-foreground">
+                {s.value.toLocaleString("en-IN")}{" "}
+                <span className="text-[10px]">({pct.toFixed(1)}%)</span>
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-full rounded-full",
+                  s.tone === "goal" ? "bg-cat-green" : "bg-primary",
+                )}
+                style={{ width: `${Math.max(2, pct)}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WhatsAppReceipts({ audience, seed }: { audience: number; seed: string }) {
+  const r = hashSeed(seed);
+  const sent = audience;
+  const delivered = Math.round(sent * (0.91 + r * 0.05));
+  const read = Math.round(delivered * (0.68 + r * 0.18));
+  const failed = sent - delivered;
+  const rows = [
+    { label: "Sent", value: sent, color: "text-foreground" },
+    {
+      label: "Delivered (✓✓ grey)",
+      value: delivered,
+      color: "text-muted-foreground",
+    },
+    { label: "Read (✓✓ blue)", value: read, color: "text-cat-blue" },
+    { label: "Failed", value: failed, color: "text-cat-red" },
+  ];
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground">
+        WhatsApp reports delivery and read receipts — there is no open or click
+        signal to funnel.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {rows.map((row) => {
+          const pct = sent > 0 ? (row.value / sent) * 100 : 0;
+          return (
+            <div
+              key={row.label}
+              className="rounded-lg border border-border bg-background p-3"
+            >
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {row.label}
+              </div>
+              <div className={cn("mt-1 text-lg font-semibold tabular-nums", row.color)}>
+                {row.value.toLocaleString("en-IN")}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {pct.toFixed(1)}% of sent
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
