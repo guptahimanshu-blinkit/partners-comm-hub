@@ -267,9 +267,8 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function ChannelIcon({ channel }: { channel: Channel }) {
+function ChannelIcon({ channel }: { channel: AdminChannel | "Mail" }) {
   if (channel === "Mail") return <Mail className="h-3.5 w-3.5" />;
-  if (channel === "Portal") return <MonitorSmartphone className="h-3.5 w-3.5" />;
   return <MessageSquare className="h-3.5 w-3.5" />;
 }
 
