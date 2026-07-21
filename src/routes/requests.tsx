@@ -758,7 +758,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             Determines category, priority, and inherited configuration.
           </p>
         </div>
-        <FormRow label="Does the vendor lose money or time if this is ignored?" required>
+        <FormRow label="Is this an actionable task?" required>
           <div className="flex gap-2">
             {(["Yes", "No"] as const).map((v) => (
               <button
