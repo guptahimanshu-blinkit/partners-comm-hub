@@ -19,7 +19,6 @@ import { Route as NotificationsIndexRouteImport } from './routes/notifications.i
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
 import { Route as NotificationsSendCalendarRouteImport } from './routes/notifications.send-calendar'
 import { Route as NotificationsScheduleRouteImport } from './routes/notifications.schedule'
-import { Route as HelpTicketScorecardRouteImport } from './routes/help.ticket-scorecard'
 import { Route as HelpMyTicketsRouteImport } from './routes/help.my-tickets'
 
 const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
@@ -73,11 +72,6 @@ const NotificationsScheduleRoute = NotificationsScheduleRouteImport.update({
   path: '/notifications/schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HelpTicketScorecardRoute = HelpTicketScorecardRouteImport.update({
-  id: '/help/ticket-scorecard',
-  path: '/help/ticket-scorecard',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const HelpMyTicketsRoute = HelpMyTicketsRouteImport.update({
   id: '/help/my-tickets',
   path: '/help/my-tickets',
@@ -92,7 +86,6 @@ export interface FileRoutesByFullPath {
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/help/my-tickets': typeof HelpMyTicketsRoute
-  '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -106,7 +99,6 @@ export interface FileRoutesByTo {
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/help/my-tickets': typeof HelpMyTicketsRoute
-  '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -121,7 +113,6 @@ export interface FileRoutesById {
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/help/my-tickets': typeof HelpMyTicketsRoute
-  '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -137,7 +128,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/vendor-delivery-profiles'
     | '/help/my-tickets'
-    | '/help/ticket-scorecard'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
@@ -151,7 +141,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/vendor-delivery-profiles'
     | '/help/my-tickets'
-    | '/help/ticket-scorecard'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
@@ -165,7 +154,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/vendor-delivery-profiles'
     | '/help/my-tickets'
-    | '/help/ticket-scorecard'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
@@ -180,7 +168,6 @@ export interface RootRouteChildren {
   RequestsRoute: typeof RequestsRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
   HelpMyTicketsRoute: typeof HelpMyTicketsRoute
-  HelpTicketScorecardRoute: typeof HelpTicketScorecardRoute
   NotificationsScheduleRoute: typeof NotificationsScheduleRoute
   NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
@@ -259,13 +246,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/help/ticket-scorecard': {
-      id: '/help/ticket-scorecard'
-      path: '/help/ticket-scorecard'
-      fullPath: '/help/ticket-scorecard'
-      preLoaderRoute: typeof HelpTicketScorecardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/help/my-tickets': {
       id: '/help/my-tickets'
       path: '/help/my-tickets'
@@ -284,7 +264,6 @@ const rootRouteChildren: RootRouteChildren = {
   RequestsRoute: RequestsRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
   HelpMyTicketsRoute: HelpMyTicketsRoute,
-  HelpTicketScorecardRoute: HelpTicketScorecardRoute,
   NotificationsScheduleRoute: NotificationsScheduleRoute,
   NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
@@ -293,13 +272,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
