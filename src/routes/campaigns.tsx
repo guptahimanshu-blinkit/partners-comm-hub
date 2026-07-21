@@ -67,13 +67,8 @@ const STATUS_ICON: Record<CampaignStatus, typeof Circle> = {
   Completed: Circle,
 };
 
-const ALL_STATUSES: CampaignStatus[] = [
-  "Running",
-  "Scheduled",
-  "Pending approval",
-  "Failing",
-  "Completed",
-];
+
+
 
 function categoryMeta(id: string) {
   return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[0];
