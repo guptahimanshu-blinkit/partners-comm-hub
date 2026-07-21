@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   PlusCircle,
@@ -518,7 +518,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
             const canExpand = isRejected;
             const postPublish = r.status === "Rejected Post Publish";
             return (
-              <div key={r.id} className="contents">
+              <Fragment key={r.id}>
                 <TableRow
                   className={cn(canExpand && "cursor-pointer")}
                   onClick={() =>
@@ -575,7 +575,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                     </TableCell>
                   </TableRow>
                 )}
-              </div>
+              </Fragment>
             );
           })}
         </TableBody>
