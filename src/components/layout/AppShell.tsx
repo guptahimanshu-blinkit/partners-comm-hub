@@ -17,12 +17,18 @@ import {
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import {
@@ -186,51 +192,119 @@ function RoleSwitcher() {
     internalRole,
     setInternalRole,
   } = useRole();
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <Select value={role} onValueChange={(v) => setRole(v as PortalRole)}>
-        <SelectTrigger className="h-9 w-full sm:w-[190px]" aria-label="Switch role">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {(Object.keys(ROLE_LABELS) as PortalRole[]).map((r) => (
-            <SelectItem key={r} value={r}>
-              {ROLE_LABELS[r]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {role === "vendor_employee" && (
-        <Select
-          value={employeeRole}
-          onValueChange={(v) => setEmployeeRole(v as EmployeeRole)}
-        >
-          <SelectTrigger className="h-9 w-full sm:w-[190px]" aria-label="Employee role">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Account Owner">Account Owner</SelectItem>
-            <SelectItem value="Finance Manager">Finance Manager</SelectItem>
-            <SelectItem value="Supply Chain Manager">Supply Chain Manager</SelectItem>
-          </SelectContent>
 
-        </Select>
-      )}
-      {role === "internal_ops" && (
-        <Select
-          value={internalRole}
-          onValueChange={(v) => setInternalRole(v as InternalRole)}
+  const employeeSubRoles: EmployeeRole[] = [
+    "Account Owner",
+    "Finance Manager",
+    "Supply Chain Manager",
+  ];
+  const internalSubRoles: InternalRole[] = ["Template Submitter", "Approver"];
+
+  const label =
+    role === "vendor_employee"
+      ? `${ROLE_LABELS[role]} · ${employeeRole}`
+      : role === "internal_ops"
+        ? `${ROLE_LABELS[role]} · ${internalRole}`
+        : ROLE_LABELS[role];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 w-full justify-between gap-2 sm:w-[280px]"
+          aria-label="Switch role"
         >
-          <SelectTrigger className="h-9 w-full sm:w-[190px]" aria-label="Internal ops role">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Template Submitter">Template Submitter</SelectItem>
-            <SelectItem value="Approver">Approver</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-    </div>
+          <span className="truncate text-left">{label}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-[260px]">
+        <DropdownMenuLabel>Switch role</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup
+          value={role}
+          onValueChange={(v) => setRole(v as PortalRole)}
+        >
+          {(Object.keys(ROLE_LABELS) as PortalRole[]).map((r) => {
+            if (r === "vendor_employee") {
+              return (
+                <DropdownMenuSub key={r}>
+                  <DropdownMenuSubTrigger className="pl-8 data-[state=open]:bg-accent">
+                    <span
+                      className={cn(
+                        "flex-1",
+                        role === r && "font-medium",
+                      )}
+                    >
+                      {ROLE_LABELS[r]}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-[220px]">
+                    <DropdownMenuLabel className="text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+                      {ROLE_LABELS[r]}
+                    </DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={role === r ? employeeRole : ""}
+                      onValueChange={(v) => {
+                        if (role !== r) setRole(r);
+                        setEmployeeRole(v as EmployeeRole);
+                      }}
+                    >
+                      {employeeSubRoles.map((sr) => (
+                        <DropdownMenuRadioItem key={sr} value={sr}>
+                          {sr}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              );
+            }
+            if (r === "internal_ops") {
+              return (
+                <DropdownMenuSub key={r}>
+                  <DropdownMenuSubTrigger className="pl-8 data-[state=open]:bg-accent">
+                    <span
+                      className={cn(
+                        "flex-1",
+                        role === r && "font-medium",
+                      )}
+                    >
+                      {ROLE_LABELS[r]}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-[220px]">
+                    <DropdownMenuLabel className="text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+                      {ROLE_LABELS[r]}
+                    </DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={role === r ? internalRole : ""}
+                      onValueChange={(v) => {
+                        if (role !== r) setRole(r);
+                        setInternalRole(v as InternalRole);
+                      }}
+                    >
+                      {internalSubRoles.map((sr) => (
+                        <DropdownMenuRadioItem key={sr} value={sr}>
+                          {sr}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              );
+            }
+            return (
+              <DropdownMenuRadioItem key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </DropdownMenuRadioItem>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
