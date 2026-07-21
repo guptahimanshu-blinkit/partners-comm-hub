@@ -1284,3 +1284,203 @@ function DetailField({
     </div>
   );
 }
+
+// ---------- Clubbing Match panel ----------
+
+interface ClubbingCandidate {
+  apolloId: string;
+  name: string;
+  category: CategoryId;
+  categoryLabel: string;
+}
+
+const CLUBBING_POOL: ClubbingCandidate[] = [
+  { apolloId: "APOLLO-100234", name: "PO Extension Approved", category: "finance", categoryLabel: "Finance & Payments" },
+  { apolloId: "APOLLO-100311", name: "Weekly Fill Rate Digest", category: "reports", categoryLabel: "Reports & Analytics" },
+  { apolloId: "APOLLO-100402", name: "Catalogue Update Required", category: "action", categoryLabel: "Action Required" },
+  { apolloId: "APOLLO-100355", name: "Invoice Rejected", category: "finance", categoryLabel: "Finance & Payments" },
+  { apolloId: "APOLLO-100501", name: "Diwali Announcement", category: "reminders", categoryLabel: "Reminders" },
+];
+
+const REASON_POOL = [
+  "Same category",
+  "Sent within 48h",
+  "Same CTA destination",
+  "Same priority",
+];
+
+function hashSeed(s: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+interface ClubbingRow {
+  candidate: ClubbingCandidate;
+  match: number;
+  reasons: string[];
+}
+
+function computeClubbing(
+  requestId: string,
+  categoryId: string,
+): ClubbingRow[] {
+  return CLUBBING_POOL.map((c) => {
+    const seed = hashSeed(`${requestId}::${c.apolloId}`);
+    let base = 30 + (seed % 61);
+    if (c.category === categoryId) base = Math.min(97, base + 10);
+    const audience = 35 + ((seed >> 4) % 60);
+    const reasons: string[] = [];
+    if (c.category === categoryId) reasons.push("Same category");
+    reasons.push(`Overlapping audience ${audience}%`);
+    const extra = REASON_POOL[(seed >> 8) % REASON_POOL.length];
+    if (!reasons.includes(extra)) reasons.push(extra);
+    return { candidate: c, match: base, reasons: reasons.slice(0, 3) };
+  })
+    .sort((a, b) => b.match - a.match)
+    .slice(0, 3);
+}
+
+function matchTone(pct: number): "high" | "med" | "low" {
+  if (pct >= 80) return "high";
+  if (pct >= 60) return "med";
+  return "low";
+}
+
+function ClubbingMatchPanel({
+  requestId,
+  categoryId,
+}: {
+  requestId: string;
+  categoryId: CategoryId;
+  priority: string;
+}) {
+  const rows = useMemo(
+    () => computeClubbing(requestId, categoryId),
+    [requestId, categoryId],
+  );
+  const top = rows[0]?.match ?? 0;
+  const hasMeaningful = top >= 40;
+  const topTone = matchTone(top);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-primary" />
+            <h3 className="text-base font-semibold text-foreground">
+              Clubbing Match
+            </h3>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Existing published templates that overlap with this request.
+            Consider batching instead of a fresh send.
+          </p>
+        </div>
+        {hasMeaningful && (
+          <Badge
+            className={cn(
+              "shrink-0 font-semibold",
+              topTone === "high" &&
+                "bg-cat-red-soft text-cat-red hover:bg-cat-red-soft",
+              topTone === "med" &&
+                "bg-amber-500/10 text-amber-600 hover:bg-amber-500/10",
+              topTone === "low" && "bg-muted text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {topTone === "high" && "High overlap"}
+            {topTone === "med" && "Possible overlap"}
+            {topTone === "low" && "Low overlap"}
+            {" · "}
+            {top}%
+          </Badge>
+        )}
+      </header>
+
+      {!hasMeaningful ? (
+        <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+          No meaningful overlap found. Safe to send as standalone.
+        </p>
+      ) : (
+        <ul className="space-y-2.5">
+          {rows.map((r) => {
+            const tone = matchTone(r.match);
+            return (
+              <li
+                key={r.candidate.apolloId}
+                className="rounded-lg border border-border bg-background p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground">
+                        {r.candidate.name}
+                      </span>
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {r.candidate.apolloId}
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {r.candidate.categoryLabel}
+                      </Badge>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {r.reasons.map((reason) => (
+                        <span
+                          key={reason}
+                          className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        >
+                          {reason}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      toast.info("Template preview — sample data")
+                    }
+                    className="shrink-0 text-xs font-medium text-primary hover:underline"
+                  >
+                    View template
+                  </button>
+                </div>
+                <div className="mt-2.5 flex items-center gap-3">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        "h-full rounded-full",
+                        tone === "high" && "bg-cat-red",
+                        tone === "med" && "bg-amber-500",
+                        tone === "low" && "bg-primary/50",
+                      )}
+                      style={{ width: `${r.match}%` }}
+                    />
+                  </div>
+                  <span
+                    className={cn(
+                      "w-10 text-right text-xs font-semibold tabular-nums",
+                      tone === "high" && "text-cat-red",
+                      tone === "med" && "text-amber-600",
+                      tone === "low" && "text-muted-foreground",
+                    )}
+                  >
+                    {r.match}%
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="mt-3 text-[11px] text-muted-foreground">
+        Sample match score. Real clubbing uses audience overlap + category +
+        send window.
+      </p>
+    </div>
+  );
+}
