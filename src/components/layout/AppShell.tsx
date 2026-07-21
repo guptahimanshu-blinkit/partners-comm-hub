@@ -335,6 +335,8 @@ const BREADCRUMBS: Array<{ match: (p: string) => boolean; trail: string[] }> = [
   { match: (p) => p.startsWith("/notifications/send-calendar"), trail: ["Send Calendar"] },
   { match: (p) => p.startsWith("/requests"), trail: ["Workdesk", "Requests"] },
   { match: (p) => p.startsWith("/comms-performance"), trail: ["Workdesk", "Comms Performance"] },
+  { match: (p) => p.startsWith("/campaigns"), trail: ["Workdesk", "Campaigns"] },
+
   { match: (p) => p.startsWith("/help/my-tickets"), trail: ["Ticket Scorecard"] },
 
   { match: (p) => p.startsWith("/add-communication"), trail: ["Add Communication"] },
