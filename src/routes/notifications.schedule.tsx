@@ -139,14 +139,18 @@ function ScheduleNotificationPage() {
       recipientMethod === "role_based" ? "Role based" : "Ad-hoc upload";
     const segmentString = `${targetLevel} · ${segment.label} · ${methodLabel}`;
 
+    const apolloId = `APOLLO-${Math.random()
+      .toString(16)
+      .slice(2, 8)
+      .toUpperCase()}`;
     addPublishLog({
       id: `PUB-${Math.floor(1000 + Math.random() * 9000)}`,
       requestId: selected.id,
-      templateId: selected.templateId,
+      templateId: apolloId,
       templateName: selected.templateName,
       segment: segmentString,
       scheduledFor: scheduledDisplay,
-      submitterName: "You (Template Submitter)",
+      submitterName: "Himanshu Gupta",
       publishedAt: new Date().toISOString(),
       status: "Pending Review",
     });
