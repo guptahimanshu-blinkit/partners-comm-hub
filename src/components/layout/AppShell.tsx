@@ -95,14 +95,8 @@ const NAV: NavItem[] = [
   },
 ];
 
-const SUPPORT_NAV: NavItem[] = [
-  {
-    to: "/help/ticket-scorecard",
-    label: "Ticket Scorecard",
-    icon: ClipboardCheck,
-    roles: ["internal_ops"],
-  },
-];
+const SUPPORT_NAV: NavItem[] = [];
+
 
 
 function Logo() {
