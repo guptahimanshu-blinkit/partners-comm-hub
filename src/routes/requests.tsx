@@ -1353,9 +1353,57 @@ const PRELOADED_MATCHES: Record<string, ClubbingMatch> = {
   },
 };
 
+// Deterministic pseudo-random from a string seed
+function hashSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) / 2 ** 31;
+}
+
+const AUTO_MATCH_POOL: Omit<ClubbingMatch, "match">[] = [
+  {
+    templateName: "PO Extension Approved",
+    templateId: "APOLLO-100234",
+    reasons: [
+      "Same vendor cohort",
+      "Same category",
+      "Overlapping send window",
+    ],
+  },
+  {
+    templateName: "Weekly Fill Rate Digest",
+    templateId: "APOLLO-100311",
+    reasons: [
+      "Same vendor cohort",
+      "Same category: Reports & Analytics",
+      "Overlapping send window",
+    ],
+  },
+  {
+    templateName: "Daily PO Reminder",
+    templateId: "APOLLO-100455",
+    reasons: [
+      "Same send window",
+      "Overlapping recipients",
+      "Similar CTA",
+    ],
+  },
+];
+
 export function getClubbingMatch(requestId: string): ClubbingMatch | null {
-  const m = PRELOADED_MATCHES[requestId];
-  return m && m.match >= 40 ? m : null;
+  const preloaded = PRELOADED_MATCHES[requestId];
+  if (preloaded) return preloaded.match >= 40 ? preloaded : null;
+
+  // Auto-suggest for newly submitted requests so the Approver sees a
+  // suggestion the first time they open the request. Deterministic per id.
+  const r = hashSeed(requestId);
+  const score = Math.floor(r * 100); // 0..99
+  if (score < 40) return null;
+  const pick = AUTO_MATCH_POOL[Math.floor(r * 1000) % AUTO_MATCH_POOL.length];
+  return { match: score, ...pick };
 }
 
 function ClubbingMatchPanel({ requestId }: { requestId: string }) {
@@ -1364,8 +1412,8 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
 
   const strong = match.match >= 80;
   const label = strong
-    ? "Strong match, consider clubbing"
-    : "Partial overlap, review before approving";
+    ? "Good chance of clubbing"
+    : "Medium chance of clubbing";
 
   return (
     <div
@@ -1376,31 +1424,21 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
           : "border-border bg-card",
       )}
     >
-      <header className="mb-3 flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Layers
-            className={cn(
-              "h-4 w-4",
-              strong ? "text-amber-600" : "text-muted-foreground",
-            )}
-          />
-          <h3 className="text-base font-semibold text-foreground">
-            Clubbing Match
-          </h3>
-        </div>
-        <span
+      <header className="mb-3 flex items-center gap-2">
+        <Layers
           className={cn(
-            "text-lg font-semibold tabular-nums",
-            strong ? "text-amber-600" : "text-foreground",
+            "h-4 w-4",
+            strong ? "text-amber-600" : "text-muted-foreground",
           )}
-        >
-          {match.match}%
-        </span>
+        />
+        <h3 className="text-base font-semibold text-foreground">
+          Clubbing Match
+        </h3>
       </header>
 
       <p
         className={cn(
-          "mb-3 text-sm font-medium",
+          "mb-3 text-sm font-semibold",
           strong ? "text-amber-700" : "text-muted-foreground",
         )}
       >
@@ -1429,11 +1467,12 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
       </div>
 
       <p className="mt-3 text-[11px] text-muted-foreground">
-        Match is a preview based on sample data, not a live comparison.
+        Suggestion based on sample data, not a live comparison.
       </p>
     </div>
   );
 }
+
 
 
 // ---------- Published feed (post-publish confirmation loop) ----------
