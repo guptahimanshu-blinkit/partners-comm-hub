@@ -6,7 +6,6 @@ export type EmployeeRole =
   | "Finance"
   | "All Roles"
   | "Account Owner"
-  | "Admin"
   | "Finance Manager";
 
 
