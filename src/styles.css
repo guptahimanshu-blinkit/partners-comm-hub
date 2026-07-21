@@ -145,6 +145,26 @@
   --sidebar-ring: oklch(0.62 0.14 145);
 }
 
+/* Workdesk scope — yellow accent (#F8CB46) with dark ink text.
+   Applied on the page content wrapper of Requests, Add New Notification,
+   Comms Performance. Sidebar sits outside this scope and stays green. */
+.workdesk {
+  --primary: oklch(0.86 0.16 88);
+  --primary-foreground: oklch(0.24 0.03 150);
+  --ring: oklch(0.86 0.16 88);
+  --accent: oklch(0.96 0.06 92);
+  --accent-foreground: oklch(0.28 0.04 90);
+  --cat-amber: oklch(0.7 0.15 82);
+  --cat-amber-soft: oklch(0.95 0.08 88);
+}
+.dark .workdesk {
+  --primary: oklch(0.86 0.16 88);
+  --primary-foreground: oklch(0.18 0.03 150);
+  --ring: oklch(0.86 0.16 88);
+  --accent: oklch(0.34 0.06 90);
+  --accent-foreground: oklch(0.95 0.03 88);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
