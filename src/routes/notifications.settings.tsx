@@ -100,8 +100,7 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
           <div className="border-b border-border p-4">
             <h2 className="font-semibold">Delivery channels</h2>
             <p className="text-sm text-muted-foreground">
-              Mandatory categories are always delivered — you can add channels but not remove
-              the default.
+              Portal is always included. Choose what else gets added on top.
             </p>
           </div>
           <div className="divide-y divide-border">
