@@ -68,6 +68,13 @@ const NAV: NavItem[] = [
     roles: ["internal_ops"],
   },
   {
+    to: "/comms-performance",
+    label: "Comms Performance",
+    icon: BarChart3,
+    roles: ["internal_ops"],
+  },
+
+  {
     to: "/notifications/schedule",
     label: "Add New Notification",
     icon: CalendarPlus,
