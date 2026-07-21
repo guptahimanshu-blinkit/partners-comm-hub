@@ -65,13 +65,26 @@ export interface TemplateRequest {
   rejectionCategory?: RejectionCategory;
 }
 
-// Module-level store
-let REQUESTS: TemplateRequest[] = seed();
-const listeners = new Set<() => void>();
+// HMR-safe singletons: keep state on globalThis so hot reloads and any
+// duplicated module evaluation share the same arrays and listener sets.
+type StoreGlobal = {
+  __PB_REQUESTS?: TemplateRequest[];
+  __PB_REQ_LISTENERS?: Set<() => void>;
+  __PB_PUBLISH_LOGS?: PublishLog[];
+  __PB_LOG_LISTENERS?: Set<() => void>;
+  __PB_CAMPAIGNS?: Campaign[];
+  __PB_CMP_LISTENERS?: Set<() => void>;
+};
+const g = globalThis as unknown as StoreGlobal;
+
+let REQUESTS: TemplateRequest[] = g.__PB_REQUESTS ?? (g.__PB_REQUESTS = seed());
+const listeners: Set<() => void> =
+  g.__PB_REQ_LISTENERS ?? (g.__PB_REQ_LISTENERS = new Set());
 
 function emit() {
   listeners.forEach((l) => l());
 }
+
 
 export function getRequests(): TemplateRequest[] {
   return REQUESTS;
