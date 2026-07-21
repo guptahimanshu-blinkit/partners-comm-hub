@@ -403,11 +403,19 @@ export function deriveCampaign(
   };
 }
 
-let CAMPAIGNS: Campaign[] = seedCampaigns();
-const campaignListeners = new Set<() => void>();
+let CAMPAIGNS: Campaign[] =
+  g.__PB_CAMPAIGNS ?? (g.__PB_CAMPAIGNS = seedCampaigns());
+const campaignListeners: Set<() => void> =
+  g.__PB_CMP_LISTENERS ?? (g.__PB_CMP_LISTENERS = new Set());
 function emitCampaigns() {
   campaignListeners.forEach((l) => l());
 }
+function setCampaigns(next: Campaign[]) {
+  CAMPAIGNS = next;
+  g.__PB_CAMPAIGNS = next;
+  emitCampaigns();
+}
+
 
 export function getCampaigns(): Campaign[] {
   return CAMPAIGNS;
