@@ -1112,6 +1112,7 @@ function ApproverView() {
           </TableBody>
         </Table>
       </div>
+      </div>
     </div>
   );
 }
