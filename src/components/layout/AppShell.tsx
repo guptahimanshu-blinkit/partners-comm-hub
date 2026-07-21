@@ -266,7 +266,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
 
-          <div className="hidden min-w-0 items-center gap-2 md:flex">
+          <Breadcrumb />
+
+          <div className="ml-auto hidden min-w-0 items-center gap-2 md:flex">
             <span className="truncate text-sm font-semibold text-foreground">
               ITC Limited
             </span>
