@@ -1440,8 +1440,14 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
 
 function PublishedFeed() {
   const logs = usePublishLogs();
+  const requests = useRequests();
   const [flagId, setFlagId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const flagTarget = logs.find((l) => l.id === flagId) ?? null;
+  const detailTarget = logs.find((l) => l.id === detailId) ?? null;
+  const detailRequest = detailTarget
+    ? requests.find((r) => r.id === detailTarget.requestId) ?? null
+    : null;
   const pendingCount = logs.filter((l) => l.status === "Pending Review").length;
 
   return (
@@ -1450,8 +1456,8 @@ function PublishedFeed() {
         <div>
           <h2 className="text-base font-semibold">Published Templates</h2>
           <p className="text-xs text-muted-foreground">
-            Post-publish activity from Submitters. Acknowledge if it looks fine,
-            or flag it to reject after scheduling.
+            Post-publish activity from Submitters. Click any entry to view full
+            details, then acknowledge or flag after review.
           </p>
         </div>
         {pendingCount > 0 && (
@@ -1463,69 +1469,57 @@ function PublishedFeed() {
 
       <ul className="divide-y divide-border">
         {logs.map((l) => (
-          <li key={l.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-sm text-foreground">
-                <span className="font-semibold">{l.submitterName}</span>{" "}
-                published{" "}
-                <span className="font-semibold">{l.templateName}</span> to{" "}
-                <span className="font-medium">{l.segment}</span>, scheduled for{" "}
-                <span className="font-medium">{l.scheduledFor}</span>.
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {l.templateId} · published {timeWaiting(l.publishedAt)} ago
-              </p>
-              {l.status === "Flagged" && (
-                <div className="mt-2 rounded-lg border border-cat-red/30 bg-cat-red-soft/40 p-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold uppercase tracking-wider text-cat-red text-[10px]">
-                      Flagged
-                    </span>
-                    <Badge variant="outline">{l.flagCategory}</Badge>
+          <li key={l.id} className="py-3">
+            <button
+              type="button"
+              onClick={() => setDetailId(l.id)}
+              className="flex w-full flex-wrap items-start justify-between gap-3 rounded-md text-left transition-colors hover:bg-muted/40 -mx-2 px-2 py-1"
+            >
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-sm text-foreground">
+                  <span className="font-semibold">{l.submitterName}</span>{" "}
+                  published{" "}
+                  <span className="font-semibold">{l.templateName}</span> to{" "}
+                  <span className="font-medium">{l.segment}</span>, scheduled for{" "}
+                  <span className="font-medium">{l.scheduledFor}</span>.
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {l.templateId} · published {timeWaiting(l.publishedAt)} ago · click to view details
+                </p>
+                {l.status === "Flagged" && (
+                  <div className="mt-2 rounded-lg border border-cat-red/30 bg-cat-red-soft/40 p-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold uppercase tracking-wider text-cat-red text-[10px]">
+                        Flagged
+                      </span>
+                      <Badge variant="outline">{l.flagCategory}</Badge>
+                    </div>
+                    <p className="mt-1 text-foreground">{l.flagReason}</p>
+                    {l.flaggedAt && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Flagged at {l.flaggedAt} · request marked Rejected Post Publish
+                      </p>
+                    )}
                   </div>
-                  <p className="mt-1 text-foreground">{l.flagReason}</p>
-                  {l.flaggedAt && (
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      Flagged at {l.flaggedAt} · request marked Rejected Post Publish
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {l.status === "Pending Review" ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      acknowledgeLog(l.id);
-                      toast.success("Acknowledged");
-                    }}
-                    className="gap-1"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Acknowledge
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setFlagId(l.id)}
-                    className="gap-1 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
-                  >
-                    <XCircle className="h-3.5 w-3.5" /> Flag for Review
-                  </Button>
-                </>
-              ) : l.status === "Acknowledged" ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-cat-green-soft px-2 py-0.5 text-[11px] font-semibold text-cat-green">
-                  <CheckCircle2 className="h-3 w-3" /> Acknowledged
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-cat-red-soft px-2 py-0.5 text-[11px] font-semibold text-cat-red">
-                  <XCircle className="h-3 w-3" /> Rejected Post Publish
-                </span>
-              )}
-            </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {l.status === "Pending Review" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-cat-amber-soft px-2 py-0.5 text-[11px] font-semibold text-cat-amber">
+                    <Clock className="h-3 w-3" /> Pending Review
+                  </span>
+                ) : l.status === "Acknowledged" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-cat-green-soft px-2 py-0.5 text-[11px] font-semibold text-cat-green">
+                    <CheckCircle2 className="h-3 w-3" /> Acknowledged
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-cat-red-soft px-2 py-0.5 text-[11px] font-semibold text-cat-red">
+                    <XCircle className="h-3 w-3" /> Rejected Post Publish
+                  </span>
+                )}
+              </div>
+            </button>
           </li>
         ))}
         {logs.length === 0 && (
@@ -1535,11 +1529,160 @@ function PublishedFeed() {
         )}
       </ul>
 
+      <PublishedDetailDialog
+        log={detailTarget}
+        request={detailRequest}
+        onClose={() => setDetailId(null)}
+        onFlag={() => {
+          if (detailTarget) {
+            setFlagId(detailTarget.id);
+            setDetailId(null);
+          }
+        }}
+      />
+
       <FlagForReviewDialog
         log={flagTarget}
         onClose={() => setFlagId(null)}
       />
     </section>
+  );
+}
+
+function PublishedDetailDialog({
+  log,
+  request,
+  onClose,
+  onFlag,
+}: {
+  log: PublishLog | null;
+  request: TemplateRequest | null;
+  onClose: () => void;
+  onFlag: () => void;
+}) {
+  if (!log) return null;
+  const cfg = request ? CATEGORY_CONFIG[request.categoryId] : null;
+  return (
+    <Dialog open={!!log} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{log.templateName}</DialogTitle>
+          <DialogDescription>
+            {log.templateId} · published by {log.submitterName} ·{" "}
+            {timeWaiting(log.publishedAt)} ago
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-muted/30 p-3">
+            <DetailRow label="Submitter" value={log.submitterName} />
+            <DetailRow label="Scheduled for" value={log.scheduledFor} />
+            <DetailRow label="Segment" value={log.segment} />
+            <DetailRow label="Status" value={log.status} />
+          </div>
+
+          {request && cfg && (
+            <>
+              <div className="rounded-lg border border-border p-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Template details
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <DetailRow label="Category" value={cfg.label} />
+                  <DetailRow label="Priority" value={request.priority} />
+                  <DetailRow label="Subject" value={request.subject} />
+                  <DetailRow
+                    label="Frequency"
+                    value={request.frequency.join(", ")}
+                  />
+                  <DetailRow label="Attachment" value={request.attachment} />
+                  <DetailRow label="CTA" value={request.cta} />
+                  <DetailRow
+                    label="Submitted by"
+                    value={`${request.submittedBy} (${request.email})`}
+                  />
+                  <DetailRow label="Team" value={request.team.join(", ")} />
+                </div>
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Purpose
+                  </p>
+                  <p className="mt-1 text-foreground">{request.purpose}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border p-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Inherited config
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <DetailRow label="Channel" value={cfg.channel} />
+                  <DetailRow label="Batching" value={cfg.batching} />
+                  <DetailRow label="Escalation" value={cfg.escalation} />
+                  <DetailRow label="Expiry" value={cfg.expiry} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {log.status === "Flagged" && (
+            <div className="rounded-lg border border-cat-red/30 bg-cat-red-soft/40 p-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-cat-red">
+                  Flagged
+                </span>
+                <Badge variant="outline">{log.flagCategory}</Badge>
+              </div>
+              <p className="mt-1 text-foreground">{log.flagReason}</p>
+              {log.flaggedAt && (
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Flagged at {log.flaggedAt}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          {log.status === "Pending Review" ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={onFlag}
+                className="gap-1 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
+              >
+                <XCircle className="h-4 w-4" /> Flag for Review
+              </Button>
+              <Button
+                onClick={() => {
+                  acknowledgeLog(log.id);
+                  toast.success("Acknowledged");
+                  onClose();
+                }}
+                className="gap-1"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Acknowledge
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-foreground">{value || "—"}</p>
+    </div>
   );
 }
 
