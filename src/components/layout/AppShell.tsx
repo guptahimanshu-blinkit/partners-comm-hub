@@ -129,15 +129,12 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
       internalRole === "Template Submitter"
     )
       return false;
-    return true;
-  });
-  const supportItems = SUPPORT_NAV.filter((n) => {
-    if (!n.roles.includes(role)) return false;
     if (n.to === "/help/my-tickets" && role === "vendor_employee") {
       return isCategoryAssignedTo("reports_analytics", employeeRole, assignments);
     }
     return true;
   });
+  const supportItems = SUPPORT_NAV.filter((n) => n.roles.includes(role));
 
   const renderItem = (item: NavItem) => {
     const active =
