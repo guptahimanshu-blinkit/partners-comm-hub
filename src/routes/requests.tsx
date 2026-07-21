@@ -1053,13 +1053,15 @@ function ApproverView() {
   }
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h2 className="text-base font-semibold">Pending Approvals</h2>
-        <p className="text-xs text-muted-foreground">
-          {pending.length} request{pending.length === 1 ? "" : "s"} waiting for review.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PublishedFeed />
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold">Pending Approvals</h2>
+          <p className="text-xs text-muted-foreground">
+            {pending.length} request{pending.length === 1 ? "" : "s"} waiting for review.
+          </p>
+        </div>
       <div className="rounded-xl border border-border bg-card">
         <Table>
           <TableHeader>
