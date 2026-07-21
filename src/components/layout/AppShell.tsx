@@ -32,6 +32,10 @@ import {
   type InternalRole,
 } from "@/lib/role-context";
 import type { EmployeeRole } from "@/lib/mock-data";
+import {
+  useRoleAssignments,
+  isCategoryAssignedTo,
+} from "@/lib/role-assignments";
 
 interface NavItem {
   to: string;

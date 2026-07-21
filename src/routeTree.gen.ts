@@ -20,6 +20,7 @@ import { Route as NotificationsSettingsRouteImport } from './routes/notification
 import { Route as NotificationsSendCalendarRouteImport } from './routes/notifications.send-calendar'
 import { Route as NotificationsScheduleRouteImport } from './routes/notifications.schedule'
 import { Route as HelpTicketScorecardRouteImport } from './routes/help.ticket-scorecard'
+import { Route as HelpMyTicketsRouteImport } from './routes/help.my-tickets'
 
 const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
   id: '/vendor-delivery-profiles',
@@ -77,6 +78,11 @@ const HelpTicketScorecardRoute = HelpTicketScorecardRouteImport.update({
   path: '/help/ticket-scorecard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpMyTicketsRoute = HelpMyTicketsRouteImport.update({
+  id: '/help/my-tickets',
+  path: '/help/my-tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/help/my-tickets': typeof HelpMyTicketsRoute
   '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/help/my-tickets': typeof HelpMyTicketsRoute
   '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/help/my-tickets': typeof HelpMyTicketsRoute
   '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/help/my-tickets'
     | '/help/ticket-scorecard'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/help/my-tickets'
     | '/help/ticket-scorecard'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/help/my-tickets'
     | '/help/ticket-scorecard'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -167,6 +179,7 @@ export interface RootRouteChildren {
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   RequestsRoute: typeof RequestsRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
+  HelpMyTicketsRoute: typeof HelpMyTicketsRoute
   HelpTicketScorecardRoute: typeof HelpTicketScorecardRoute
   NotificationsScheduleRoute: typeof NotificationsScheduleRoute
   NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
@@ -253,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HelpTicketScorecardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help/my-tickets': {
+      id: '/help/my-tickets'
+      path: '/help/my-tickets'
+      fullPath: '/help/my-tickets'
+      preLoaderRoute: typeof HelpMyTicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -263,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   RequestsRoute: RequestsRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
+  HelpMyTicketsRoute: HelpMyTicketsRoute,
   HelpTicketScorecardRoute: HelpTicketScorecardRoute,
   NotificationsScheduleRoute: NotificationsScheduleRoute,
   NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,
