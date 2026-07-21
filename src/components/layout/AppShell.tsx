@@ -90,6 +90,12 @@ const SUPPORT_NAV: NavItem[] = [
     icon: ClipboardCheck,
     roles: ["internal_ops"],
   },
+  {
+    to: "/help/my-tickets",
+    label: "Ticket Scorecard",
+    icon: ClipboardCheck,
+    roles: ["vendor_admin", "vendor_employee"],
+  },
 ];
 
 
