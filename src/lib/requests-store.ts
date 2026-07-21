@@ -122,6 +122,135 @@ export function useRequests(): TemplateRequest[] {
   return REQUESTS;
 }
 
+// -------- Publish log (post-publish confirmation loop) --------
+
+export type PublishLogStatus = "Pending Review" | "Acknowledged" | "Flagged";
+
+export interface PublishLog {
+  id: string;
+  requestId: string;
+  templateId: string;
+  templateName: string;
+  segment: string;
+  scheduledFor: string; // display string
+  submitterName: string;
+  publishedAt: string; // iso
+  status: PublishLogStatus;
+  flagReason?: string;
+  flagCategory?: RejectionCategory;
+  flaggedAt?: string;
+}
+
+let PUBLISH_LOGS: PublishLog[] = seedPublishLogs();
+const logListeners = new Set<() => void>();
+function emitLogs() {
+  logListeners.forEach((l) => l());
+}
+
+export function getPublishLogs(): PublishLog[] {
+  return PUBLISH_LOGS;
+}
+
+export function addPublishLog(log: PublishLog) {
+  PUBLISH_LOGS = [log, ...PUBLISH_LOGS];
+  emitLogs();
+}
+
+export function acknowledgeLog(id: string) {
+  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
+    l.id === id ? { ...l, status: "Acknowledged" as const } : l,
+  );
+  emitLogs();
+}
+
+export function flagLog(
+  id: string,
+  reason: string,
+  category: RejectionCategory,
+) {
+  const log = PUBLISH_LOGS.find((l) => l.id === id);
+  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
+    l.id === id
+      ? {
+          ...l,
+          status: "Flagged" as const,
+          flagReason: reason,
+          flagCategory: category,
+          flaggedAt: nowStamp(),
+        }
+      : l,
+  );
+  emitLogs();
+  if (log) {
+    REQUESTS = REQUESTS.map((r) =>
+      r.id === log.requestId
+        ? {
+            ...r,
+            status: "Rejected Post Publish" as const,
+            rejectedAt: nowStamp(),
+            rejectionReason: reason,
+            rejectionCategory: category,
+          }
+        : r,
+    );
+    emit();
+  }
+}
+
+export function usePublishLogs(): PublishLog[] {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const l = () => setTick((t) => t + 1);
+    logListeners.add(l);
+    return () => {
+      logListeners.delete(l);
+    };
+  }, []);
+  return PUBLISH_LOGS;
+}
+
+function seedPublishLogs(): PublishLog[] {
+  return [
+    {
+      id: "PUB-2003",
+      requestId: "REQ-1003",
+      templateId: "APOLLO-9E5B22",
+      templateName: "Payment on Hold — Invoice Rejection",
+      segment: "Tech Enabled Vendors",
+      scheduledFor: "18 Jul 2026, 09:00 AM",
+      submitterName: "Nikhil Rao",
+      publishedAt: iso(120),
+      status: "Pending Review",
+    },
+    {
+      id: "PUB-2002",
+      requestId: "REQ-SEED-A",
+      templateId: "APOLLO-8410F2",
+      templateName: "Fill Rate Weekly Digest — North",
+      segment: "Tech Enabled Vendors",
+      scheduledFor: "16 Jul 2026, 10:30 AM",
+      submitterName: "Rahul Deshmukh",
+      publishedAt: iso(600),
+      status: "Acknowledged",
+    },
+    {
+      id: "PUB-2001",
+      requestId: "REQ-SEED-B",
+      templateId: "APOLLO-77BC09",
+      templateName: "Weekend PO Reminder — Bulk",
+      segment: "All vendors",
+      scheduledFor: "14 Jul 2026, 08:00 AM",
+      submitterName: "Priya Nair",
+      publishedAt: iso(2400),
+      status: "Flagged",
+      flagReason:
+        "Overlaps with the daily PO reminder already going out — please consolidate.",
+      flagCategory: "Clubbing Conflict",
+      flaggedAt: "14 Jul 2026, 11:20 AM",
+    },
+  ];
+}
+
 export function nowStamp(): string {
   const d = new Date();
   return d.toLocaleString("en-IN", {
