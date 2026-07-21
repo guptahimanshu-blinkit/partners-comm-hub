@@ -45,17 +45,12 @@ type TicketCategory =
   | "Fees & Charges"
   | "Other";
 
-type TicketStatus =
-  | "Open"
-  | "In Progress"
-  | "Awaiting Vendor"
-  | "Resolved"
-  | "Closed";
+type TicketStatus = "Open" | "Resolved";
 
 interface Ticket {
   id: string;
   title: string;
-  description: string;
+  fields: { label: string; value: string }[];
   raisedOn: string; // ISO
   updatedAt: string; // ISO
   status: TicketStatus;
@@ -74,37 +69,46 @@ const CATEGORIES: TicketCategory[] = [
   "Other",
 ];
 
-const STATUSES: TicketStatus[] = [
-  "Open",
-  "In Progress",
-  "Awaiting Vendor",
-  "Resolved",
-  "Closed",
-];
+const STATUSES: TicketStatus[] = ["Open", "Resolved"];
 
 const TICKETS: Ticket[] = [
   {
     id: "TKT-8821",
-    title: "GRN quantity mismatch — Kolkata K4",
-    description: "Received 480 units against PO for 500. Awaiting DC reconciliation.",
+    title: "GRN quantity mismatch",
+    fields: [
+      { label: "DN ID", value: "DN-4471-K4" },
+      { label: "Invoice #", value: "INV-99201" },
+      { label: "Facility", value: "KOL-K4" },
+      { label: "PO #", value: "PO-77802" },
+    ],
     raisedOn: "2026-07-18",
     updatedAt: "2026-07-20",
-    status: "Awaiting Vendor",
+    status: "Open",
     category: "GRN & Discrepancy Note",
   },
   {
     id: "TKT-8817",
-    title: "Payment not received for invoice INV-99213",
-    description: "Cleared on portal 6 days ago, funds not credited to registered account.",
+    title: "Payment not received against cleared invoice",
+    fields: [
+      { label: "Invoice #", value: "INV-99213" },
+      { label: "Amount", value: "₹2,41,900" },
+      { label: "Cleared on", value: "13 Jul 2026" },
+      { label: "UTR", value: "—" },
+    ],
     raisedOn: "2026-07-16",
     updatedAt: "2026-07-19",
-    status: "In Progress",
+    status: "Open",
     category: "Payment",
   },
   {
     id: "TKT-8811",
-    title: "Discrepancy note raised on batch B-4421",
-    description: "3 units damaged in transit, need credit note against dispatch.",
+    title: "Discrepancy note — damaged units on inbound",
+    fields: [
+      { label: "DN ID", value: "DN-4462-BLR" },
+      { label: "Batch", value: "B-4421" },
+      { label: "Facility", value: "BLR-B2" },
+      { label: "Units short", value: "3" },
+    ],
     raisedOn: "2026-07-15",
     updatedAt: "2026-07-17",
     status: "Open",
@@ -112,8 +116,12 @@ const TICKETS: Ticket[] = [
   },
   {
     id: "TKT-8804",
-    title: "Slot booking failed for Bengaluru DC",
-    description: "Appointment portal shows no slots for next 48h. Blocking dispatch.",
+    title: "Slot booking failed for inbound appointment",
+    fields: [
+      { label: "Facility", value: "BLR-B1" },
+      { label: "Requested slot", value: "15 Jul, 08:00–10:00" },
+      { label: "PO #", value: "PO-77755" },
+    ],
     raisedOn: "2026-07-14",
     updatedAt: "2026-07-15",
     status: "Resolved",
@@ -121,104 +129,91 @@ const TICKETS: Ticket[] = [
   },
   {
     id: "TKT-8798",
-    title: "Reschedule appointment for Chennai DC",
-    description: "Truck delayed by 6h, need next available window on 16 Jul.",
+    title: "Reschedule appointment window",
+    fields: [
+      { label: "Facility", value: "CHN-M1" },
+      { label: "Original slot", value: "13 Jul, 14:00–16:00" },
+      { label: "New slot", value: "13 Jul, 20:00–22:00" },
+    ],
     raisedOn: "2026-07-13",
     updatedAt: "2026-07-14",
-    status: "Closed",
+    status: "Resolved",
     category: "Appointment",
   },
   {
     id: "TKT-8790",
-    title: "PO not visible in portal",
-    description: "PO-77821 emailed by CM but not listed in Open POs tab.",
+    title: "PO not visible in vendor portal",
+    fields: [
+      { label: "PO #", value: "PO-77821" },
+      { label: "Facility", value: "DEL-D3" },
+      { label: "Received via", value: "Email from CM" },
+    ],
     raisedOn: "2026-07-12",
     updatedAt: "2026-07-12",
     status: "Open",
     category: "Purchase Order",
   },
   {
-    id: "TKT-8785",
-    title: "PO quantity change requested",
-    description: "Need to reduce PO-77733 line 4 from 200 to 150 units.",
-    raisedOn: "2026-07-11",
-    updatedAt: "2026-07-14",
-    status: "In Progress",
-    category: "Purchase Order",
-  },
-  {
     id: "TKT-8782",
-    title: "Return pickup delayed by 4 days",
-    description: "RTO-3391 was scheduled 07 Jul, still awaiting pickup.",
+    title: "Return pickup delayed",
+    fields: [
+      { label: "RTO ID", value: "RTO-3391" },
+      { label: "Facility", value: "HYD-H1" },
+      { label: "Scheduled", value: "07 Jul 2026" },
+      { label: "Delay", value: "4 days" },
+    ],
     raisedOn: "2026-07-11",
     updatedAt: "2026-07-13",
-    status: "In Progress",
+    status: "Open",
     category: "Returns",
   },
   {
     id: "TKT-8770",
     title: "OTP not received on login",
-    description: "Multiple retries on registered mobile, no SMS received.",
+    fields: [
+      { label: "User", value: "priya.n@vendor.com" },
+      { label: "Mobile", value: "+91-98•••••23" },
+      { label: "Attempts", value: "4" },
+    ],
     raisedOn: "2026-07-10",
     updatedAt: "2026-07-10",
     status: "Resolved",
     category: "Login Issues",
   },
   {
-    id: "TKT-8762",
-    title: "Locked out after password reset",
-    description: "Reset flow completed but portal keeps returning invalid credentials.",
-    raisedOn: "2026-07-09",
-    updatedAt: "2026-07-11",
-    status: "Awaiting Vendor",
-    category: "Login Issues",
-  },
-  {
     id: "TKT-8755",
-    title: "Onboarding document rejected — GST proof",
-    description: "GST certificate marked illegible, please share high-res copy.",
+    title: "Onboarding document rejected",
+    fields: [
+      { label: "Doc type", value: "GST Certificate" },
+      { label: "Reason", value: "Illegible scan" },
+      { label: "Vendor code", value: "V-88214" },
+    ],
     raisedOn: "2026-07-08",
     updatedAt: "2026-07-09",
-    status: "Awaiting Vendor",
+    status: "Open",
     category: "Onboarding",
   },
   {
     id: "TKT-8741",
     title: "Storage fee reversal request",
-    description: "Charged storage fee despite pickup within free window on 02 Jul.",
+    fields: [
+      { label: "Invoice #", value: "INV-98120" },
+      { label: "Amount", value: "₹18,400" },
+      { label: "Facility", value: "MUM-M2" },
+      { label: "Pickup date", value: "02 Jul 2026" },
+    ],
     raisedOn: "2026-07-06",
     updatedAt: "2026-07-08",
-    status: "Closed",
-    category: "Fees & Charges",
-  },
-  {
-    id: "TKT-8733",
-    title: "Late shipment penalty clarification",
-    description: "Need breakdown of penalty applied to invoice INV-98120.",
-    raisedOn: "2026-07-05",
-    updatedAt: "2026-07-07",
     status: "Resolved",
     category: "Fees & Charges",
-  },
-  {
-    id: "TKT-8720",
-    title: "General query — vendor portal training",
-    description: "Requesting a walkthrough session for two new team members.",
-    raisedOn: "2026-07-03",
-    updatedAt: "2026-07-04",
-    status: "Open",
-    category: "Other",
   },
 ];
 
 // ------------------ Style maps ------------------
 
 const STATUS_STYLE: Record<TicketStatus, string> = {
-  Open: "bg-cat-blue/10 text-cat-blue",
-  "In Progress": "bg-cat-amber/10 text-cat-amber",
-  "Awaiting Vendor": "bg-cat-purple/10 text-cat-purple",
+  Open: "bg-muted text-muted-foreground",
   Resolved: "bg-cat-green/10 text-cat-green",
-  Closed: "bg-muted text-muted-foreground",
 };
 
 // ------------------ Page ------------------
@@ -366,31 +361,43 @@ function VendorTicketsPage() {
                 <TableHead>Ticket details</TableHead>
                 <TableHead className="w-32">Raised on</TableHead>
                 <TableHead className="w-32">Updated at</TableHead>
-                <TableHead className="w-40">Status</TableHead>
+                <TableHead className="w-28">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((t) => (
-                <TableRow key={t.id} className="cursor-pointer">
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {t.id}
+                <TableRow key={t.id}>
+                  <TableCell className="align-top">
+                    <button
+                      type="button"
+                      className="font-mono text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                    >
+                      {t.id}
+                    </button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-top">
                     <div className="font-medium text-foreground">{t.title}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
-                      {t.description}
-                    </div>
-                    <div className="mt-1 inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <dl className="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs sm:grid-cols-2">
+                      {t.fields.map((f) => (
+                        <div key={f.label} className="flex gap-1.5">
+                          <dt className="text-muted-foreground">{f.label}:</dt>
+                          <dd className="font-medium text-foreground">
+                            {f.value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <div className="mt-2 inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                       {t.category}
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs tabular-nums text-muted-foreground">
+                  <TableCell className="align-top text-xs tabular-nums text-muted-foreground">
                     {formatDate(t.raisedOn)}
                   </TableCell>
-                  <TableCell className="text-xs tabular-nums text-muted-foreground">
+                  <TableCell className="align-top text-xs tabular-nums text-muted-foreground">
                     {formatDate(t.updatedAt)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-top">
                     <span
                       className={cn(
                         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
@@ -440,7 +447,7 @@ function CategoryPill({
       className={cn(
         "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
         active
-          ? "border-primary bg-primary text-primary-foreground"
+          ? "border-foreground bg-foreground text-background"
           : "border-border bg-card text-foreground hover:bg-muted",
       )}
     >
@@ -449,7 +456,7 @@ function CategoryPill({
         className={cn(
           "inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums",
           active
-            ? "bg-primary-foreground/20 text-primary-foreground"
+            ? "bg-background/20 text-background"
             : "bg-muted text-muted-foreground",
         )}
       >
