@@ -65,30 +65,49 @@ export interface TemplateRequest {
   rejectionCategory?: RejectionCategory;
 }
 
-// Module-level store
-let REQUESTS: TemplateRequest[] = seed();
-const listeners = new Set<() => void>();
+// HMR-safe singletons: keep state on globalThis so hot reloads and any
+// duplicated module evaluation share the same arrays and listener sets.
+type StoreGlobal = {
+  __PB_REQUESTS?: TemplateRequest[];
+  __PB_REQ_LISTENERS?: Set<() => void>;
+  __PB_PUBLISH_LOGS?: PublishLog[];
+  __PB_LOG_LISTENERS?: Set<() => void>;
+  __PB_CAMPAIGNS?: Campaign[];
+  __PB_CMP_LISTENERS?: Set<() => void>;
+};
+const g = globalThis as unknown as StoreGlobal;
+
+let REQUESTS: TemplateRequest[] = g.__PB_REQUESTS ?? (g.__PB_REQUESTS = seed());
+const listeners: Set<() => void> =
+  g.__PB_REQ_LISTENERS ?? (g.__PB_REQ_LISTENERS = new Set());
 
 function emit() {
   listeners.forEach((l) => l());
 }
 
+
 export function getRequests(): TemplateRequest[] {
   return REQUESTS;
 }
 
-export function addRequest(r: TemplateRequest) {
-  REQUESTS = [r, ...REQUESTS];
+function setRequests(next: TemplateRequest[]) {
+  REQUESTS = next;
+  g.__PB_REQUESTS = next;
   emit();
 }
 
+export function addRequest(r: TemplateRequest) {
+  setRequests([r, ...REQUESTS]);
+}
+
 export function approveRequest(id: string) {
-  REQUESTS = REQUESTS.map((r) =>
-    r.id === id
-      ? { ...r, status: "Approved" as const, approvedAt: nowStamp() }
-      : r,
+  setRequests(
+    REQUESTS.map((r) =>
+      r.id === id
+        ? { ...r, status: "Approved" as const, approvedAt: nowStamp() }
+        : r,
+    ),
   );
-  emit();
 }
 
 export function rejectRequest(
@@ -96,19 +115,21 @@ export function rejectRequest(
   reason: string,
   category: RejectionCategory,
 ) {
-  REQUESTS = REQUESTS.map((r) =>
-    r.id === id
-      ? {
-          ...r,
-          status: "Rejected" as const,
-          rejectedAt: nowStamp(),
-          rejectionReason: reason,
-          rejectionCategory: category,
-        }
-      : r,
+  setRequests(
+    REQUESTS.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            status: "Rejected" as const,
+            rejectedAt: nowStamp(),
+            rejectionReason: reason,
+            rejectionCategory: category,
+          }
+        : r,
+    ),
   );
-  emit();
 }
+
 
 export function useRequests(): TemplateRequest[] {
   const [, setTick] = useState(0);
@@ -141,32 +162,40 @@ export interface PublishLog {
   flaggedAt?: string;
 }
 
-let PUBLISH_LOGS: PublishLog[] = seedPublishLogs();
-const logListeners = new Set<() => void>();
+let PUBLISH_LOGS: PublishLog[] =
+  g.__PB_PUBLISH_LOGS ?? (g.__PB_PUBLISH_LOGS = seedPublishLogs());
+const logListeners: Set<() => void> =
+  g.__PB_LOG_LISTENERS ?? (g.__PB_LOG_LISTENERS = new Set());
 function emitLogs() {
   logListeners.forEach((l) => l());
 }
+
 
 export function getPublishLogs(): PublishLog[] {
   return PUBLISH_LOGS;
 }
 
-export function addPublishLog(log: PublishLog) {
-  PUBLISH_LOGS = [log, ...PUBLISH_LOGS];
+function setPublishLogs(next: PublishLog[]) {
+  PUBLISH_LOGS = next;
+  g.__PB_PUBLISH_LOGS = next;
   emitLogs();
+}
+
+export function addPublishLog(log: PublishLog) {
+  setPublishLogs([log, ...PUBLISH_LOGS]);
 }
 
 export function acknowledgeLog(id: string) {
   const log = PUBLISH_LOGS.find((l) => l.id === id);
-  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
-    l.id === id ? { ...l, status: "Acknowledged" as const } : l,
+  setPublishLogs(
+    PUBLISH_LOGS.map((l) =>
+      l.id === id ? { ...l, status: "Acknowledged" as const } : l,
+    ),
   );
-  emitLogs();
   if (log) {
     const req = REQUESTS.find((r) => r.id === log.requestId);
     if (req && !CAMPAIGNS.some((c) => c.requestId === req.id)) {
-      CAMPAIGNS = [deriveCampaign(req, log, nowStamp()), ...CAMPAIGNS];
-      emitCampaigns();
+      setCampaigns([deriveCampaign(req, log, nowStamp()), ...CAMPAIGNS]);
     }
   }
 }
@@ -178,33 +207,36 @@ export function flagLog(
   category: RejectionCategory,
 ) {
   const log = PUBLISH_LOGS.find((l) => l.id === id);
-  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
-    l.id === id
-      ? {
-          ...l,
-          status: "Flagged" as const,
-          flagReason: reason,
-          flagCategory: category,
-          flaggedAt: nowStamp(),
-        }
-      : l,
-  );
-  emitLogs();
-  if (log) {
-    REQUESTS = REQUESTS.map((r) =>
-      r.id === log.requestId
+  setPublishLogs(
+    PUBLISH_LOGS.map((l) =>
+      l.id === id
         ? {
-            ...r,
-            status: "Rejected Post Publish" as const,
-            rejectedAt: nowStamp(),
-            rejectionReason: reason,
-            rejectionCategory: category,
+            ...l,
+            status: "Flagged" as const,
+            flagReason: reason,
+            flagCategory: category,
+            flaggedAt: nowStamp(),
           }
-        : r,
+        : l,
+    ),
+  );
+  if (log) {
+    setRequests(
+      REQUESTS.map((r) =>
+        r.id === log.requestId
+          ? {
+              ...r,
+              status: "Rejected Post Publish" as const,
+              rejectedAt: nowStamp(),
+              rejectionReason: reason,
+              rejectionCategory: category,
+            }
+          : r,
+      ),
     );
-    emit();
   }
 }
+
 
 export function usePublishLogs(): PublishLog[] {
   const [, setTick] = useState(0);
@@ -371,11 +403,19 @@ export function deriveCampaign(
   };
 }
 
-let CAMPAIGNS: Campaign[] = seedCampaigns();
-const campaignListeners = new Set<() => void>();
+let CAMPAIGNS: Campaign[] =
+  g.__PB_CAMPAIGNS ?? (g.__PB_CAMPAIGNS = seedCampaigns());
+const campaignListeners: Set<() => void> =
+  g.__PB_CMP_LISTENERS ?? (g.__PB_CMP_LISTENERS = new Set());
 function emitCampaigns() {
   campaignListeners.forEach((l) => l());
 }
+function setCampaigns(next: Campaign[]) {
+  CAMPAIGNS = next;
+  g.__PB_CAMPAIGNS = next;
+  emitCampaigns();
+}
+
 
 export function getCampaigns(): Campaign[] {
   return CAMPAIGNS;

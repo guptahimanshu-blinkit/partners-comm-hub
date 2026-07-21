@@ -139,12 +139,12 @@ function ScheduleNotificationPage() {
       recipientMethod === "role_based" ? "Role based" : "Ad-hoc upload";
     const segmentString = `${targetLevel} · ${segment.label} · ${methodLabel}`;
 
-    const apolloId = `APOLLO-${Math.random()
-      .toString(16)
-      .slice(2, 8)
-      .toUpperCase()}`;
+    const rand = (n: number) =>
+      Math.random().toString(16).slice(2, 2 + n).toUpperCase();
+    const apolloId = `APOLLO-${rand(6)}`;
+    const pubId = `PUB-${Date.now().toString(36).toUpperCase()}-${rand(3)}`;
     addPublishLog({
-      id: `PUB-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: pubId,
       requestId: selected.id,
       templateId: apolloId,
       templateName: selected.templateName,
@@ -154,6 +154,7 @@ function ScheduleNotificationPage() {
       publishedAt: new Date().toISOString(),
       status: "Pending Review",
     });
+
 
     toast.success(`${selected.templateName} scheduled — Approver notified`);
     setTemplateId("");
