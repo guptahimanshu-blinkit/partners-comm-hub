@@ -90,18 +90,24 @@ export function getRequests(): TemplateRequest[] {
   return REQUESTS;
 }
 
-export function addRequest(r: TemplateRequest) {
-  REQUESTS = [r, ...REQUESTS];
+function setRequests(next: TemplateRequest[]) {
+  REQUESTS = next;
+  g.__PB_REQUESTS = next;
   emit();
 }
 
+export function addRequest(r: TemplateRequest) {
+  setRequests([r, ...REQUESTS]);
+}
+
 export function approveRequest(id: string) {
-  REQUESTS = REQUESTS.map((r) =>
-    r.id === id
-      ? { ...r, status: "Approved" as const, approvedAt: nowStamp() }
-      : r,
+  setRequests(
+    REQUESTS.map((r) =>
+      r.id === id
+        ? { ...r, status: "Approved" as const, approvedAt: nowStamp() }
+        : r,
+    ),
   );
-  emit();
 }
 
 export function rejectRequest(
@@ -109,19 +115,21 @@ export function rejectRequest(
   reason: string,
   category: RejectionCategory,
 ) {
-  REQUESTS = REQUESTS.map((r) =>
-    r.id === id
-      ? {
-          ...r,
-          status: "Rejected" as const,
-          rejectedAt: nowStamp(),
-          rejectionReason: reason,
-          rejectionCategory: category,
-        }
-      : r,
+  setRequests(
+    REQUESTS.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            status: "Rejected" as const,
+            rejectedAt: nowStamp(),
+            rejectionReason: reason,
+            rejectionCategory: category,
+          }
+        : r,
+    ),
   );
-  emit();
 }
+
 
 export function useRequests(): TemplateRequest[] {
   const [, setTick] = useState(0);
