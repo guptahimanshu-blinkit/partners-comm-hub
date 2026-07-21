@@ -32,6 +32,10 @@ import {
   type InternalRole,
 } from "@/lib/role-context";
 import type { EmployeeRole } from "@/lib/mock-data";
+import {
+  useRoleAssignments,
+  isCategoryAssignedTo,
+} from "@/lib/role-assignments";
 
 interface NavItem {
   to: string;
@@ -86,6 +90,12 @@ const SUPPORT_NAV: NavItem[] = [
     icon: ClipboardCheck,
     roles: ["internal_ops"],
   },
+  {
+    to: "/help/my-tickets",
+    label: "Ticket Scorecard",
+    icon: ClipboardCheck,
+    roles: ["vendor_admin", "vendor_employee"],
+  },
 ];
 
 
@@ -108,7 +118,8 @@ function Logo() {
 }
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
-  const { role, internalRole } = useRole();
+  const { role, internalRole, employeeRole } = useRole();
+  const { assignments } = useRoleAssignments();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = NAV.filter((n) => {
     if (!n.roles.includes(role)) return false;
@@ -120,7 +131,13 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
       return false;
     return true;
   });
-  const supportItems = SUPPORT_NAV.filter((n) => n.roles.includes(role));
+  const supportItems = SUPPORT_NAV.filter((n) => {
+    if (!n.roles.includes(role)) return false;
+    if (n.to === "/help/my-tickets" && role === "vendor_employee") {
+      return isCategoryAssignedTo("reports_analytics", employeeRole, assignments);
+    }
+    return true;
+  });
 
   const renderItem = (item: NavItem) => {
     const active =
@@ -231,6 +248,7 @@ const BREADCRUMBS: Array<{ match: (p: string) => boolean; trail: string[] }> = [
   { match: (p) => p.startsWith("/requests"), trail: ["Workdesk", "Requests"] },
   { match: (p) => p.startsWith("/comms-performance"), trail: ["Workdesk", "Comms Performance"] },
   { match: (p) => p.startsWith("/help/ticket-scorecard"), trail: ["Help & Support", "Ticket Scorecard"] },
+  { match: (p) => p.startsWith("/help/my-tickets"), trail: ["Help & Support", "Ticket Scorecard"] },
   { match: (p) => p.startsWith("/add-communication"), trail: ["Add Communication"] },
   { match: (p) => p.startsWith("/vendor-delivery-profiles"), trail: ["Vendor Delivery Profiles"] },
   { match: (p) => p.startsWith("/po-extension-request"), trail: ["PO Extension Request"] },
