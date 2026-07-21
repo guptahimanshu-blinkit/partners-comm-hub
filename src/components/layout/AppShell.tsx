@@ -120,22 +120,9 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
       internalRole === "Template Submitter"
     )
       return false;
-    if (
-      n.to === "/vendor-delivery-profiles" &&
-      role === "internal_ops"
-    )
-      return false;
     return true;
   });
-  const supportItems = SUPPORT_NAV.filter((n) => {
-    if (!n.roles.includes(role)) return false;
-    if (
-      n.to === "/notifications/escalation-queue" &&
-      role === "internal_ops"
-    )
-      return false;
-    return true;
-  });
+  const supportItems = SUPPORT_NAV.filter((n) => n.roles.includes(role));
 
   const renderItem = (item: NavItem) => {
     const active =
