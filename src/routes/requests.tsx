@@ -1099,9 +1099,17 @@ function RequestDetail({
   request: TemplateRequest;
   onBack: () => void;
 }) {
+  const hasClubbingMatch = getClubbingMatch(request.id) !== null;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const [reasonCat, setReasonCat] = useState<RejectionCategory | "">("");
+  const [reasonCat, setReasonCat] = useState<RejectionCategory | "">(
+    hasClubbingMatch ? "Clubbing Conflict" : "",
+  );
+
+  const openReject = () => {
+    if (hasClubbingMatch && !reasonCat) setReasonCat("Clubbing Conflict");
+    setRejectOpen(true);
+  };
 
   const approve = () => {
     approveRequest(request.id);
