@@ -443,7 +443,7 @@ export function deriveCampaign(
   return {
     id: `CMP-${log.id.replace(/^PUB-/, "")}`,
     requestId: req.id,
-    templateId: req.templateId,
+    templateId: log.templateId,
     name: req.templateName,
     categoryId: req.categoryId,
     priority: req.priority,
