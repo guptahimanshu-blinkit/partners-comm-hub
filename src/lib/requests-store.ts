@@ -315,6 +315,20 @@ function remindersFor(priority: PriorityLevel): number {
   return priority === "P1" ? 2 : priority === "P2" ? 1 : 0;
 }
 
+// Parse a display string like "18 Jul 2026, 09:00 AM" and decide status.
+// Recurring campaigns are always "Running"; one-time ones flip from
+// "Scheduled" to "Running" once the scheduled moment has passed.
+function computeCampaignStatus(
+  isOnce: boolean,
+  scheduledFor: string,
+): CampaignStatus {
+  if (!isOnce) return "Running";
+  const parsed = Date.parse(scheduledFor.replace(",", ""));
+  if (Number.isNaN(parsed)) return "Scheduled";
+  return parsed <= Date.now() ? "Running" : "Scheduled";
+}
+
+
 export function deriveCampaign(
   req: TemplateRequest,
   log: PublishLog,
