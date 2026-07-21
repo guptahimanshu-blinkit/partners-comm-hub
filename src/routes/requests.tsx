@@ -1193,11 +1193,7 @@ function RequestDetail({
         )}
       </div>
 
-      <ClubbingMatchPanel
-        requestId={request.id}
-        categoryId={request.categoryId}
-        priority={request.priority}
-      />
+      <ClubbingMatchPanel requestId={request.id} />
 
 
 
