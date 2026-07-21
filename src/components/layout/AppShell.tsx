@@ -3,7 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   SlidersHorizontal,
-  ShieldAlert,
+  
   CalendarPlus,
   PlusCircle,
   Inbox,
