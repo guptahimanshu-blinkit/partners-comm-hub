@@ -195,19 +195,24 @@ function RequestsPage() {
 
 // ------- Small helpers -------
 function StatusTag({ status }: { status: TemplateRequest["status"] }) {
-  const map = {
-    Pending: "bg-cat-amber-soft text-cat-amber",
-    Approved: "bg-cat-green-soft text-cat-green",
-    Rejected: "bg-cat-red-soft text-cat-red",
-  } as const;
+  const map: Record<TemplateRequest["status"], { cls: string; label: string }> = {
+    Pending: { cls: "bg-cat-amber-soft text-cat-amber", label: "Pending" },
+    Approved: { cls: "bg-cat-green-soft text-cat-green", label: "Approved" },
+    Rejected: { cls: "bg-cat-red-soft text-cat-red", label: "Rejected" },
+    "Rejected Post Publish": {
+      cls: "bg-cat-red-soft text-cat-red",
+      label: "Rejected",
+    },
+  };
+  const { cls, label } = map[status];
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        map[status],
+        cls,
       )}
     >
-      {status}
+      {label}
     </span>
   );
 }
