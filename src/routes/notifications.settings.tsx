@@ -57,7 +57,7 @@ type Digest = "Real-time" | "Daily" | "Weekly";
 
 function SettingsPage() {
   const { role, employeeRole } = useRole();
-  if (role === "internal_ops") return <Navigate to="/notifications/escalation-queue" />;
+  if (role === "internal_ops") return <Navigate to="/requests" />;
   if (role === "vendor_employee") return <EmployeePreferences employeeRole={employeeRole} />;
   return <SettingsInner isAdmin />;
 }

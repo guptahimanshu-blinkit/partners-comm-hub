@@ -57,7 +57,7 @@ function NotificationCentre() {
   const { role, employeeRole } = useRole();
 
   if (role === "internal_ops") {
-    return <Navigate to="/notifications/escalation-queue" />;
+    return <Navigate to="/requests" />;
   }
 
   return <NotificationCentreInner isEmployee={role === "vendor_employee"} employeeRole={employeeRole} />;

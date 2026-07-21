@@ -3,7 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   SlidersHorizontal,
-  ShieldAlert,
+  
   CalendarPlus,
   PlusCircle,
   Inbox,
@@ -80,12 +80,6 @@ const NAV: NavItem[] = [
 ];
 
 const SUPPORT_NAV: NavItem[] = [
-  {
-    to: "/notifications/escalation-queue",
-    label: "Escalation Queue",
-    icon: ShieldAlert,
-    roles: ["vendor_admin", "vendor_employee"],
-  },
   {
     to: "/help/ticket-scorecard",
     label: "Ticket Scorecard",
@@ -232,7 +226,7 @@ const BREADCRUMBS: Array<{ match: (p: string) => boolean; trail: string[] }> = [
   { match: (p) => p === "/notifications", trail: ["Notification Centre"] },
   { match: (p) => p.startsWith("/notifications/settings"), trail: ["Preference Centre"] },
   { match: (p) => p.startsWith("/notifications/schedule"), trail: ["Workdesk", "Add New Notification"] },
-  { match: (p) => p.startsWith("/notifications/escalation-queue"), trail: ["Help & Support", "Escalation Queue"] },
+  
   { match: (p) => p.startsWith("/notifications/send-calendar"), trail: ["Send Calendar"] },
   { match: (p) => p.startsWith("/requests"), trail: ["Workdesk", "Requests"] },
   { match: (p) => p.startsWith("/comms-performance"), trail: ["Workdesk", "Comms Performance"] },
