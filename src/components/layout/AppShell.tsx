@@ -248,6 +248,7 @@ const BREADCRUMBS: Array<{ match: (p: string) => boolean; trail: string[] }> = [
   { match: (p) => p.startsWith("/requests"), trail: ["Workdesk", "Requests"] },
   { match: (p) => p.startsWith("/comms-performance"), trail: ["Workdesk", "Comms Performance"] },
   { match: (p) => p.startsWith("/help/ticket-scorecard"), trail: ["Help & Support", "Ticket Scorecard"] },
+  { match: (p) => p.startsWith("/help/my-tickets"), trail: ["Help & Support", "Ticket Scorecard"] },
   { match: (p) => p.startsWith("/add-communication"), trail: ["Add Communication"] },
   { match: (p) => p.startsWith("/vendor-delivery-profiles"), trail: ["Vendor Delivery Profiles"] },
   { match: (p) => p.startsWith("/po-extension-request"), trail: ["PO Extension Request"] },
