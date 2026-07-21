@@ -1,58 +1,67 @@
-## Replace vendor Ticket Scorecard with a Help & Support ticket list
+## Campaigns (Workdesk)
 
-Rebuild `/help/my-tickets` as a real support-desk view. All previous content on this page (KPI tiles, breach banner, aging chart, category breakdown, self-serve tiles, volume trend) is removed.
+New sidebar item under **Workdesk**, visible to both Template Submitter and Approver, using the existing yellow Workdesk accent (`.workdesk` theme scope, no new tokens).
 
-### New page layout
+Route: `src/routes/campaigns.tsx` → `/campaigns`. Breadcrumb: *PartnersBiz / Workdesk / Campaigns*.
 
-Header
-- Title: "Help & Support" · subtitle "Your raised tickets · sample data only".
-- Same breadcrumb + role gating as today (Vendor Admin, or Vendor Employee with Reports & Analytics access).
+### 1. List view
 
-Category pills (horizontal, scrollable on mobile)
-- GRN & Discrepancy Note · Appointment · Payment · Purchase Order · Returns · Login Issues · Onboarding · Fees & Charges · Other
-- First pill "All" is selected by default.
-- Each pill shows a small count badge of tickets in that category. Clicking a pill filters the table below.
+Table columns:
+- **Campaign name** — template name + small muted Apollo ID underneath
+- **Channels** — small icons for Email / WhatsApp / Dashboard (Portal), lit if the campaign uses that channel, dimmed otherwise
+- **Audience** — recipient count (e.g. "1,240 vendors")
+- **Trigger** — pill: *One time* or *Recurring · Daily/Weekly/Monthly*
+- **Reminders** — e.g. "None", "1 reminder · +48h", "2 reminders"
+- **Status** — colored pill: Running (green), Scheduled (blue), Pending approval (amber), Failing (red), Completed (grey)
 
-Filter row (right-aligned, under pills)
-- Status dropdown: All, Open, In Progress, Awaiting Vendor, Resolved, Closed
-- Sort By dropdown: Newest first, Oldest first, Recently updated, Status
+Row click opens the detail view (side sheet, same pattern as the Published Templates detail dialog already in Requests).
 
-Ticket list table
-- Columns: Ticket Id · Ticket details · Raised on · Updated at · Status
-- Ticket details = short title + one-line description underneath (muted).
-- Status = colored pill (Open=blue, In Progress=amber, Awaiting Vendor=purple, Resolved=green, Closed=grey).
-- Rows are clickable for future detail view, but no detail panel in this pass (visual affordance only).
-- Empty state: "No tickets match these filters."
+Toolbar: status filter dropdown + search by name/ID. No create action — campaigns only appear via Acknowledge.
 
-### Sample data
+### 2. Connection to Acknowledge
 
-~14 sample tickets spread across the 9 categories so every pill shows a non-zero count and the Status filter has variety. Example rows:
+Extend `src/lib/requests-store.ts`:
+- Add `Campaign` type + module store (`CAMPAIGNS`, listeners, `useCampaigns`, `addCampaign`).
+- Change `acknowledgeLog(id)` so that in addition to marking the log Acknowledged, it derives a campaign from the linked `TemplateRequest` + `PublishLog` and pushes it into `CAMPAIGNS` (guard against duplicates by `requestId`).
+- Derivation rules:
+  - name/id ← template name + Apollo ID
+  - channels ← Email always on; WhatsApp on if `request.whatsapp` present; Dashboard always on (Portal is always included, per existing Preference Centre rule)
+  - audience count ← mock from segment string (e.g. "Tech Enabled Vendors" → 1,240; "All vendors" → 3,880; "Low Tech Vendors" → 640)
+  - trigger ← `Once` in `request.frequency` → *One time* + status **Scheduled**; anything else → *Recurring · <freq>* + status **Running**
+  - reminders ← derived from priority (P1 → 2, P2 → 1, P3 → none) — mock only
+  - startedAt ← log.scheduledFor
 
-- TKT-8821 · "GRN quantity mismatch — Kolkata K4" · 18 Jul 2026 · 20 Jul 2026 · Awaiting Vendor · GRN & Discrepancy Note
-- TKT-8817 · "Payment not received for invoice INV-99213" · 16 Jul 2026 · 19 Jul 2026 · In Progress · Payment
-- TKT-8804 · "Slot booking failed for Bengaluru DC" · 14 Jul 2026 · 15 Jul 2026 · Resolved · Appointment
-- TKT-8790 · "PO not visible in portal" · 12 Jul 2026 · 12 Jul 2026 · Open · Purchase Order
-- TKT-8782 · "Return pickup delayed by 4 days" · 11 Jul 2026 · 13 Jul 2026 · In Progress · Returns
-- TKT-8770 · "OTP not received on login" · 10 Jul 2026 · 10 Jul 2026 · Resolved · Login Issues
-- TKT-8755 · "Onboarding document rejected — GST proof" · 08 Jul 2026 · 09 Jul 2026 · Awaiting Vendor · Onboarding
-- TKT-8741 · "Storage fee reversal request" · 06 Jul 2026 · 08 Jul 2026 · Closed · Fees & Charges
-- …plus a few more so every category has ≥1 ticket.
+Seeded campaigns come "for free" from the two already-acknowledged/flagged seed logs by running the derivation on seed. I'll also seed one **Completed** and one **Failing** campaign directly so all five statuses are visible without user interaction.
 
-### Files touched
+### 3. Detail view (side sheet)
 
-- `src/routes/help.my-tickets.tsx` — full rewrite. Keep the route id, `head()` title, role gate, and `AppShell` wrapper; replace everything inside.
-- No sidebar/breadcrumb changes (page stays under "Help & Support / Ticket Scorecard" or I can rename the breadcrumb label to "My Tickets" — say the word).
-- No store changes, no new files. Sample data lives at the top of the route file.
+Layout, top to bottom:
+- **Header**: campaign name, Apollo ID, status pill, "Acknowledged by <approver> on <date>" line
+- **Overview grid** (2 cols): Category (colored dot), Priority, Purpose, Comm type
+- **Delivery**: channels row with icons + labels, audience count, segment name, WhatsApp preview bubble reused from existing component if WhatsApp channel is on
+- **Schedule**: trigger type, frequency, first send, reminder cadence
+- **Inherited configuration** panel (reuse the same block already shown in Requests detail — attachment, CTA, formula flags)
+- **Timeline**: Request approved → Published → Acknowledged (→ Flagged if applicable), each with timestamp
 
-### Out of scope
+No edit actions in this prototype — read-only, matching Workdesk convention for downstream views.
 
-- Ticket detail drawer / modal.
-- Raise-new-ticket flow.
-- Any real backend or persistence.
-- Vendor Admin vs Employee view differences beyond the existing access gate.
+### 4. Sidebar + breadcrumb
 
-### Confirm before I build
+- `AppShell.tsx`: add "Campaigns" under the Workdesk group for both Template Submitter and Approver.
+- Breadcrumb map: `/campaigns` → *Workdesk / Campaigns*.
 
-1. Full removal of the old scorecard content on this page — good?
-2. Category list above (9 pills, plus "All") — correct order and labels?
-3. Breadcrumb label: keep "Ticket Scorecard" or rename to "My Tickets"?
+### 5. Sample data on first load
+
+After seed derivation runs, list will show ~4 campaigns:
+1. **Fill Rate Weekly Digest — North** — Email + Dashboard, 1,240, Recurring · Weekly, 1 reminder, **Running** (from acknowledged seed log)
+2. **Payment on Hold — Invoice Rejection** — Email + WhatsApp + Dashboard, 1,240, One time, 2 reminders, **Scheduled** (auto-created when Approver acknowledges the pending seed log — until then, appears only after acknowledge; I'll also pre-seed it so the list isn't empty on first view)
+3. **Appointment Slot Confirmation — South** — Email + Dashboard, 880, Recurring · Daily, no reminders, **Completed** (pre-seeded)
+4. **GST Filing Reminder — Q2** — Email + WhatsApp, 3,880, One time, 1 reminder, **Failing** (pre-seeded, with a small "3 WhatsApp deliveries bounced" note in detail)
+
+### Technical notes
+
+- Files touched: `src/lib/requests-store.ts` (add Campaign store + hook, extend `acknowledgeLog`), `src/routes/campaigns.tsx` (new), `src/components/layout/AppShell.tsx` (sidebar + breadcrumb).
+- No new color tokens — page is wrapped in the existing `workdesk` class so all `--primary` refs render yellow with dark ink.
+- No changes to Vendor-facing screens, Requests page semantics, or the Acknowledge button UI itself — only its side effect grows.
+
+Please confirm the detail-view layout and the four sample campaigns above before I build.
