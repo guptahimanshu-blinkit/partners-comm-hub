@@ -13,6 +13,7 @@ import { Route as VendorDeliveryProfilesRouteImport } from './routes/vendor-deli
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
 import { Route as CommsPerformanceRouteImport } from './routes/comms-performance'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as AddCommunicationRouteImport } from './routes/add-communication'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as NotificationsIndexRouteImport } from './routes/notifications.index'
@@ -39,6 +40,11 @@ const PoExtensionRequestRoute = PoExtensionRequestRouteImport.update({
 const CommsPerformanceRoute = CommsPerformanceRouteImport.update({
   id: '/comms-performance',
   path: '/comms-performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AddCommunicationRoute = AddCommunicationRouteImport.update({
@@ -81,6 +87,7 @@ const HelpMyTicketsRoute = HelpMyTicketsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
+  '/campaigns': typeof CampaignsRoute
   '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
+  '/campaigns': typeof CampaignsRoute
   '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/add-communication': typeof AddCommunicationRoute
+  '/campaigns': typeof CampaignsRoute
   '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/add-communication'
+    | '/campaigns'
     | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/add-communication'
+    | '/campaigns'
     | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/add-communication'
+    | '/campaigns'
     | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
@@ -163,6 +175,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddCommunicationRoute: typeof AddCommunicationRoute
+  CampaignsRoute: typeof CampaignsRoute
   CommsPerformanceRoute: typeof CommsPerformanceRoute
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   RequestsRoute: typeof RequestsRoute
@@ -202,6 +215,13 @@ declare module '@tanstack/react-router' {
       path: '/comms-performance'
       fullPath: '/comms-performance'
       preLoaderRoute: typeof CommsPerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/add-communication': {
@@ -259,6 +279,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddCommunicationRoute: AddCommunicationRoute,
+  CampaignsRoute: CampaignsRoute,
   CommsPerformanceRoute: CommsPerformanceRoute,
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   RequestsRoute: RequestsRoute,
