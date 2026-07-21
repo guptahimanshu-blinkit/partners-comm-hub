@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRole } from "@/lib/role-context";
-import { useRequests } from "@/lib/requests-store";
+import { useRequests, addPublishLog } from "@/lib/requests-store";
 
 export const Route = createFileRoute("/notifications/schedule")({
   head: () => ({
