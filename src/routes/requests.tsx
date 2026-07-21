@@ -1295,10 +1295,10 @@ interface ClubbingCandidate {
 }
 
 const CLUBBING_POOL: ClubbingCandidate[] = [
-  { apolloId: "APOLLO-100234", name: "PO Extension Approved", category: "finance", categoryLabel: "Finance & Payments" },
-  { apolloId: "APOLLO-100311", name: "Weekly Fill Rate Digest", category: "reports", categoryLabel: "Reports & Analytics" },
-  { apolloId: "APOLLO-100402", name: "Catalogue Update Required", category: "action", categoryLabel: "Action Required" },
-  { apolloId: "APOLLO-100355", name: "Invoice Rejected", category: "finance", categoryLabel: "Finance & Payments" },
+  { apolloId: "APOLLO-100234", name: "PO Extension Approved", category: "finance_payments", categoryLabel: "Finance & Payments" },
+  { apolloId: "APOLLO-100311", name: "Weekly Fill Rate Digest", category: "reports_analytics", categoryLabel: "Reports & Analytics" },
+  { apolloId: "APOLLO-100402", name: "Catalogue Update Required", category: "action_required", categoryLabel: "Action Required" },
+  { apolloId: "APOLLO-100355", name: "Invoice Rejected", category: "finance_payments", categoryLabel: "Finance & Payments" },
   { apolloId: "APOLLO-100501", name: "Diwali Announcement", category: "reminders", categoryLabel: "Reminders" },
 ];
 
