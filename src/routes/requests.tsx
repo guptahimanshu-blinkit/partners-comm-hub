@@ -1192,6 +1192,14 @@ function RequestDetail({
         )}
       </div>
 
+      <ClubbingMatchPanel
+        requestId={request.id}
+        categoryId={request.categoryId}
+        priority={request.priority}
+      />
+
+
+
       <div className="flex justify-end gap-2">
         <Button
           variant="outline"
