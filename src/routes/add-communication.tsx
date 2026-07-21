@@ -164,7 +164,7 @@ function AddCommunicationPage() {
           </div>
 
           <div className="grid gap-2">
-            <Label>Does the vendor lose money or time if this is ignored?</Label>
+            <Label>Is this an actionable task?</Label>
             <div className="flex gap-2">
               <Button
                 type="button"
