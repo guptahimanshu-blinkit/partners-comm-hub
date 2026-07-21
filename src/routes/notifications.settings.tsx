@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Lock, Plus, Info, Mail, MonitorSmartphone, MessageSquare, ChevronDown, X } from "lucide-react";
+import { Lock, Plus, Info, Mail, MessageSquare, ChevronDown, X } from "lucide-react";
 
 
 import { cn } from "@/lib/utils";
