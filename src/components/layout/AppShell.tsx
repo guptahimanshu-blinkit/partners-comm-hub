@@ -81,12 +81,6 @@ const NAV: NavItem[] = [
 
 const SUPPORT_NAV: NavItem[] = [
   {
-    to: "/notifications/escalation-queue",
-    label: "Escalation Queue",
-    icon: ShieldAlert,
-    roles: ["vendor_admin", "vendor_employee"],
-  },
-  {
     to: "/help/ticket-scorecard",
     label: "Ticket Scorecard",
     icon: ClipboardCheck,

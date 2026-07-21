@@ -19,7 +19,6 @@ import { Route as NotificationsIndexRouteImport } from './routes/notifications.i
 import { Route as NotificationsSettingsRouteImport } from './routes/notifications.settings'
 import { Route as NotificationsSendCalendarRouteImport } from './routes/notifications.send-calendar'
 import { Route as NotificationsScheduleRouteImport } from './routes/notifications.schedule'
-import { Route as NotificationsEscalationQueueRouteImport } from './routes/notifications.escalation-queue'
 import { Route as HelpTicketScorecardRouteImport } from './routes/help.ticket-scorecard'
 
 const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
@@ -73,12 +72,6 @@ const NotificationsScheduleRoute = NotificationsScheduleRouteImport.update({
   path: '/notifications/schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NotificationsEscalationQueueRoute =
-  NotificationsEscalationQueueRouteImport.update({
-    id: '/notifications/escalation-queue',
-    path: '/notifications/escalation-queue',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const HelpTicketScorecardRoute = HelpTicketScorecardRouteImport.update({
   id: '/help/ticket-scorecard',
   path: '/help/ticket-scorecard',
@@ -93,7 +86,6 @@ export interface FileRoutesByFullPath {
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
-  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -107,7 +99,6 @@ export interface FileRoutesByTo {
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
-  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -122,7 +113,6 @@ export interface FileRoutesById {
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/help/ticket-scorecard': typeof HelpTicketScorecardRoute
-  '/notifications/escalation-queue': typeof NotificationsEscalationQueueRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
   '/notifications/settings': typeof NotificationsSettingsRoute
@@ -138,7 +128,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/vendor-delivery-profiles'
     | '/help/ticket-scorecard'
-    | '/notifications/escalation-queue'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
@@ -152,7 +141,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/vendor-delivery-profiles'
     | '/help/ticket-scorecard'
-    | '/notifications/escalation-queue'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
@@ -166,7 +154,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/vendor-delivery-profiles'
     | '/help/ticket-scorecard'
-    | '/notifications/escalation-queue'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
     | '/notifications/settings'
@@ -181,7 +168,6 @@ export interface RootRouteChildren {
   RequestsRoute: typeof RequestsRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
   HelpTicketScorecardRoute: typeof HelpTicketScorecardRoute
-  NotificationsEscalationQueueRoute: typeof NotificationsEscalationQueueRoute
   NotificationsScheduleRoute: typeof NotificationsScheduleRoute
   NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
   NotificationsSettingsRoute: typeof NotificationsSettingsRoute
@@ -260,13 +246,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/notifications/escalation-queue': {
-      id: '/notifications/escalation-queue'
-      path: '/notifications/escalation-queue'
-      fullPath: '/notifications/escalation-queue'
-      preLoaderRoute: typeof NotificationsEscalationQueueRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/help/ticket-scorecard': {
       id: '/help/ticket-scorecard'
       path: '/help/ticket-scorecard'
@@ -285,7 +264,6 @@ const rootRouteChildren: RootRouteChildren = {
   RequestsRoute: RequestsRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
   HelpTicketScorecardRoute: HelpTicketScorecardRoute,
-  NotificationsEscalationQueueRoute: NotificationsEscalationQueueRoute,
   NotificationsScheduleRoute: NotificationsScheduleRoute,
   NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,
   NotificationsSettingsRoute: NotificationsSettingsRoute,
