@@ -1,49 +1,51 @@
-## Comms Performance — plan
+## Clubbing Match panel — plan
 
-New Workdesk page sitting next to Requests. Subtitle: **Simulating: Pulse metrics · sample data only**. Visible to both Template Submitter and Approver under Internal Ops (Blinkit).
+Add a new panel inside the Approver's request review screen (`ApproverView` in `src/routes/requests.tsx`), inserted after the WhatsApp preview block and immediately above the Reject / Approve action row. The existing Approve/Reject buttons stay untouched.
 
-- Route: `/comms-performance`
-- Sidebar: new item "Comms Performance" placed immediately after "Requests" for `internal_ops` (both sub-roles).
+### Layout
 
-### Layout (top → bottom)
+Card styled to match the other review cards (rounded-xl, border, subtle shadow):
 
-1. **Header KPI strip** — 4 tiles: Avg CTR, Bounce Rate, Non-opener Rate, Templates below quality bar. Red accent when Bounce > 5% or Non-opener > 40%.
+- **Header**
+  - Title: "Clubbing Match"
+  - Sub: "Existing published templates that overlap with this request. Consider batching instead of a fresh send."
+  - Right side: small pill showing the top match percent, colored:
+    - ≥ 80% → red pill "High overlap"
+    - 60–79% → amber "Possible overlap"
+    - < 60% → muted "Low overlap" (or hide the pill)
 
-2. **Template-level CTR table**
-   Columns: Template, Category, Sends, Opens, Clicks, CTR%, Trend (▲/▼ vs prior 7d).
-   Sample: 8 templates across Finance, Ops, Announcements. CTR range 3%–34%. Sorted by CTR desc; low-CTR rows (<5%) tagged amber.
+- **Match list** — up to 3 rows, sorted by match % desc. Each row:
+  - Left: template name + Apollo ID (mono) + category chip
+  - Middle: horizontal match bar (0–100%) with numeric % on the right, colored using the same thresholds
+  - Sub-line: short reason chips e.g. "Same category", "Overlapping audience 74%", "Sent within 48h", "Same CTA destination"
+  - Right: ghost link "View template" (no-op in prototype, opens toast "Template preview — sample data")
 
-3. **Time-of-day CTR — Announcement mailers**
-   Bar chart across 6 buckets (6–9, 9–12, 12–15, 15–18, 18–21, 21–24). Peak highlighted (e.g. 9–12 at 28%). Caption: "Best window to schedule announcement pushes."
+- **Empty state** — when no match ≥ 40%: single muted line "No meaningful overlap found. Safe to send as standalone."
 
-4. **Bounce Tracker**
-   Table: Template, Sends, Hard Bounces, Soft Bounces, Bounce %. Red pill when >5%. 5 rows, one clear offender at ~11%.
+- **Footer helper** — one-line note: "Sample match score. Real clubbing uses audience overlap + category + send window."
 
-5. **Non-opener Tracker**
-   Table: Vendor, Last opened, Consecutive misses, Category. Row actions:
-   - **Suppress** — confirmation dialog, then toast "Vendor suppressed from this category."
-   - **Route to Help & Support** — toast "Routed to Help & Support for outreach."
-   6–8 rows, misses ranging 3–12.
+### Match logic (mock, deterministic per request)
 
-6. **Finance Mail CTR — configuration level**
-   Table grouped by configuration (e.g. "Weekly Payout Digest", "TDS Reconciliation", "Invoice Rejection Alert"). Columns: Configuration, Segment size, Opens, Clicks, CTR%. 4–5 rows.
+Compute against a fixed pool of 5 published sample templates seeded in the file. For each request, produce match % using a simple deterministic hash of `request.id + template.id` mapped into 30–95, plus a small nudge (+10) when the pool template's category matches `request.categoryId`. Same request always shows the same list on re-render.
 
-7. **Content Quality Score per Template**
-   Table: Template, Category, Score (/10), Status. Rules:
-   - Score ≥ 9 → **Publishable** (green)
-   - Score 7–8.9 → **Needs improvement** (amber)
-   - Score < 7 → **Blocked** (red)
-   Small banner above the table: "Minimum 9/10 required to publish."
-   Row action **View gaps** opens a side sheet listing sub-scores (Clarity, Tone, CTA strength, Length, Personalisation) and 2–3 suggested fixes.
+### Sample pool (5 templates)
 
-### Sample-data disclaimer
+| Apollo ID       | Name                         | Category              |
+|-----------------|------------------------------|-----------------------|
+| APOLLO-100234   | PO Extension Approved        | Finance & Payments    |
+| APOLLO-100311   | Weekly Fill Rate Digest      | Reports & Analytics   |
+| APOLLO-100402   | Catalogue Update Required    | Action Required       |
+| APOLLO-100355   | Invoice Rejected             | Finance & Payments    |
+| APOLLO-100501   | Diwali Announcement          | Announcements         |
 
-Matches existing pattern used on Ticket Scorecard — subtitle line reads `Simulating: Pulse metrics · sample data only`.
+Sample reason chips are chosen from: `Same category`, `Overlapping audience {n}%`, `Sent within 48h`, `Same CTA destination`, `Same priority`.
 
 ### Explicitly out of scope
 
-No agent counts, no per-agent resolution numbers, no FAQ list — those live on Ticket Scorecard / are irrelevant here.
+- No merge/batch action button — approver still just Approves or Rejects (using existing "Clubbing Conflict" rejection reason if they want to reject on this basis).
+- No changes to the Submitter's view.
+- No new store/state — panel is derived purely from the current request.
 
 ---
 
-Confirm and I'll build. Flag any changes to bucket labels, thresholds (5% bounce, 9/10 quality gate), or column choices before I start.
+Confirm the layout, thresholds (80 / 60), and the sample pool, and I'll build.
