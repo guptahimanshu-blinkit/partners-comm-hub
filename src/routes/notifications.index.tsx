@@ -367,19 +367,19 @@ function NotificationCard({
                   <LifeBuoy className="h-4 w-4" /> Raise Ticket
                 </Button>
               )}
-              {n.category === "reports_analytics" &&
-                (n.attachment?.type === "PDF" ||
-                  n.attachment?.type === "Excel Export") && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={onFlag}
-                    className="gap-1.5"
-                  >
-                    <Flag className="h-4 w-4" /> Report data mismatch
-                  </Button>
-                )}
             </div>
+            {n.category === "reports_analytics" &&
+              (n.attachment?.type === "PDF" ||
+                n.attachment?.type === "Excel Export") && (
+                <button
+                  type="button"
+                  onClick={onFlag}
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  <Flag className="h-3.5 w-3.5" /> Report data mismatch
+                </button>
+              )}
+
 
           </div>
           {n.expired && (
