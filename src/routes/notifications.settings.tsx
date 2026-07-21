@@ -246,7 +246,7 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
             <div className="border-b border-border p-4">
               <h2 className="font-semibold">Role routing</h2>
               <p className="text-sm text-muted-foreground">
-                Assign which employee role receives each category, and how.
+                Assign which employee role receives each category.
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -280,7 +280,6 @@ function RoleRoutingTable() {
         <TableRow>
           <TableHead>Category</TableHead>
           <TableHead>Assigned role</TableHead>
-          <TableHead>Delivery mode</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -314,23 +313,6 @@ function RoleRoutingTable() {
                   <SelectItem value="Supply Chain Manager">Supply Chain Manager</SelectItem>
                   <SelectItem value="Finance">Finance</SelectItem>
                   <SelectItem value="All Roles">All Roles</SelectItem>
-                </SelectContent>
-              </Select>
-            </TableCell>
-            <TableCell>
-              <Select
-                value={routing[cat.id].mode}
-                onValueChange={(v) =>
-                  setRouting((p) => ({ ...p, [cat.id]: { ...p[cat.id], mode: v } }))
-                }
-              >
-                <SelectTrigger className="w-[170px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Real-time">Real-time</SelectItem>
-                  <SelectItem value="Daily digest">Daily digest</SelectItem>
-                  <SelectItem value="Weekly digest">Weekly digest</SelectItem>
                 </SelectContent>
               </Select>
             </TableCell>
