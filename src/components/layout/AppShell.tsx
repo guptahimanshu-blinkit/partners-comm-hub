@@ -73,17 +73,10 @@ const NAV: NavItem[] = [
     icon: BarChart3,
     roles: ["internal_ops"],
   },
-
   {
     to: "/notifications/schedule",
     label: "Add New Notification",
     icon: CalendarPlus,
-    roles: ["internal_ops"],
-  },
-  {
-    to: "/vendor-delivery-profiles",
-    label: "Vendor Delivery Profiles",
-    icon: Truck,
     roles: ["internal_ops"],
   },
 ];
@@ -93,7 +86,7 @@ const SUPPORT_NAV: NavItem[] = [
     to: "/notifications/escalation-queue",
     label: "Escalation Queue",
     icon: ShieldAlert,
-    roles: ["vendor_admin", "vendor_employee", "internal_ops"],
+    roles: ["vendor_admin", "vendor_employee"],
   },
 ];
 
