@@ -175,22 +175,27 @@ export function getPublishLogs(): PublishLog[] {
   return PUBLISH_LOGS;
 }
 
-export function addPublishLog(log: PublishLog) {
-  PUBLISH_LOGS = [log, ...PUBLISH_LOGS];
+function setPublishLogs(next: PublishLog[]) {
+  PUBLISH_LOGS = next;
+  g.__PB_PUBLISH_LOGS = next;
   emitLogs();
+}
+
+export function addPublishLog(log: PublishLog) {
+  setPublishLogs([log, ...PUBLISH_LOGS]);
 }
 
 export function acknowledgeLog(id: string) {
   const log = PUBLISH_LOGS.find((l) => l.id === id);
-  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
-    l.id === id ? { ...l, status: "Acknowledged" as const } : l,
+  setPublishLogs(
+    PUBLISH_LOGS.map((l) =>
+      l.id === id ? { ...l, status: "Acknowledged" as const } : l,
+    ),
   );
-  emitLogs();
   if (log) {
     const req = REQUESTS.find((r) => r.id === log.requestId);
     if (req && !CAMPAIGNS.some((c) => c.requestId === req.id)) {
-      CAMPAIGNS = [deriveCampaign(req, log, nowStamp()), ...CAMPAIGNS];
-      emitCampaigns();
+      setCampaigns([deriveCampaign(req, log, nowStamp()), ...CAMPAIGNS]);
     }
   }
 }
@@ -202,33 +207,36 @@ export function flagLog(
   category: RejectionCategory,
 ) {
   const log = PUBLISH_LOGS.find((l) => l.id === id);
-  PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
-    l.id === id
-      ? {
-          ...l,
-          status: "Flagged" as const,
-          flagReason: reason,
-          flagCategory: category,
-          flaggedAt: nowStamp(),
-        }
-      : l,
-  );
-  emitLogs();
-  if (log) {
-    REQUESTS = REQUESTS.map((r) =>
-      r.id === log.requestId
+  setPublishLogs(
+    PUBLISH_LOGS.map((l) =>
+      l.id === id
         ? {
-            ...r,
-            status: "Rejected Post Publish" as const,
-            rejectedAt: nowStamp(),
-            rejectionReason: reason,
-            rejectionCategory: category,
+            ...l,
+            status: "Flagged" as const,
+            flagReason: reason,
+            flagCategory: category,
+            flaggedAt: nowStamp(),
           }
-        : r,
+        : l,
+    ),
+  );
+  if (log) {
+    setRequests(
+      REQUESTS.map((r) =>
+        r.id === log.requestId
+          ? {
+              ...r,
+              status: "Rejected Post Publish" as const,
+              rejectedAt: nowStamp(),
+              rejectionReason: reason,
+              rejectionCategory: category,
+            }
+          : r,
+      ),
     );
-    emit();
   }
 }
+
 
 export function usePublishLogs(): PublishLog[] {
   const [, setTick] = useState(0);
