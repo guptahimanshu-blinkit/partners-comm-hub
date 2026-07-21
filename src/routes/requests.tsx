@@ -518,9 +518,8 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
             const canExpand = isRejected;
             const postPublish = r.status === "Rejected Post Publish";
             return (
-              <>
+              <div key={r.id} className="contents">
                 <TableRow
-                  key={r.id}
                   className={cn(canExpand && "cursor-pointer")}
                   onClick={() =>
                     canExpand && setExpanded(isExpanded ? null : r.id)
@@ -554,7 +553,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                   </TableCell>
                 </TableRow>
                 {isExpanded && canExpand && (
-                  <TableRow key={r.id + "-exp"}>
+                  <TableRow>
                     <TableCell colSpan={4} className="bg-muted/30">
                       <div className="space-y-2 p-2">
                         {postPublish && (
@@ -576,7 +575,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </div>
             );
           })}
         </TableBody>

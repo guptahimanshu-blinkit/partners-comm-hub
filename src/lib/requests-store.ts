@@ -74,8 +74,63 @@ type StoreGlobal = {
   __PB_LOG_LISTENERS?: Set<() => void>;
   __PB_CAMPAIGNS?: Campaign[];
   __PB_CMP_LISTENERS?: Set<() => void>;
+  __PB_STORE_HYDRATED?: boolean;
 };
 const g = globalThis as unknown as StoreGlobal;
+
+const STORAGE_KEYS = {
+  requests: "pbcc_requests_v3",
+  publishLogs: "pbcc_publish_logs_v3",
+  campaigns: "pbcc_campaigns_v3",
+} as const;
+
+function readStoredArray<T>(key: string): T[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredArray<T>(key: string, value: T[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Prototype storage is best-effort; keep the in-memory flow working.
+  }
+}
+
+function hydrateStoreFromStorage(force = false) {
+  if (typeof window === "undefined") return;
+  if (g.__PB_STORE_HYDRATED && !force) return;
+  g.__PB_STORE_HYDRATED = true;
+
+  const storedRequests = readStoredArray<TemplateRequest>(STORAGE_KEYS.requests);
+  if (storedRequests) {
+    REQUESTS = storedRequests;
+    g.__PB_REQUESTS = storedRequests;
+    emit();
+  }
+
+  const storedLogs = readStoredArray<PublishLog>(STORAGE_KEYS.publishLogs);
+  if (storedLogs) {
+    PUBLISH_LOGS = storedLogs;
+    g.__PB_PUBLISH_LOGS = storedLogs;
+    emitLogs();
+  }
+
+  const storedCampaigns = readStoredArray<Campaign>(STORAGE_KEYS.campaigns);
+  if (storedCampaigns) {
+    CAMPAIGNS = storedCampaigns;
+    g.__PB_CAMPAIGNS = storedCampaigns;
+    emitCampaigns();
+  }
+}
 
 let REQUESTS: TemplateRequest[] = g.__PB_REQUESTS ?? (g.__PB_REQUESTS = seed());
 const listeners: Set<() => void> =
@@ -87,20 +142,24 @@ function emit() {
 
 
 export function getRequests(): TemplateRequest[] {
+  hydrateStoreFromStorage();
   return REQUESTS;
 }
 
 function setRequests(next: TemplateRequest[]) {
   REQUESTS = next;
   g.__PB_REQUESTS = next;
+  writeStoredArray(STORAGE_KEYS.requests, next);
   emit();
 }
 
 export function addRequest(r: TemplateRequest) {
+  hydrateStoreFromStorage();
   setRequests([r, ...REQUESTS]);
 }
 
 export function approveRequest(id: string) {
+  hydrateStoreFromStorage();
   setRequests(
     REQUESTS.map((r) =>
       r.id === id
@@ -115,6 +174,7 @@ export function rejectRequest(
   reason: string,
   category: RejectionCategory,
 ) {
+  hydrateStoreFromStorage();
   setRequests(
     REQUESTS.map((r) =>
       r.id === id
@@ -136,6 +196,7 @@ export function useRequests(): TemplateRequest[] {
   useEffect(() => {
     const l = () => setTick((t) => t + 1);
     listeners.add(l);
+    hydrateStoreFromStorage();
     return () => {
       listeners.delete(l);
     };
@@ -172,20 +233,24 @@ function emitLogs() {
 
 
 export function getPublishLogs(): PublishLog[] {
+  hydrateStoreFromStorage();
   return PUBLISH_LOGS;
 }
 
 function setPublishLogs(next: PublishLog[]) {
   PUBLISH_LOGS = next;
   g.__PB_PUBLISH_LOGS = next;
+  writeStoredArray(STORAGE_KEYS.publishLogs, next);
   emitLogs();
 }
 
 export function addPublishLog(log: PublishLog) {
+  hydrateStoreFromStorage();
   setPublishLogs([log, ...PUBLISH_LOGS]);
 }
 
 export function acknowledgeLog(id: string) {
+  hydrateStoreFromStorage();
   const log = PUBLISH_LOGS.find((l) => l.id === id);
   setPublishLogs(
     PUBLISH_LOGS.map((l) =>
@@ -194,7 +259,8 @@ export function acknowledgeLog(id: string) {
   );
   if (log) {
     const req = REQUESTS.find((r) => r.id === log.requestId);
-    if (req && !CAMPAIGNS.some((c) => c.requestId === req.id)) {
+    const campaignId = `CMP-${log.id.replace(/^PUB-/, "")}`;
+    if (req && !CAMPAIGNS.some((c) => c.id === campaignId)) {
       setCampaigns([deriveCampaign(req, log, nowStamp()), ...CAMPAIGNS]);
     }
   }
@@ -206,6 +272,7 @@ export function flagLog(
   reason: string,
   category: RejectionCategory,
 ) {
+  hydrateStoreFromStorage();
   const log = PUBLISH_LOGS.find((l) => l.id === id);
   setPublishLogs(
     PUBLISH_LOGS.map((l) =>
@@ -243,6 +310,7 @@ export function usePublishLogs(): PublishLog[] {
   useEffect(() => {
     const l = () => setTick((t) => t + 1);
     logListeners.add(l);
+    hydrateStoreFromStorage();
     return () => {
       logListeners.delete(l);
     };
@@ -413,11 +481,13 @@ function emitCampaigns() {
 function setCampaigns(next: Campaign[]) {
   CAMPAIGNS = next;
   g.__PB_CAMPAIGNS = next;
+  writeStoredArray(STORAGE_KEYS.campaigns, next);
   emitCampaigns();
 }
 
 
 export function getCampaigns(): Campaign[] {
+  hydrateStoreFromStorage();
   return CAMPAIGNS;
 }
 
@@ -426,6 +496,7 @@ export function useCampaigns(): Campaign[] {
   useEffect(() => {
     const l = () => setTick((t) => t + 1);
     campaignListeners.add(l);
+    hydrateStoreFromStorage();
     return () => {
       campaignListeners.delete(l);
     };
