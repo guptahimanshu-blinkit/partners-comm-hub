@@ -4,16 +4,13 @@ import {
   Bell,
   SlidersHorizontal,
   ShieldAlert,
-  
   CalendarPlus,
   PlusCircle,
   Inbox,
-  Truck,
   Menu,
   ChevronDown,
   Radio,
   BarChart3,
-
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -73,17 +70,10 @@ const NAV: NavItem[] = [
     icon: BarChart3,
     roles: ["internal_ops"],
   },
-
   {
     to: "/notifications/schedule",
     label: "Add New Notification",
     icon: CalendarPlus,
-    roles: ["internal_ops"],
-  },
-  {
-    to: "/vendor-delivery-profiles",
-    label: "Vendor Delivery Profiles",
-    icon: Truck,
     roles: ["internal_ops"],
   },
 ];
@@ -93,7 +83,7 @@ const SUPPORT_NAV: NavItem[] = [
     to: "/notifications/escalation-queue",
     label: "Escalation Queue",
     icon: ShieldAlert,
-    roles: ["vendor_admin", "vendor_employee", "internal_ops"],
+    roles: ["vendor_admin", "vendor_employee"],
   },
 ];
 
@@ -127,22 +117,9 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
       internalRole === "Template Submitter"
     )
       return false;
-    if (
-      n.to === "/vendor-delivery-profiles" &&
-      role === "internal_ops"
-    )
-      return false;
     return true;
   });
-  const supportItems = SUPPORT_NAV.filter((n) => {
-    if (!n.roles.includes(role)) return false;
-    if (
-      n.to === "/notifications/escalation-queue" &&
-      role === "internal_ops"
-    )
-      return false;
-    return true;
-  });
+  const supportItems = SUPPORT_NAV.filter((n) => n.roles.includes(role));
 
   const renderItem = (item: NavItem) => {
     const active =
