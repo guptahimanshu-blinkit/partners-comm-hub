@@ -12,7 +12,9 @@ import {
   Radio,
   BarChart3,
   ClipboardCheck,
+  Megaphone,
 } from "lucide-react";
+
 
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -88,6 +90,13 @@ const NAV: NavItem[] = [
     icon: CalendarPlus,
     roles: ["internal_ops"],
   },
+  {
+    to: "/campaigns",
+    label: "Campaigns",
+    icon: Megaphone,
+    roles: ["internal_ops"],
+  },
+
   {
     to: "/help/my-tickets",
     label: "Ticket Scorecard",
@@ -326,6 +335,8 @@ const BREADCRUMBS: Array<{ match: (p: string) => boolean; trail: string[] }> = [
   { match: (p) => p.startsWith("/notifications/send-calendar"), trail: ["Send Calendar"] },
   { match: (p) => p.startsWith("/requests"), trail: ["Workdesk", "Requests"] },
   { match: (p) => p.startsWith("/comms-performance"), trail: ["Workdesk", "Comms Performance"] },
+  { match: (p) => p.startsWith("/campaigns"), trail: ["Workdesk", "Campaigns"] },
+
   { match: (p) => p.startsWith("/help/my-tickets"), trail: ["Ticket Scorecard"] },
 
   { match: (p) => p.startsWith("/add-communication"), trail: ["Add Communication"] },

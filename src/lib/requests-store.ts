@@ -157,11 +157,20 @@ export function addPublishLog(log: PublishLog) {
 }
 
 export function acknowledgeLog(id: string) {
+  const log = PUBLISH_LOGS.find((l) => l.id === id);
   PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
     l.id === id ? { ...l, status: "Acknowledged" as const } : l,
   );
   emitLogs();
+  if (log) {
+    const req = REQUESTS.find((r) => r.id === log.requestId);
+    if (req && !CAMPAIGNS.some((c) => c.requestId === req.id)) {
+      CAMPAIGNS = [deriveCampaign(req, log, nowStamp()), ...CAMPAIGNS];
+      emitCampaigns();
+    }
+  }
 }
+
 
 export function flagLog(
   id: string,
@@ -250,6 +259,208 @@ function seedPublishLogs(): PublishLog[] {
     },
   ];
 }
+
+// -------- Campaigns (auto-created when Approver acknowledges a publish log) --------
+
+export type CampaignStatus =
+  | "Running"
+  | "Scheduled"
+  | "Pending approval"
+  | "Failing"
+  | "Completed";
+
+export type CampaignChannel = "Email" | "WhatsApp" | "Dashboard";
+
+export interface Campaign {
+  id: string;
+  requestId: string;
+  templateId: string;
+  name: string;
+  categoryId: CategoryId;
+  priority: PriorityLevel;
+  purpose: string;
+  commType?: CommTypeOption;
+  channels: CampaignChannel[];
+  segment: string;
+  audienceCount: number;
+  triggerType: "One time" | "Recurring";
+  frequency: FrequencyOption;
+  reminders: number;
+  status: CampaignStatus;
+  attachment: AttachmentOption;
+  cta: CtaOption;
+  ctaDestination?: string;
+  formulaFlags: string[];
+  whatsappMessage?: string;
+  approvedBy: string;
+  acknowledgedAt: string;
+  firstSend: string;
+  submitterName: string;
+  requestApprovedAt?: string;
+  publishedAt: string;
+  failureNote?: string;
+}
+
+const AUDIENCE_BY_SEGMENT: Record<string, number> = {
+  "Tech Enabled Vendors": 1240,
+  "Low Tech Vendors": 640,
+  "All vendors": 3880,
+};
+
+function audienceFor(segment: string): number {
+  return AUDIENCE_BY_SEGMENT[segment] ?? 1000;
+}
+
+function remindersFor(priority: PriorityLevel): number {
+  return priority === "P1" ? 2 : priority === "P2" ? 1 : 0;
+}
+
+export function deriveCampaign(
+  req: TemplateRequest,
+  log: PublishLog,
+  ackAt: string,
+  overrides: Partial<Campaign> = {},
+): Campaign {
+  const channels: CampaignChannel[] = ["Email"];
+  if (req.whatsapp) channels.push("WhatsApp");
+  channels.push("Dashboard");
+  const freq: FrequencyOption = req.frequency[0] ?? "Once";
+  const isOnce = freq === "Once";
+  return {
+    id: `CMP-${log.id.replace(/^PUB-/, "")}`,
+    requestId: req.id,
+    templateId: req.templateId,
+    name: req.templateName,
+    categoryId: req.categoryId,
+    priority: req.priority,
+    purpose: req.purpose,
+    commType: req.commType,
+    channels,
+    segment: log.segment,
+    audienceCount: audienceFor(log.segment),
+    triggerType: isOnce ? "One time" : "Recurring",
+    frequency: freq,
+    reminders: remindersFor(req.priority),
+    status: isOnce ? "Scheduled" : "Running",
+    attachment: req.attachment,
+    cta: req.cta,
+    ctaDestination: req.ctaDestination,
+    formulaFlags: req.formulaFlags,
+    whatsappMessage: req.whatsapp?.message,
+    approvedBy: "Aisha Khan",
+    acknowledgedAt: ackAt,
+    firstSend: log.scheduledFor,
+    submitterName: log.submitterName,
+    requestApprovedAt: req.approvedAt,
+    publishedAt: log.publishedAt,
+    ...overrides,
+  };
+}
+
+let CAMPAIGNS: Campaign[] = seedCampaigns();
+const campaignListeners = new Set<() => void>();
+function emitCampaigns() {
+  campaignListeners.forEach((l) => l());
+}
+
+export function getCampaigns(): Campaign[] {
+  return CAMPAIGNS;
+}
+
+export function useCampaigns(): Campaign[] {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const l = () => setTick((t) => t + 1);
+    campaignListeners.add(l);
+    return () => {
+      campaignListeners.delete(l);
+    };
+  }, []);
+  return CAMPAIGNS;
+}
+
+function seedCampaigns(): Campaign[] {
+  const list: Campaign[] = [];
+
+  // 1. Running — derived from acknowledged seed log (REQ-SEED-A)
+  const reqA = REQUESTS.find((r) => r.id === "REQ-SEED-A");
+  const logA = PUBLISH_LOGS.find((l) => l.id === "PUB-2002");
+  if (reqA && logA) {
+    list.push(
+      deriveCampaign(reqA, logA, "16 Jul 2026, 11:05 AM", {
+        status: "Running",
+      }),
+    );
+  }
+
+  // 2. Completed — Appointment Slot Confirmation
+  list.push({
+    id: "CMP-1901",
+    requestId: "REQ-CMP-COMPLETED",
+    templateId: "APOLLO-5511AB",
+    name: "Appointment Slot Confirmation — South",
+    categoryId: "daily_ops",
+    priority: "P2",
+    purpose:
+      "Confirm booked inbound appointment slots for South zone vendors each morning.",
+    commType: "High frequency",
+    channels: ["Email", "Dashboard"],
+    segment: "Tech Enabled Vendors",
+    audienceCount: 880,
+    triggerType: "Recurring",
+    frequency: "Daily",
+    reminders: 0,
+    status: "Completed",
+    attachment: "None",
+    cta: "Direct Link",
+    ctaDestination: "https://partnersbiz.blinkit.com/appointments",
+    formulaFlags: ["None"],
+    approvedBy: "Aisha Khan",
+    acknowledgedAt: "01 Jul 2026, 09:15 AM",
+    firstSend: "02 Jul 2026, 07:00 AM",
+    submitterName: "Rahul Deshmukh",
+    requestApprovedAt: "30 Jun 2026, 05:40 PM",
+    publishedAt: iso(20160),
+  });
+
+  // 3. Failing — GST filing reminder
+  list.push({
+    id: "CMP-1902",
+    requestId: "REQ-CMP-FAILING",
+    templateId: "APOLLO-77E3D1",
+    name: "GST Filing Reminder — Q2",
+    categoryId: "reminders",
+    priority: "P2",
+    purpose:
+      "Remind vendors about the upcoming Q2 GST filing deadline via email and WhatsApp.",
+    commType: "Pre emptive",
+    channels: ["Email", "WhatsApp", "Dashboard"],
+    segment: "All vendors",
+    audienceCount: 3880,
+    triggerType: "One time",
+    frequency: "Once",
+    reminders: 1,
+    status: "Failing",
+    attachment: "PDF",
+    cta: "Direct Link",
+    ctaDestination: "https://partnersbiz.blinkit.com/gst",
+    formulaFlags: ["None"],
+    whatsappMessage:
+      "Reminder: Q2 GST filing is due on 20 Jul. Upload your invoices on PartnersBiz to avoid penalty.",
+    approvedBy: "Aisha Khan",
+    acknowledgedAt: "17 Jul 2026, 02:30 PM",
+    firstSend: "18 Jul 2026, 09:00 AM",
+    submitterName: "Nikhil Rao",
+    requestApprovedAt: "17 Jul 2026, 01:10 PM",
+    publishedAt: iso(720),
+    failureNote:
+      "3 WhatsApp deliveries bounced (invalid numbers). Retry queued.",
+  });
+
+  return list;
+}
+
+
 
 export function nowStamp(): string {
   const d = new Date();
