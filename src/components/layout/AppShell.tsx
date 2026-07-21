@@ -118,7 +118,8 @@ function Logo() {
 }
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
-  const { role, internalRole } = useRole();
+  const { role, internalRole, employeeRole } = useRole();
+  const { assignments } = useRoleAssignments();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = NAV.filter((n) => {
     if (!n.roles.includes(role)) return false;
@@ -130,7 +131,13 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
       return false;
     return true;
   });
-  const supportItems = SUPPORT_NAV.filter((n) => n.roles.includes(role));
+  const supportItems = SUPPORT_NAV.filter((n) => {
+    if (!n.roles.includes(role)) return false;
+    if (n.to === "/help/my-tickets" && role === "vendor_employee") {
+      return isCategoryAssignedTo("reports_analytics", employeeRole, assignments);
+    }
+    return true;
+  });
 
   const renderItem = (item: NavItem) => {
     const active =
