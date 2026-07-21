@@ -125,8 +125,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     if (!n.roles.includes(role)) return false;
     if (
       n.to === "/add-communication" &&
-      role === "internal_ops" &&
-      internalRole === "Template Submitter"
+      role === "internal_ops"
     )
       return false;
     if (n.to === "/help/my-tickets" && role === "vendor_employee") {
