@@ -157,11 +157,20 @@ export function addPublishLog(log: PublishLog) {
 }
 
 export function acknowledgeLog(id: string) {
+  const log = PUBLISH_LOGS.find((l) => l.id === id);
   PUBLISH_LOGS = PUBLISH_LOGS.map((l) =>
     l.id === id ? { ...l, status: "Acknowledged" as const } : l,
   );
   emitLogs();
+  if (log) {
+    const req = REQUESTS.find((r) => r.id === log.requestId);
+    if (req && !CAMPAIGNS.some((c) => c.requestId === req.id)) {
+      CAMPAIGNS = [deriveCampaign(req, log, nowStamp()), ...CAMPAIGNS];
+      emitCampaigns();
+    }
+  }
 }
+
 
 export function flagLog(
   id: string,
