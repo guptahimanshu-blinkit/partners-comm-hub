@@ -277,7 +277,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Badge>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <RoleSwitcher />
             <div className="hidden items-center gap-2 sm:flex">
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
