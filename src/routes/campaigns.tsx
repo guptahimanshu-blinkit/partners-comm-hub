@@ -569,6 +569,3 @@ function fmtISO(iso: string): string {
     return iso;
   }
 }
-
-// Silence unused import warning for X in some editors
-void X;
