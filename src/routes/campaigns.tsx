@@ -130,8 +130,43 @@ function CampaignsPage() {
         </header>
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
-          <div className="relative min-w-[240px] flex-1 max-w-sm">
+        <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["All", "Running", "Scheduled", "Pending approval", "Failing", "Completed"] as const).map((s) => {
+              const count =
+                s === "All"
+                  ? campaigns.length
+                  : campaigns.filter((c) => c.status === s).length;
+              const active = statusFilter === s;
+              const label = s === "Pending approval" ? "Pending" : s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition",
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  {label}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0 text-[10px] font-semibold tabular-nums",
+                      active
+                        ? "bg-background/20 text-background"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative max-w-sm">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
@@ -139,27 +174,6 @@ function CampaignsPage() {
               placeholder="Search by name or Apollo ID"
               className="h-9 pl-8"
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-muted-foreground">
-              Status
-            </label>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as CampaignStatus | "All")}
-            >
-              <SelectTrigger className="h-9 w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All</SelectItem>
-                {ALL_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
