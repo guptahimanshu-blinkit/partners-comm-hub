@@ -154,11 +154,14 @@ export interface PublishLog {
   flaggedAt?: string;
 }
 
-let PUBLISH_LOGS: PublishLog[] = seedPublishLogs();
-const logListeners = new Set<() => void>();
+let PUBLISH_LOGS: PublishLog[] =
+  g.__PB_PUBLISH_LOGS ?? (g.__PB_PUBLISH_LOGS = seedPublishLogs());
+const logListeners: Set<() => void> =
+  g.__PB_LOG_LISTENERS ?? (g.__PB_LOG_LISTENERS = new Set());
 function emitLogs() {
   logListeners.forEach((l) => l());
 }
+
 
 export function getPublishLogs(): PublishLog[] {
   return PUBLISH_LOGS;
