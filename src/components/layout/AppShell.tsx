@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Radio,
   BarChart3,
+  ClipboardCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
