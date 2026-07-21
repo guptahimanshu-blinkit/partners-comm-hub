@@ -119,19 +119,21 @@ const FINANCE_GROUPS: FinanceGroup[] = [
 interface QualityRow {
   id: string;
   name: string;
-  subject: number;
-  body: number;
-  cta: number;
+  clarity: number;      // /2
+  tone: number;         // /2
+  ctaStrength: number;  // /2
+  length: number;       // /2
+  personalisation: number; // /2
   gaps: string[];
 }
 
 const QUALITY: QualityRow[] = [
-  { id: "APOLLO-100234", name: "PO Extension Approved", subject: 3, body: 3, cta: 3, gaps: [] },
-  { id: "APOLLO-100355", name: "Invoice Rejected", subject: 3, body: 3, cta: 3, gaps: [] },
-  { id: "APOLLO-100511", name: "Payout Confirmation", subject: 3, body: 3, cta: 3, gaps: [] },
-  { id: "APOLLO-100311", name: "Weekly Fill Rate Digest", subject: 2, body: 3, cta: 3, gaps: ["Subject > 60 characters"] },
-  { id: "APOLLO-100455", name: "Monthly Spends Summary", subject: 3, body: 2, cta: 2, gaps: ["Body readability low", "CTA verb missing"] },
-  { id: "APOLLO-100402", name: "Catalogue Update Required", subject: 2, body: 3, cta: 2, gaps: ["Subject > 60 characters", "CTA verb missing"] },
+  { id: "APOLLO-100234", name: "PO Extension Approved", clarity: 2, tone: 2, ctaStrength: 2, length: 2, personalisation: 1.5, gaps: ["Personalisation token missing in salutation"] },
+  { id: "APOLLO-100355", name: "Invoice Rejected", clarity: 2, tone: 2, ctaStrength: 2, length: 2, personalisation: 2, gaps: [] },
+  { id: "APOLLO-100511", name: "Payout Confirmation", clarity: 2, tone: 2, ctaStrength: 2, length: 2, personalisation: 2, gaps: [] },
+  { id: "APOLLO-100311", name: "Weekly Fill Rate Digest", clarity: 1.5, tone: 2, ctaStrength: 2, length: 1.5, personalisation: 1, gaps: ["Subject > 60 characters", "Body exceeds 400 words"] },
+  { id: "APOLLO-100455", name: "Monthly Spends Summary", clarity: 2, tone: 1.5, ctaStrength: 1, length: 1.5, personalisation: 1, gaps: ["Body readability low", "CTA verb missing", "No vendor name token"] },
+  { id: "APOLLO-100402", name: "Catalogue Update Required", clarity: 1.5, tone: 2, ctaStrength: 1.5, length: 2, personalisation: 1, gaps: ["Subject > 60 characters", "CTA verb missing"] },
 ];
 
 // ------------------ Page ------------------
@@ -145,7 +147,7 @@ function CommsPerformancePage() {
       <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
         <header className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Comms Performance</h1>
-          <p className="text-sm text-muted-foreground">Simulating: Pulse metrics</p>
+          <p className="text-sm text-muted-foreground">Simulating: Pulse metrics · sample data only</p>
         </header>
 
         <KpiRow />
@@ -173,7 +175,10 @@ function KpiRow() {
     return ((totalBounced / totalSent) * 100).toFixed(1);
   }, []);
   const avgQuality = useMemo(() => {
-    const total = QUALITY.reduce((a, b) => a + b.subject + b.body + b.cta, 0);
+    const total = QUALITY.reduce(
+      (a, b) => a + b.clarity + b.tone + b.ctaStrength + b.length + b.personalisation,
+      0,
+    );
     return (total / QUALITY.length).toFixed(1);
   }, []);
 
@@ -181,7 +186,7 @@ function KpiRow() {
     { label: "Avg CTR", value: `${avgCtr}%`, icon: MousePointerClick },
     { label: "Bounce rate", value: `${bounceRate}%`, icon: MailWarning },
     { label: "Non-openers", value: INITIAL_NON_OPENERS.length, icon: EyeOff },
-    { label: "Avg quality", value: `${avgQuality} / 9`, icon: Gauge },
+    { label: "Avg quality", value: `${avgQuality} / 10`, icon: Gauge },
   ];
 
   return (
@@ -516,44 +521,49 @@ function QualityCard() {
   return (
     <SectionCard
       title="Content quality score"
-      description="Templates must score 9 / 9 to be publishable."
+      description="Minimum 9 / 10 required to publish."
     >
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Template ID</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead className="text-right">Subject / 3</TableHead>
-            <TableHead className="text-right">Body / 3</TableHead>
-            <TableHead className="text-right">CTA / 3</TableHead>
-            <TableHead className="text-right">Total / 9</TableHead>
+            <TableHead className="text-right">Score / 10</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {QUALITY.map((q) => {
-            const total = q.subject + q.body + q.cta;
-            const publishable = total >= 9;
+            const total =
+              q.clarity + q.tone + q.ctaStrength + q.length + q.personalisation;
+            let status: "publishable" | "improve" | "blocked" = "blocked";
+            if (total >= 9) status = "publishable";
+            else if (total >= 7) status = "improve";
             return (
               <TableRow key={q.id}>
                 <TableCell className="font-mono text-xs">{q.id}</TableCell>
                 <TableCell className="font-medium">{q.name}</TableCell>
-                <TableCell className="text-right tabular-nums">{q.subject}</TableCell>
-                <TableCell className="text-right tabular-nums">{q.body}</TableCell>
-                <TableCell className="text-right tabular-nums">{q.cta}</TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">
-                  {total}
+                  {total.toFixed(1)}
                 </TableCell>
                 <TableCell>
-                  {publishable ? (
-                    <Badge className="bg-cat-green-soft text-cat-green hover:bg-cat-green-soft">
-                      Publishable
-                    </Badge>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">
-                        Needs revision
+                  <div className="flex items-center gap-2">
+                    {status === "publishable" && (
+                      <Badge className="bg-cat-green-soft text-cat-green hover:bg-cat-green-soft">
+                        Publishable
                       </Badge>
+                    )}
+                    {status === "improve" && (
+                      <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/10">
+                        Needs improvement
+                      </Badge>
+                    )}
+                    {status === "blocked" && (
+                      <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">
+                        Blocked
+                      </Badge>
+                    )}
+                    {status !== "publishable" && (
                       <button
                         type="button"
                         onClick={() => setGapsFor(q)}
@@ -561,8 +571,8 @@ function QualityCard() {
                       >
                         View gaps
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             );
@@ -578,14 +588,44 @@ function QualityCard() {
               {gapsFor?.id} — {gapsFor?.name}
             </DialogDescription>
           </DialogHeader>
-          <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground">
-            {gapsFor?.gaps.map((g) => (
-              <li key={g}>{g}</li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground">
-            Address these to reach a 9 / 9 score before publishing.
-          </p>
+          {gapsFor && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  ["Clarity", gapsFor.clarity],
+                  ["Tone", gapsFor.tone],
+                  ["CTA strength", gapsFor.ctaStrength],
+                  ["Length", gapsFor.length],
+                  ["Personalisation", gapsFor.personalisation],
+                ].map(([label, val]) => (
+                  <div
+                    key={label as string}
+                    className="flex items-center justify-between rounded-md border border-border bg-background px-2.5 py-1.5"
+                  >
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {val} / 2
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {gapsFor.gaps.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-foreground">
+                    Suggested fixes
+                  </p>
+                  <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
+                    {gapsFor.gaps.map((g) => (
+                      <li key={g}>{g}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Reach 9 / 10 or higher to unlock publish.
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </SectionCard>
