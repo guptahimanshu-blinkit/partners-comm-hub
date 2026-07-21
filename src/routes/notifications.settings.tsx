@@ -134,52 +134,52 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
                   </div>
 
                   <div className="col-start-1 row-start-2 sm:col-start-auto sm:row-start-auto">
-                    {cat.mandatory ? (
-                      <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {cat.mandatory ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
-                                <ChannelIcon channel={channels[cat.id]} />
-                                {channels[cat.id]}
+                                <ChannelIcon channel="Mail" />
+                                Mail
                                 <Lock className="h-3.5 w-3.5" />
                               </span>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
-                              This is a critical category. Its default delivery can't be turned
-                              off — you can only add more ways to receive it.
+                              Mail is mandatory for this category. Portal is always included.
+                              You can add more ways to receive it.
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => addExtra(cat.id)}
-                        >
-                          <Plus className="h-4 w-4" /> Add another way
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="inline-flex rounded-lg border border-border p-0.5">
-                        {CHANNELS.map((ch) => (
-                          <button
-                            key={ch}
-                            onClick={() =>
-                              setChannels((p) => ({ ...p, [cat.id]: ch }))
-                            }
-                            className={cn(
-                              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                              channels[cat.id] === ch
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            {ch}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      ) : (
+                        <div className="inline-flex rounded-lg border border-border p-0.5">
+                          {ADMIN_CHANNELS.map((ch) => (
+                            <button
+                              key={ch}
+                              onClick={() =>
+                                setChannels((p) => ({ ...p, [cat.id]: ch }))
+                              }
+                              className={cn(
+                                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                channels[cat.id] === ch
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {ch}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => addExtra(cat.id)}
+                      >
+                        <Plus className="h-4 w-4" /> Add another way
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
