@@ -86,6 +86,12 @@ const SUPPORT_NAV: NavItem[] = [
     icon: ShieldAlert,
     roles: ["vendor_admin", "vendor_employee"],
   },
+  {
+    to: "/help/ticket-scorecard",
+    label: "Ticket Scorecard",
+    icon: ClipboardCheck,
+    roles: ["internal_ops"],
+  },
 ];
 
 
