@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   ShieldCheck,
@@ -7,16 +7,10 @@ import {
   CheckCircle2,
   Timer,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -35,146 +29,89 @@ export const Route = createFileRoute("/help/ticket-scorecard")({
   component: TicketScorecardPage,
 });
 
-// ------------------ Threshold logic ------------------
-
-type Tone = "good" | "watch" | "breach" | "neutral";
-
-const toneText: Record<Tone, string> = {
-  good: "text-cat-green",
-  watch: "text-amber-600",
-  breach: "text-destructive",
-  neutral: "text-foreground",
-};
-
-const toneChip: Record<Tone, string> = {
-  good: "bg-cat-green/10 text-cat-green",
-  watch: "bg-amber-500/10 text-amber-600",
-  breach: "bg-destructive/10 text-destructive",
-  neutral: "bg-muted text-muted-foreground",
-};
-
-const gteTone = (v: number, good: number, watch: number): Tone =>
-  v >= good ? "good" : v >= watch ? "watch" : "breach";
-const lteTone = (v: number, good: number, watch: number): Tone =>
-  v <= good ? "good" : v <= watch ? "watch" : "breach";
-
 // ------------------ Sample data ------------------
+
+const KPIS = {
+  slaAdherence: 58.4, // %
+  openAndBreached: 81.0, // % of open
+  reopenRate: 12.6, // %
+  fcr: 61.7, // %
+};
+
+const AGING = [
+  { bucket: "0–2h", pct: 4 },
+  { bucket: "2–12h", pct: 6 },
+  { bucket: "12–24h", pct: 9 },
+  { bucket: "24–48h", pct: 12 },
+  { bucket: "48–72h", pct: 22 },
+  { bucket: "72h+", pct: 47 },
+];
 
 interface HotspotRow {
   team: string;
   open: number;
+  slaAdherence: number;
   breached: number;
-  medianAgeDays: number;
 }
 
 const HOTSPOTS: HotspotRow[] = [
-  { team: "Supply Chain", open: 19, breached: 4, medianAgeDays: 2.8 },
-  { team: "Catalog", open: 34, breached: 6, medianAgeDays: 2.1 },
-  { team: "Finance", open: 22, breached: 2, medianAgeDays: 1.4 },
-  { team: "Tech", open: 29, breached: 1, medianAgeDays: 0.9 },
+  { team: "Catalog Ops", open: 84, slaAdherence: 32.1, breached: 57 },
+  { team: "Supply Chain", open: 62, slaAdherence: 41.9, breached: 36 },
+  { team: "Finance – Payments", open: 47, slaAdherence: 52.4, breached: 22 },
+  { team: "Onboarding", open: 29, slaAdherence: 63.2, breached: 11 },
+  { team: "Fill Rate Ops", open: 38, slaAdherence: 71.5, breached: 11 },
+  { team: "Tech – Portal", open: 19, slaAdherence: 82.6, breached: 3 },
+  { team: "Compliance", open: 12, slaAdherence: 88.1, breached: 1 },
+  { team: "Loyalty & Growth", open: 8, slaAdherence: 94.3, breached: 0 },
 ];
 
-const AGING = [
-  { bucket: "< 4h", count: 42, tone: "neutral" as Tone },
-  { bucket: "4–24h", count: 31, tone: "neutral" as Tone },
-  { bucket: "1–3d", count: 18, tone: "watch" as Tone },
-  { bucket: "3–7d", count: 9, tone: "watch" as Tone },
-  { bucket: "> 7d", count: 4, tone: "breach" as Tone },
-];
-
-const DIY_COUNT = 412;
-const AGENT_COUNT = 673;
+const DIY_COUNT = 312;
+const AGENT_COUNT = 918;
 
 // ------------------ Page ------------------
 
 function TicketScorecardPage() {
   const { role } = useRole();
-  const [range, setRange] = useState("30d");
-  const [team, setTeam] = useState("all");
-  const [priority, setPriority] = useState("all");
-
   if (role !== "internal_ops") return <Navigate to="/notifications" replace />;
 
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Ticket Scorecard
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Simulating: Support analytics
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={range} onValueChange={setRange}>
-              <SelectTrigger className="h-9 w-[130px]" aria-label="Date range">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={team} onValueChange={setTeam}>
-              <SelectTrigger className="h-9 w-[140px]" aria-label="Team">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All teams</SelectItem>
-                <SelectItem value="catalog">Catalog</SelectItem>
-                <SelectItem value="finance">Finance</SelectItem>
-                <SelectItem value="supply">Supply Chain</SelectItem>
-                <SelectItem value="tech">Tech</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="h-9 w-[120px]" aria-label="Priority">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All priorities</SelectItem>
-                <SelectItem value="p1">P1</SelectItem>
-                <SelectItem value="p2">P2</SelectItem>
-                <SelectItem value="p3">P3</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Ticket Scorecard
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Simulating: Support analytics · sample data only
+          </p>
         </header>
 
         <KpiRow />
 
+        <BreachBanner />
+
         <SectionCard
           title="Open Aging Distribution"
-          description="Open tickets by age. Aged buckets flag SLA risk."
+          description="Share of open tickets by age. Aged buckets show SLA risk building up."
         >
           <AgingChart />
         </SectionCard>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SectionCard
-            title="Team-level Breach Hotspots"
-            description="Teams sorted by breach %. Watch amber, breach red."
-          >
-            <HotspotTable />
-          </SectionCard>
-
-          <SectionCard
-            title="DIY vs Agent Resolution"
-            description={`Last 30 days · ${DIY_COUNT + AGENT_COUNT} resolved tickets`}
-          >
-            <DiyAgentDonut />
-          </SectionCard>
-        </div>
+        <SectionCard
+          title="Team-level Breach Hotspots"
+          description="Sorted by worst SLA adherence first."
+        >
+          <HotspotTable />
+        </SectionCard>
 
         <SectionCard
-          title="Response Time Medians"
-          description="Median times across resolved tickets in this window."
+          title="DIY vs Agent Resolution"
+          description="How resolved tickets closed in the last 30 days."
         >
-          <ResponseMedians />
+          <DiyAgentSplit />
         </SectionCard>
+
+        <ResponseMedians />
       </div>
     </AppShell>
   );
@@ -206,53 +143,39 @@ function SectionCard({
 
 // ------------------ KPI tiles ------------------
 
-interface Kpi {
-  label: string;
-  value: string;
-  delta: string;
-  deltaUp: boolean;
-  tone: Tone;
-  target: string;
-  icon: typeof ShieldCheck;
-}
-
 function KpiRow() {
-  const kpis: Kpi[] = [
+  const slaLow = KPIS.slaAdherence < 65;
+  const breachedHigh = KPIS.openAndBreached >= 35; // "below 65% healthy" analogue: high breached is bad
+  // Spec: red accent when SLA Adherence OR Open & Breached is below 65%.
+  // Open & Breached is a "bad" metric, so red when > 35% (mirror of the 65% healthy threshold).
+  const kpis = [
     {
-      label: "SLA Adherence",
-      value: "92.4%",
-      delta: "▲ 1.2pp",
-      deltaUp: true,
-      tone: gteTone(92.4, 95, 90),
+      label: "SLA Adherence Rate",
+      value: `${KPIS.slaAdherence.toFixed(1)}%`,
       target: "Target ≥ 95%",
       icon: ShieldCheck,
+      red: slaLow,
     },
     {
       label: "Open & SLA Breached",
-      value: "7.1%",
-      delta: "▼ 0.6pp",
-      deltaUp: false,
-      tone: lteTone(7.1, 5, 10),
-      target: "Target ≤ 5%",
+      value: `${KPIS.openAndBreached.toFixed(1)}%`,
+      target: "% of total open tickets",
       icon: AlarmClock,
+      red: breachedHigh,
     },
     {
       label: "Reopen Rate",
-      value: "4.8%",
-      delta: "▼ 0.3pp",
-      deltaUp: false,
-      tone: lteTone(4.8, 5, 10),
+      value: `${KPIS.reopenRate.toFixed(1)}%`,
       target: "Target ≤ 5%",
       icon: RefreshCcw,
+      red: false,
     },
     {
       label: "First Contact Resolution",
-      value: "68.2%",
-      delta: "▲ 2.1pp",
-      deltaUp: true,
-      tone: gteTone(68.2, 70, 60),
+      value: `${KPIS.fcr.toFixed(1)}%`,
       target: "Target ≥ 70%",
       icon: CheckCircle2,
+      red: false,
     },
   ];
 
@@ -263,7 +186,10 @@ function KpiRow() {
         return (
           <div
             key={k.label}
-            className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            className={cn(
+              "rounded-xl border bg-card p-4 shadow-sm",
+              k.red ? "border-destructive/40 bg-destructive/5" : "border-border",
+            )}
           >
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">{k.label}</span>
@@ -272,21 +198,13 @@ function KpiRow() {
             <div
               className={cn(
                 "mt-2 text-2xl font-semibold",
-                toneText[k.tone],
+                k.red ? "text-destructive" : "text-foreground",
               )}
             >
               {k.value}
             </div>
-            <div className="mt-1 flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">{k.target}</span>
-              <span
-                className={cn(
-                  "font-medium",
-                  k.deltaUp ? "text-cat-green" : "text-muted-foreground",
-                )}
-              >
-                {k.delta}
-              </span>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {k.target}
             </div>
           </div>
         );
@@ -295,34 +213,61 @@ function KpiRow() {
   );
 }
 
+// ------------------ Breach callout ------------------
+
+function BreachBanner() {
+  return (
+    <div className="flex gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+      <p className="text-sm leading-relaxed text-foreground">
+        <span className="font-semibold text-destructive">
+          81% of open tickets are already past SLA,
+        </span>{" "}
+        and most have been open over 72 hours. Once a ticket breaches, median
+        resolution time jumps from{" "}
+        <span className="font-semibold">2.9 hours</span> to{" "}
+        <span className="font-semibold text-destructive">68.8 hours</span>.
+      </p>
+    </div>
+  );
+}
+
 // ------------------ Aging chart ------------------
 
 function AgingChart() {
-  const max = Math.max(...AGING.map((a) => a.count));
+  const max = Math.max(...AGING.map((a) => a.pct));
   return (
     <div className="space-y-2.5">
       {AGING.map((a) => {
-        const pct = (a.count / max) * 100;
+        const width = (a.pct / max) * 100;
+        const red = a.bucket === "48–72h" || a.bucket === "72h+";
+        const amber = a.bucket === "24–48h";
         return (
           <div key={a.bucket} className="flex items-center gap-3">
             <div className="w-16 shrink-0 text-xs font-medium text-muted-foreground">
               {a.bucket}
             </div>
-            <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-muted">
+            <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-muted">
               <div
                 className={cn(
-                  "h-full rounded-md",
-                  a.tone === "breach"
-                    ? "bg-destructive/70"
-                    : a.tone === "watch"
-                      ? "bg-amber-500/70"
+                  "flex h-full items-center justify-end rounded-md pr-2 text-[11px] font-semibold text-white",
+                  red
+                    ? "bg-destructive/80"
+                    : amber
+                      ? "bg-amber-500/80"
                       : "bg-primary/70",
                 )}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <div className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums">
-              {a.count}
+                style={{ width: `${width}%` }}
+              >
+                {width > 12 ? `${a.pct}%` : ""}
+              </div>
+              {width <= 12 && (
+                <span className="absolute inset-y-0 flex items-center pl-[calc(var(--w)_+_8px)] text-[11px] font-semibold text-foreground"
+                  style={{ ["--w" as string]: `${width}%` }}
+                >
+                  {a.pct}%
+                </span>
+              )}
             </div>
           </div>
         );
@@ -335,10 +280,7 @@ function AgingChart() {
 
 function HotspotTable() {
   const rows = useMemo(
-    () =>
-      [...HOTSPOTS]
-        .map((r) => ({ ...r, pct: (r.breached / r.open) * 100 }))
-        .sort((a, b) => b.pct - a.pct),
+    () => [...HOTSPOTS].sort((a, b) => a.slaAdherence - b.slaAdherence),
     [],
   );
   return (
@@ -346,34 +288,40 @@ function HotspotTable() {
       <TableHeader>
         <TableRow>
           <TableHead>Team</TableHead>
-          <TableHead className="text-right">Open</TableHead>
-          <TableHead className="text-right">Breached</TableHead>
-          <TableHead className="text-right">Breach %</TableHead>
-          <TableHead className="text-right">Median age</TableHead>
+          <TableHead className="text-right">Tickets Open</TableHead>
+          <TableHead className="text-right">SLA Adherence</TableHead>
+          <TableHead className="text-right">Open &amp; Breached</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((r) => {
-          const tone = lteTone(r.pct, 5, 15);
+          const red = r.slaAdherence < 65;
+          const amber = !red && r.slaAdherence < 80;
           return (
             <TableRow key={r.team}>
               <TableCell className="font-medium">{r.team}</TableCell>
               <TableCell className="text-right tabular-nums">{r.open}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {r.breached}
-              </TableCell>
               <TableCell className="text-right">
                 <span
                   className={cn(
                     "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums",
-                    toneChip[tone],
+                    red
+                      ? "bg-destructive/10 text-destructive"
+                      : amber
+                        ? "bg-amber-500/10 text-amber-600"
+                        : "bg-cat-green/10 text-cat-green",
                   )}
                 >
-                  {r.pct.toFixed(1)}%
+                  {r.slaAdherence.toFixed(1)}%
                 </span>
               </TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {r.medianAgeDays.toFixed(1)}d
+              <TableCell
+                className={cn(
+                  "text-right tabular-nums",
+                  r.breached > 0 ? "font-semibold text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {r.breached}
               </TableCell>
             </TableRow>
           );
@@ -383,60 +331,38 @@ function HotspotTable() {
   );
 }
 
-// ------------------ DIY vs Agent donut ------------------
+// ------------------ DIY vs Agent split ------------------
 
-function DiyAgentDonut() {
+function DiyAgentSplit() {
   const total = DIY_COUNT + AGENT_COUNT;
   const diyPct = Math.round((DIY_COUNT / total) * 100);
   const agentPct = 100 - diyPct;
-  const gradient = `conic-gradient(hsl(var(--primary)) 0 ${diyPct}%, hsl(var(--muted-foreground) / 0.35) ${diyPct}% 100%)`;
-
   return (
-    <div className="flex items-center gap-6">
-      <div
-        className="relative h-32 w-32 shrink-0 rounded-full"
-        style={{ background: gradient }}
-        aria-label={`DIY ${diyPct} percent, Agent ${agentPct} percent`}
-      >
-        <div className="absolute inset-3 grid place-items-center rounded-full bg-card">
-          <div className="text-center leading-tight">
-            <div className="text-lg font-semibold">{total}</div>
-            <div className="text-[10px] text-muted-foreground">resolved</div>
-          </div>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-lg border border-border bg-background p-4">
+        <div className="text-xs font-medium text-muted-foreground">
+          Vendors who self served
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="text-3xl font-semibold text-foreground tabular-nums">
+            {DIY_COUNT.toLocaleString()}
+          </span>
+          <span className="text-sm font-medium text-cat-green">{diyPct}%</span>
         </div>
       </div>
-      <div className="min-w-0 space-y-3 text-sm">
-        <LegendRow
-          swatch="bg-primary"
-          label="DIY (self-serve)"
-          value={`${DIY_COUNT} · ${diyPct}%`}
-        />
-        <LegendRow
-          swatch="bg-muted-foreground/40"
-          label="Agent resolved"
-          value={`${AGENT_COUNT} · ${agentPct}%`}
-        />
+      <div className="rounded-lg border border-border bg-background p-4">
+        <div className="text-xs font-medium text-muted-foreground">
+          Needed an agent
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="text-3xl font-semibold text-foreground tabular-nums">
+            {AGENT_COUNT.toLocaleString()}
+          </span>
+          <span className="text-sm font-medium text-muted-foreground">
+            {agentPct}%
+          </span>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function LegendRow({
-  swatch,
-  label,
-  value,
-}: {
-  swatch: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className={cn("h-3 w-3 shrink-0 rounded-sm", swatch)} />
-      <span className="min-w-0 flex-1 text-foreground">{label}</span>
-      <span className="shrink-0 font-medium tabular-nums text-muted-foreground">
-        {value}
-      </span>
     </div>
   );
 }
@@ -449,16 +375,12 @@ function ResponseMedians() {
       label: "Median Agent First Reply",
       value: "1h 42m",
       target: "Target ≤ 2h",
-      // 1.7 hours
-      tone: lteTone(1.7, 2, 4),
       icon: Timer,
     },
     {
       label: "Median Reopen → Resolved",
       value: "6h 18m",
       target: "Target ≤ 8h",
-      // 6.3 hours
-      tone: lteTone(6.3, 8, 16),
       icon: Clock,
     },
   ];
@@ -469,18 +391,13 @@ function ResponseMedians() {
         return (
           <div
             key={i.label}
-            className="rounded-lg border border-border bg-background p-4"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm"
           >
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">{i.label}</span>
               <Icon className="h-4 w-4" />
             </div>
-            <div
-              className={cn(
-                "mt-2 text-2xl font-semibold",
-                toneText[i.tone],
-              )}
-            >
+            <div className="mt-2 text-2xl font-semibold text-foreground">
               {i.value}
             </div>
             <div className="mt-1 text-[11px] text-muted-foreground">
