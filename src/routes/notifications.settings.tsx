@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Lock, Plus, Info, Mail, MonitorSmartphone, MessageSquare, ChevronDown, X } from "lucide-react";
+import { Lock, Plus, Info, Mail, MessageSquare, ChevronDown, X } from "lucide-react";
 
 
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { useRole } from "@/lib/role-context";
-import { CATEGORIES, colorClasses, type Channel, type CategoryId } from "@/lib/mock-data";
+import { CATEGORIES, colorClasses, type CategoryId } from "@/lib/mock-data";
 import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
 import {
   useRoleAssignments,
@@ -51,7 +51,8 @@ export const Route = createFileRoute("/notifications/settings")({
   component: SettingsPage,
 });
 
-const CHANNELS: Channel[] = ["Mail", "Portal", "Both"];
+type AdminChannel = "Mail" | "WhatsApp";
+const ADMIN_CHANNELS: AdminChannel[] = ["Mail", "WhatsApp"];
 type Digest = "Real-time" | "Daily" | "Weekly";
 
 function SettingsPage() {
@@ -63,11 +64,11 @@ function SettingsPage() {
 
 
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
-  const [channels, setChannels] = useState<Record<CategoryId, Channel>>({
-    action_required: "Both",
-    finance_payments: "Both",
-    reports_analytics: "Portal",
-    daily_ops: "Portal",
+  const [channels, setChannels] = useState<Record<CategoryId, AdminChannel>>({
+    action_required: "Mail",
+    finance_payments: "Mail",
+    reports_analytics: "Mail",
+    daily_ops: "Mail",
     reminders: "Mail",
     account_access: "Mail",
   });
@@ -99,8 +100,7 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
           <div className="border-b border-border p-4">
             <h2 className="font-semibold">Delivery channels</h2>
             <p className="text-sm text-muted-foreground">
-              Mandatory categories are always delivered — you can add channels but not remove
-              the default.
+              Portal is always included. Choose what else gets added on top.
             </p>
           </div>
           <div className="divide-y divide-border">
@@ -134,52 +134,52 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
                   </div>
 
                   <div className="col-start-1 row-start-2 sm:col-start-auto sm:row-start-auto">
-                    {cat.mandatory ? (
-                      <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {cat.mandatory ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
-                                <ChannelIcon channel={channels[cat.id]} />
-                                {channels[cat.id]}
+                                <ChannelIcon channel="Mail" />
+                                Mail
                                 <Lock className="h-3.5 w-3.5" />
                               </span>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
-                              This is a critical category. Its default delivery can't be turned
-                              off — you can only add more ways to receive it.
+                              Mail is mandatory for this category. Portal is always included.
+                              You can add more ways to receive it.
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => addExtra(cat.id)}
-                        >
-                          <Plus className="h-4 w-4" /> Add another way
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="inline-flex rounded-lg border border-border p-0.5">
-                        {CHANNELS.map((ch) => (
-                          <button
-                            key={ch}
-                            onClick={() =>
-                              setChannels((p) => ({ ...p, [cat.id]: ch }))
-                            }
-                            className={cn(
-                              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                              channels[cat.id] === ch
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            {ch}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      ) : (
+                        <div className="inline-flex rounded-lg border border-border p-0.5">
+                          {ADMIN_CHANNELS.map((ch) => (
+                            <button
+                              key={ch}
+                              onClick={() =>
+                                setChannels((p) => ({ ...p, [cat.id]: ch }))
+                              }
+                              className={cn(
+                                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                channels[cat.id] === ch
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              {ch}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => addExtra(cat.id)}
+                      >
+                        <Plus className="h-4 w-4" /> Add another way
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -267,9 +267,8 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function ChannelIcon({ channel }: { channel: Channel }) {
+function ChannelIcon({ channel }: { channel: AdminChannel | "Mail" }) {
   if (channel === "Mail") return <Mail className="h-3.5 w-3.5" />;
-  if (channel === "Portal") return <MonitorSmartphone className="h-3.5 w-3.5" />;
   return <MessageSquare className="h-3.5 w-3.5" />;
 }
 
