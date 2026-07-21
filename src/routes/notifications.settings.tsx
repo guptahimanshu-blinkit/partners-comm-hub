@@ -64,11 +64,11 @@ function SettingsPage() {
 
 
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
-  const [channels, setChannels] = useState<Record<CategoryId, Channel>>({
-    action_required: "Both",
-    finance_payments: "Both",
-    reports_analytics: "Portal",
-    daily_ops: "Portal",
+  const [channels, setChannels] = useState<Record<CategoryId, AdminChannel>>({
+    action_required: "Mail",
+    finance_payments: "Mail",
+    reports_analytics: "Mail",
+    daily_ops: "Mail",
     reminders: "Mail",
     account_access: "Mail",
   });
