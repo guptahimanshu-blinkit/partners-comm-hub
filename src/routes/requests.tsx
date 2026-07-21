@@ -1208,7 +1208,7 @@ function RequestDetail({
       <div className="flex justify-end gap-2">
         <Button
           variant="outline"
-          onClick={() => setRejectOpen(true)}
+          onClick={openReject}
           className="gap-2 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
         >
           <XCircle className="h-4 w-4" /> Reject
