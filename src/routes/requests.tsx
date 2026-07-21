@@ -508,7 +508,10 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
         <TableBody>
           {requests.map((r) => {
             const isExpanded = expanded === r.id;
-            const canExpand = r.status === "Rejected";
+            const isRejected =
+              r.status === "Rejected" || r.status === "Rejected Post Publish";
+            const canExpand = isRejected;
+            const postPublish = r.status === "Rejected Post Publish";
             return (
               <>
                 <TableRow
@@ -518,7 +521,16 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                     canExpand && setExpanded(isExpanded ? null : r.id)
                   }
                 >
-                  <TableCell className="font-medium">{r.templateName}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{r.templateName}</span>
+                      {postPublish && (
+                        <span className="inline-flex items-center rounded-full bg-cat-red-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-red">
+                          Flagged after scheduling
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {r.requestType}
                   </TableCell>
@@ -540,6 +552,11 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                   <TableRow key={r.id + "-exp"}>
                     <TableCell colSpan={4} className="bg-muted/30">
                       <div className="space-y-2 p-2">
+                        {postPublish && (
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
+                            Flagged after scheduling
+                          </p>
+                        )}
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Reason Category:
@@ -548,7 +565,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                         </div>
                         <p className="text-sm">{r.rejectionReason}</p>
                         <p className="text-xs text-muted-foreground">
-                          Rejected at {r.rejectedAt}
+                          {postPublish ? "Flagged" : "Rejected"} at {r.rejectedAt}
                         </p>
                       </div>
                     </TableCell>
