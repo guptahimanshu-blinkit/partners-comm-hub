@@ -227,6 +227,49 @@ function RoleSwitcher() {
 }
 
 
+// Route → breadcrumb trail. Each entry is the segment path shown after "PartnersBiz".
+const BREADCRUMBS: Array<{ match: (p: string) => boolean; trail: string[] }> = [
+  { match: (p) => p === "/notifications", trail: ["Notification Centre"] },
+  { match: (p) => p.startsWith("/notifications/settings"), trail: ["Preference Centre"] },
+  { match: (p) => p.startsWith("/notifications/schedule"), trail: ["Workdesk", "Add New Notification"] },
+  { match: (p) => p.startsWith("/notifications/escalation-queue"), trail: ["Help & Support", "Escalation Queue"] },
+  { match: (p) => p.startsWith("/notifications/send-calendar"), trail: ["Send Calendar"] },
+  { match: (p) => p.startsWith("/requests"), trail: ["Workdesk", "Requests"] },
+  { match: (p) => p.startsWith("/comms-performance"), trail: ["Workdesk", "Comms Performance"] },
+  { match: (p) => p.startsWith("/help/ticket-scorecard"), trail: ["Help & Support", "Ticket Scorecard"] },
+  { match: (p) => p.startsWith("/add-communication"), trail: ["Add Communication"] },
+  { match: (p) => p.startsWith("/vendor-delivery-profiles"), trail: ["Vendor Delivery Profiles"] },
+  { match: (p) => p.startsWith("/po-extension-request"), trail: ["PO Extension Request"] },
+  { match: (p) => p === "/", trail: ["Home"] },
+];
+
+function Breadcrumb() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const entry = BREADCRUMBS.find((b) => b.match(pathname));
+  const trail = entry?.trail ?? [];
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="min-w-0 truncate text-[13px] leading-none text-muted-foreground"
+    >
+      <span className="font-semibold text-foreground">PartnersBiz</span>
+      {trail.map((seg, i) => (
+        <span key={i}>
+          <span className="mx-1.5 text-muted-foreground/60">/</span>
+          <span
+            className={cn(
+              i === trail.length - 1 ? "font-medium text-foreground" : "",
+            )}
+          >
+            {seg}
+          </span>
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
@@ -266,7 +309,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
 
-          <div className="hidden min-w-0 items-center gap-2 md:flex">
+          <Breadcrumb />
+
+          <div className="ml-auto hidden min-w-0 items-center gap-2 md:flex">
             <span className="truncate text-sm font-semibold text-foreground">
               ITC Limited
             </span>
@@ -275,7 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Badge>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <RoleSwitcher />
             <div className="hidden items-center gap-2 sm:flex">
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
