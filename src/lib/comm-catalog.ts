@@ -6,109 +6,108 @@ export interface CommItem {
   category: CategoryId;
   /** Preloaded default channel state so the UI doesn't look uniform. */
   defaults: { mail: boolean; whatsapp: boolean };
+  /** This specific comm must always be delivered on Mail. */
+  mandatory?: boolean;
+  /** Whether this comm can be delivered on WhatsApp at all. */
+  whatsappAvailable: boolean;
 }
 
-// Sample preload pattern per row index within each category:
-// 0: Mail only, 1: Both, 2: WhatsApp only, 3: Mail only, 4: Both, ...
-// Mandatory categories never emit (false,false) — Mail is locked on anyway.
-function preload(i: number, mandatory: boolean): { mail: boolean; whatsapp: boolean } {
-  const pattern = i % 5;
-  switch (pattern) {
+interface RawComm {
+  name: string;
+  mandatory?: boolean;
+  whatsappAvailable?: boolean; // defaults true
+}
+
+// Sample data. Mandatory + WhatsApp availability are per comm, not per
+// category. Every comm still sends on Mail.
+const RAW: Record<CategoryId, RawComm[]> = {
+  action_required: [
+    { name: "PO Cancellation", mandatory: true },
+    { name: "PO Modification" },
+    { name: "ASN Error — GTIN Mismatch" },
+    { name: "ASN Error — Quantity Mismatch" },
+    { name: "Invoice Rejected (Critical)", mandatory: true },
+    { name: "Debit Note Issued" },
+    { name: "Return Order Raised" },
+    { name: "Quality Rejection at GRN" },
+    { name: "Appointment Cancelled by Buyer" },
+    { name: "Vendor Blocklist Alert", mandatory: true, whatsappAvailable: false },
+  ],
+  finance_payments: [
+    { name: "Payment Advice", mandatory: true },
+    { name: "Payment On Hold" },
+    { name: "TDS Certificate Available", mandatory: true, whatsappAvailable: false },
+    { name: "Invoice Approved" },
+    { name: "Invoice Rejected" },
+    { name: "Credit Note Issued" },
+    { name: "Debit Note Reminder" },
+    { name: "GST Reconciliation Alert" },
+    { name: "MSME Payment Compliance", mandatory: true },
+    { name: "Payment Cycle Update" },
+    { name: "Bank Detail Change Confirmation", whatsappAvailable: false },
+    { name: "Statement of Accounts", whatsappAvailable: false },
+  ],
+  reports_analytics: [
+    { name: "Weekly Fill Rate Scorecard", mandatory: true },
+    { name: "Monthly Sales Report", whatsappAvailable: false },
+    { name: "SKU Performance Report", whatsappAvailable: false },
+    { name: "Category Health Report", whatsappAvailable: false },
+    { name: "On-Time Delivery Report" },
+    { name: "Return Rate Report" },
+    { name: "Stock Ageing Report" },
+    { name: "GRN Discrepancy Report", mandatory: true },
+    { name: "Quarterly Business Review", whatsappAvailable: false },
+    { name: "YTD Vendor Scorecard", mandatory: true },
+  ],
+  daily_ops: [
+    { name: "PO Mailer (Daily)", mandatory: true },
+    { name: "GRN Confirmation" },
+    { name: "ASN Acknowledgement" },
+    { name: "Stock on Hand Refresh", whatsappAvailable: false },
+    { name: "Appointment Confirmed" },
+    { name: "Appointment Rescheduled" },
+    { name: "Facility Onboarding Update", whatsappAvailable: false },
+    { name: "New SKU Listing" },
+    { name: "Price Change Notification" },
+    { name: "Promo Live Alert" },
+    { name: "Warehouse Cutoff Reminder" },
+    { name: "Shipment Dispatched" },
+  ],
+  reminders: [
+    { name: "Near-Expiry PO" },
+    { name: "Pending ASN" },
+    { name: "Pending Invoice Upload" },
+    { name: "Pending KYC Renewal", mandatory: true },
+    { name: "Contract Renewal Due", whatsappAvailable: false },
+    { name: "Insurance Certificate Expiry" },
+    { name: "GST Return Due", mandatory: true },
+    { name: "Compliance Document Refresh", whatsappAvailable: false },
+  ],
+  account_access: [
+    { name: "Login OTP", mandatory: true },
+    { name: "Password Reset", mandatory: true },
+    { name: "New User Added" },
+    { name: "Role Changed" },
+    { name: "Access Revoked", mandatory: true, whatsappAvailable: false },
+    { name: "Session Alert — New Device" },
+  ],
+};
+
+// Preload pattern for non-mandatory rows so the sample doesn't look uniform.
+function preload(i: number): { mail: boolean; whatsapp: boolean } {
+  switch (i % 5) {
     case 0:
       return { mail: true, whatsapp: false };
     case 1:
       return { mail: true, whatsapp: true };
     case 2:
-      return mandatory
-        ? { mail: true, whatsapp: true }
-        : { mail: false, whatsapp: true };
+      return { mail: false, whatsapp: true };
     case 3:
       return { mail: true, whatsapp: false };
-    case 4:
-      return { mail: true, whatsapp: true };
     default:
-      return { mail: true, whatsapp: false };
+      return { mail: true, whatsapp: true };
   }
 }
-
-const RAW: Record<CategoryId, string[]> = {
-  action_required: [
-    "PO Cancellation",
-    "PO Modification",
-    "ASN Error — GTIN Mismatch",
-    "ASN Error — Quantity Mismatch",
-    "Invoice Rejected (Critical)",
-    "Debit Note Issued",
-    "Return Order Raised",
-    "Quality Rejection at GRN",
-    "Appointment Cancelled by Buyer",
-    "Vendor Blocklist Alert",
-  ],
-  finance_payments: [
-    "Payment Advice",
-    "Payment On Hold",
-    "TDS Certificate Available",
-    "Invoice Approved",
-    "Invoice Rejected",
-    "Credit Note Issued",
-    "Debit Note Reminder",
-    "GST Reconciliation Alert",
-    "MSME Payment Compliance",
-    "Payment Cycle Update",
-    "Bank Detail Change Confirmation",
-    "Statement of Accounts",
-  ],
-  reports_analytics: [
-    "Weekly Fill Rate Scorecard",
-    "Monthly Sales Report",
-    "SKU Performance Report",
-    "Category Health Report",
-    "On-Time Delivery Report",
-    "Return Rate Report",
-    "Stock Ageing Report",
-    "GRN Discrepancy Report",
-    "Quarterly Business Review",
-    "YTD Vendor Scorecard",
-  ],
-  daily_ops: [
-    "PO Mailer (Daily)",
-    "GRN Confirmation",
-    "ASN Acknowledgement",
-    "Stock on Hand Refresh",
-    "Appointment Confirmed",
-    "Appointment Rescheduled",
-    "Facility Onboarding Update",
-    "New SKU Listing",
-    "Price Change Notification",
-    "Promo Live Alert",
-    "Warehouse Cutoff Reminder",
-    "Shipment Dispatched",
-  ],
-  reminders: [
-    "Near-Expiry PO",
-    "Pending ASN",
-    "Pending Invoice Upload",
-    "Pending KYC Renewal",
-    "Contract Renewal Due",
-    "Insurance Certificate Expiry",
-    "GST Return Due",
-    "Compliance Document Refresh",
-  ],
-  account_access: [
-    "Login OTP",
-    "Password Reset",
-    "New User Added",
-    "Role Changed",
-    "Access Revoked",
-    "Session Alert — New Device",
-  ],
-};
-
-const MANDATORY_CATS: CategoryId[] = [
-  "action_required",
-  "finance_payments",
-  "account_access",
-];
 
 function slug(cat: CategoryId, name: string) {
   return `${cat}__${name
@@ -118,16 +117,25 @@ function slug(cat: CategoryId, name: string) {
 }
 
 export const COMM_CATALOG: CommItem[] = (
-  Object.entries(RAW) as [CategoryId, string[]][]
-).flatMap(([cat, names]) => {
-  const mandatory = MANDATORY_CATS.includes(cat);
-  return names.map((name, i) => ({
-    id: slug(cat, name),
-    name,
-    category: cat,
-    defaults: preload(i, mandatory),
-  }));
-});
+  Object.entries(RAW) as [CategoryId, RawComm[]][]
+).flatMap(([cat, items]) =>
+  items.map((it, i) => {
+    const whatsappAvailable = it.whatsappAvailable ?? true;
+    let d = preload(i);
+    // Mandatory comms must always have Mail on.
+    if (it.mandatory) d = { ...d, mail: true };
+    // If WhatsApp isn't available for this comm, force it off.
+    if (!whatsappAvailable) d = { ...d, whatsapp: false };
+    return {
+      id: slug(cat, it.name),
+      name: it.name,
+      category: cat,
+      defaults: d,
+      mandatory: it.mandatory,
+      whatsappAvailable,
+    };
+  }),
+);
 
 export function commsByCategory(category: CategoryId): CommItem[] {
   return COMM_CATALOG.filter((c) => c.category === category);
