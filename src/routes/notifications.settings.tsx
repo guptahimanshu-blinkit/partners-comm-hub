@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { Lock, Plus, Info, Mail, MessageSquare, ChevronDown, X } from "lucide-react";
-
+import { Lock, Info, ChevronDown, Plus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
@@ -28,12 +28,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "sonner";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { useRole } from "@/lib/role-context";
-import { CATEGORIES, colorClasses, type CategoryId } from "@/lib/mock-data";
+import {
+  CATEGORIES,
+  colorClasses,
+  type Category,
+  type CategoryId,
+} from "@/lib/mock-data";
 import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
 import {
   useRoleAssignments,
@@ -43,7 +46,6 @@ import {
   type RoleOption,
 } from "@/lib/role-assignments";
 
-
 export const Route = createFileRoute("/notifications/settings")({
   head: () => ({
     meta: [{ title: "Preference Centre — PartnersBiz Comms Centre" }],
@@ -51,43 +53,43 @@ export const Route = createFileRoute("/notifications/settings")({
   component: SettingsPage,
 });
 
-type AdminChannel = "Mail" | "WhatsApp";
-const ADMIN_CHANNELS: AdminChannel[] = ["Mail", "WhatsApp"];
 type Digest = "Real-time" | "Daily" | "Weekly";
+
+type CommChannels = { mail: boolean; whatsapp: boolean };
+type CommPrefs = Record<string, CommChannels>; // key = subCategory id
+
+function buildDefaultPrefs(cats: Category[]): CommPrefs {
+  const out: CommPrefs = {};
+  for (const cat of cats) {
+    for (const sub of cat.subCategories) {
+      out[sub.id] = { mail: true, whatsapp: false };
+    }
+  }
+  return out;
+}
 
 function SettingsPage() {
   const { role, employeeRole } = useRole();
   if (role === "internal_ops") return <Navigate to="/requests" />;
-  if (role === "vendor_employee") return <EmployeePreferences employeeRole={employeeRole} />;
+  if (role === "vendor_employee")
+    return <EmployeePreferences employeeRole={employeeRole} />;
   return <SettingsInner isAdmin />;
 }
 
-
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
-  const [channels, setChannels] = useState<Record<CategoryId, AdminChannel>>({
-    action_required: "Mail",
-    finance_payments: "Mail",
-    reports_analytics: "Mail",
-    daily_ops: "Mail",
-    reminders: "Mail",
-    account_access: "Mail",
-  });
-  const [extras, setExtras] = useState<Record<string, string[]>>({});
+  const [prefs, setPrefs] = useState<CommPrefs>(() => buildDefaultPrefs(CATEGORIES));
   const [digest, setDigest] = useState<Record<string, Digest>>({
     reports_analytics: "Weekly",
     daily_ops: "Daily",
   });
 
-  const addExtra = (cat: CategoryId) => {
-    setExtras((prev) => ({ ...prev, [cat]: [...(prev[cat] ?? []), "SMS"] }));
-    toast.success("SMS added as an additional delivery channel");
-  };
-
   return (
     <AppShell>
       <div className="mx-auto max-w-4xl p-4 sm:p-6">
         <div className="mb-6">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Preference Centre</h1>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Preference Centre
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {isAdmin
               ? "Configure how each notification category is delivered for ITC Limited."
@@ -95,109 +97,21 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
           </p>
         </div>
 
-        {/* Channel preferences */}
-        <section className="mb-8 rounded-xl border border-border bg-card">
-          <div className="border-b border-border p-4">
-            <h2 className="font-semibold">Delivery channels</h2>
-            <p className="text-sm text-muted-foreground">
-              Portal is always included. Choose what else gets added on top.
-            </p>
-          </div>
-          <div className="divide-y divide-border">
-            {CATEGORIES.map((cat) => {
-              const c = colorClasses[cat.color];
-              return (
-                <div
-                  key={cat.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 p-4 sm:flex sm:justify-between"
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", c.dot)} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-medium">{cat.label}</span>
-                        {cat.mandatory && (
-                          <Badge
-                            variant="outline"
-                            className="gap-1 text-[10px] text-muted-foreground"
-                          >
-                            <Lock className="h-3 w-3" /> Mandatory
-                          </Badge>
-                        )}
-                      </div>
-                      {extras[cat.id]?.length ? (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Also via: {extras[cat.id].join(", ")}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
+        <CommSubscriptionSection
+          categories={CATEGORIES}
+          prefs={prefs}
+          setPrefs={setPrefs}
+          footerNote="Mandatory comms are always delivered on Mail. You can add WhatsApp on top."
+        />
 
-                  <div className="col-start-1 row-start-2 sm:col-start-auto sm:row-start-auto">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {cat.mandatory ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-sm font-medium text-muted-foreground">
-                                <ChannelIcon channel="Mail" />
-                                Mail
-                                <Lock className="h-3.5 w-3.5" />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              Mail is mandatory for this category. Portal is always included.
-                              You can add more ways to receive it.
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <div className="inline-flex rounded-lg border border-border p-0.5">
-                          {ADMIN_CHANNELS.map((ch) => (
-                            <button
-                              key={ch}
-                              onClick={() =>
-                                setChannels((p) => ({ ...p, [cat.id]: ch }))
-                              }
-                              className={cn(
-                                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                                channels[cat.id] === ch
-                                  ? "bg-primary text-primary-foreground"
-                                  : "text-muted-foreground hover:text-foreground",
-                              )}
-                            >
-                              {ch}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => addExtra(cat.id)}
-                      >
-                        <Plus className="h-4 w-4" /> Add another way
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Role Assignment — Admin only */}
         {isAdmin ? <RoleAssignmentSection /> : null}
 
-
-
-        {/* Digest frequency */}
         <section className="mb-8 rounded-xl border border-border bg-card">
           <div className="border-b border-border p-4">
             <h2 className="font-semibold">Digest frequency</h2>
             <p className="text-sm text-muted-foreground">
-              Available for informational categories only. Weekly is the minimum frequency.
+              Available for informational categories only. Weekly is the minimum
+              frequency.
             </p>
           </div>
           <div className="divide-y divide-border">
@@ -235,12 +149,11 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
           </div>
           <div className="flex items-start gap-2 border-t border-border p-4 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            You can't set a digest lower than Weekly — this prevents important summaries from
-            being missed.
+            You can't set a digest lower than Weekly — this prevents important
+            summaries from being missed.
           </div>
         </section>
 
-        {/* Role routing table — Admin only */}
         {isAdmin ? (
           <section className="rounded-xl border border-border bg-card">
             <div className="border-b border-border p-4">
@@ -256,7 +169,9 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
         ) : (
           <section className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
             <Lock className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-            <p className="text-sm font-medium">Role routing is managed by your Vendor Admin</p>
+            <p className="text-sm font-medium">
+              Role routing is managed by your Vendor Admin
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
               Only admins can change which roles receive which categories.
             </p>
@@ -267,9 +182,190 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function ChannelIcon({ channel }: { channel: AdminChannel | "Mail" }) {
-  if (channel === "Mail") return <Mail className="h-3.5 w-3.5" />;
-  return <MessageSquare className="h-3.5 w-3.5" />;
+function CommSubscriptionSection({
+  categories,
+  prefs,
+  setPrefs,
+  footerNote,
+  emptyState,
+}: {
+  categories: Category[];
+  prefs: CommPrefs;
+  setPrefs: React.Dispatch<React.SetStateAction<CommPrefs>>;
+  footerNote: string;
+  emptyState?: string;
+}) {
+  const [openId, setOpenId] = useState<CategoryId | null>(
+    categories[0]?.id ?? null,
+  );
+
+  const toggle = (subId: string, channel: keyof CommChannels) => {
+    setPrefs((p) => ({
+      ...p,
+      [subId]: {
+        ...(p[subId] ?? { mail: true, whatsapp: false }),
+        [channel]: !(p[subId]?.[channel] ?? false),
+      },
+    }));
+  };
+
+  return (
+    <section className="mb-8 rounded-xl border border-border bg-card">
+      <div className="border-b border-border p-4">
+        <h2 className="font-semibold">Delivery channels</h2>
+        <p className="text-sm text-muted-foreground">
+          Portal is always included. Choose what else gets added on top —
+          per comm.
+        </p>
+      </div>
+
+      {categories.length === 0 ? (
+        <div className="p-8 text-center text-sm text-muted-foreground">
+          {emptyState ?? "No categories assigned yet."}
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {categories.map((cat) => {
+            const c = colorClasses[cat.color];
+            const isOpen = openId === cat.id;
+            const summary = summarize(cat, prefs);
+            return (
+              <div key={cat.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenId(isOpen ? null : cat.id)}
+                  className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/40"
+                  aria-expanded={isOpen}
+                >
+                  <span
+                    className={cn(
+                      "h-2.5 w-2.5 shrink-0 rounded-full",
+                      c.dot,
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{cat.label}</span>
+                      {cat.mandatory && (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 text-[10px] text-muted-foreground"
+                        >
+                          <Lock className="h-3 w-3" /> Mandatory
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {summary}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      isOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="border-t border-border bg-muted/20 px-4 py-3">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Comm type</TableHead>
+                          <TableHead className="w-[110px] text-center">
+                            Mail
+                          </TableHead>
+                          <TableHead className="w-[110px] text-center">
+                            WhatsApp
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {cat.subCategories.map((sub) => {
+                          const val =
+                            prefs[sub.id] ?? { mail: true, whatsapp: false };
+                          const mailLocked = cat.mandatory;
+                          return (
+                            <TableRow key={sub.id}>
+                              <TableCell className="font-medium">
+                                {sub.label}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {mailLocked ? (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                                          <Checkbox
+                                            checked
+                                            disabled
+                                            aria-label="Mail (locked)"
+                                          />
+                                          <Lock className="h-3 w-3" />
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        Mail is mandatory for this comm.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : (
+                                  <Checkbox
+                                    checked={val.mail}
+                                    onCheckedChange={() => toggle(sub.id, "mail")}
+                                    aria-label={`Mail for ${sub.label}`}
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Checkbox
+                                  checked={val.whatsapp}
+                                  onCheckedChange={() =>
+                                    toggle(sub.id, "whatsapp")
+                                  }
+                                  aria-label={`WhatsApp for ${sub.label}`}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-start gap-2 border-t border-border p-4 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        {footerNote}
+      </div>
+    </section>
+  );
+}
+
+function summarize(cat: Category, prefs: CommPrefs) {
+  const total = cat.subCategories.length;
+  let mail = 0;
+  let wa = 0;
+  let both = 0;
+  let off = 0;
+  for (const sub of cat.subCategories) {
+    const v = prefs[sub.id] ?? { mail: true, whatsapp: false };
+    if (v.mail && v.whatsapp) both++;
+    else if (v.mail) mail++;
+    else if (v.whatsapp) wa++;
+    else off++;
+  }
+  const parts: string[] = [`${total} comm${total === 1 ? "" : "s"}`];
+  if (both) parts.push(`${both} on Mail + WhatsApp`);
+  if (mail) parts.push(`${mail} on Mail`);
+  if (wa) parts.push(`${wa} on WhatsApp`);
+  if (off) parts.push(`${off} off`);
+  return parts.join(" · ");
 }
 
 function RoleRoutingTable() {
@@ -310,7 +406,9 @@ function RoleRoutingTable() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Supply Chain Manager">Supply Chain Manager</SelectItem>
+                  <SelectItem value="Supply Chain Manager">
+                    Supply Chain Manager
+                  </SelectItem>
                   <SelectItem value="Finance">Finance</SelectItem>
                   <SelectItem value="All Roles">All Roles</SelectItem>
                 </SelectContent>
@@ -325,7 +423,6 @@ function RoleRoutingTable() {
 
 function RoleAssignmentSection() {
   const { assignments, setAssignments } = useRoleAssignments();
-
 
   const toggle = (cat: CategoryId, role: RoleOption) => {
     setAssignments((p) => {
@@ -342,8 +439,8 @@ function RoleAssignmentSection() {
       <div className="border-b border-border p-4">
         <h2 className="font-semibold">Role Assignment</h2>
         <p className="text-sm text-muted-foreground">
-          Assign which roles can see each category. Individual users can set their own
-          channel preference underneath this, but never above it.
+          Assign which roles can see each category. Individual users can set
+          their own channel preference underneath this, but never above it.
         </p>
       </div>
       <div className="divide-y divide-border">
@@ -379,8 +476,8 @@ function RoleAssignmentSection() {
                         </span>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        Mandatory, visible to Account Owner and Admin by default, cannot be
-                        restricted.
+                        Mandatory, visible to Account Owner and Admin by
+                        default, cannot be restricted.
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -398,8 +495,8 @@ function RoleAssignmentSection() {
       </div>
       <div className="flex items-start gap-2 border-t border-border p-4 text-xs text-muted-foreground">
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Action Required and Account &amp; Access are mandatory for Account Owner and Admin
-        and cannot be restricted.
+        Action Required and Account &amp; Access are mandatory for Account
+        Owner and Admin and cannot be restricted.
       </div>
     </section>
   );
@@ -466,96 +563,47 @@ function RolePicker({
   );
 }
 
-type EmployeeChannel = "Mail" | "WhatsApp" | "Both";
-const EMPLOYEE_CHANNELS: EmployeeChannel[] = ["Mail", "WhatsApp", "Both"];
-
 function EmployeePreferences({ employeeRole }: { employeeRole: string }) {
   const { assignments } = useRoleAssignments();
-  const [prefs, setPrefs] = useState<Record<CategoryId, EmployeeChannel>>({
-    action_required: "Both",
-    finance_payments: "Mail",
-    reports_analytics: "Mail",
-    daily_ops: "Mail",
-    reminders: "WhatsApp",
-    account_access: "Mail",
-  });
+  const [prefs, setPrefs] = useState<CommPrefs>(() =>
+    buildDefaultPrefs(CATEGORIES),
+  );
 
-  const visible = CATEGORIES.filter(
-    (cat) =>
-      !cat.mandatory &&
-      (assignments[cat.id] ?? []).includes(employeeRole as RoleOption),
+  const visible = useMemo(
+    () =>
+      CATEGORIES.filter(
+        (cat) =>
+          cat.mandatory ||
+          (assignments[cat.id] ?? []).includes(employeeRole as RoleOption),
+      ),
+    [assignments, employeeRole],
   );
 
   return (
     <AppShell>
       <div className="mx-auto max-w-4xl p-4 sm:p-6">
         <div className="mb-6">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Preference Centre</h1>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Preference Centre
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Set your personal delivery preference for the categories assigned to you. Your
-            admin controls which categories you can see, this only controls how you receive
-            them.
+            Set your personal delivery preference for the categories assigned
+            to you. Your admin controls which categories you can see, this only
+            controls how you receive them.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Showing categories assigned to your role: {employeeRole}
           </p>
         </div>
 
-        <section className="rounded-xl border border-border bg-card">
-          <div className="border-b border-border p-4">
-            <h2 className="font-semibold">Your delivery channels</h2>
-            <p className="text-sm text-muted-foreground">
-              Showing categories assigned to your role: {employeeRole}
-            </p>
-          </div>
-          {visible.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              No non-mandatory categories are assigned to your role yet.
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {visible.map((cat) => {
-                const c = colorClasses[cat.color];
-                return (
-                  <div
-                    key={cat.id}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 p-4 sm:flex sm:justify-between"
-                  >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", c.dot)} />
-                      <span className="truncate font-medium">{cat.label}</span>
-                    </div>
-                    <div className="col-start-1 row-start-2 sm:col-start-auto sm:row-start-auto">
-                      <div className="inline-flex rounded-lg border border-border p-0.5">
-                        {EMPLOYEE_CHANNELS.map((ch) => (
-                          <button
-                            key={ch}
-                            onClick={() =>
-                              setPrefs((p) => ({ ...p, [cat.id]: ch }))
-                            }
-                            className={cn(
-                              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                              prefs[cat.id] === ch
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            {ch}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <div className="flex items-start gap-2 border-t border-border p-4 text-xs text-muted-foreground">
-            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Mandatory categories (Action Required, Account &amp; Access) are always delivered
-            and are not shown here.
-          </div>
-        </section>
+        <CommSubscriptionSection
+          categories={visible}
+          prefs={prefs}
+          setPrefs={setPrefs}
+          footerNote="Mandatory comms are always delivered on Mail. You can add WhatsApp on top."
+          emptyState="No categories are assigned to your role yet."
+        />
       </div>
     </AppShell>
   );
 }
-
-
