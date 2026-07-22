@@ -651,17 +651,13 @@ const OVERALL_SPLIT = COMM_CHANNEL_STATS.reduce(
   { mailOnly: 0, whatsappOnly: 0, both: 0 },
 );
 
-// 8-week trend: WhatsApp adoption rising, Mail-only slowly declining.
+// 4-week trend: WhatsApp adoption rising, Mail-only slowly declining.
 const CHANNEL_TREND: Array<{
   week: string;
   mailOnly: number;
   both: number;
   whatsappOnly: number;
 }> = [
-  { week: "W-7", mailOnly: 6400, both: 3100, whatsappOnly: 900 },
-  { week: "W-6", mailOnly: 6320, both: 3260, whatsappOnly: 1020 },
-  { week: "W-5", mailOnly: 6210, both: 3410, whatsappOnly: 1180 },
-  { week: "W-4", mailOnly: 6090, both: 3580, whatsappOnly: 1350 },
   { week: "W-3", mailOnly: 5940, both: 3720, whatsappOnly: 1560 },
   { week: "W-2", mailOnly: 5810, both: 3880, whatsappOnly: 1740 },
   { week: "W-1", mailOnly: 5680, both: 4020, whatsappOnly: 1920 },
@@ -669,324 +665,208 @@ const CHANNEL_TREND: Array<{
 ];
 
 const CH_COLORS = {
-  mailOnly: "#6b7280", // neutral grey
-  both: "#F8CB46", // Workdesk yellow
-  whatsappOnly: "#25D366", // WhatsApp green
+  mailOnly: "#6b7280",
+  both: "#F8CB46",
+  whatsappOnly: "#25D366",
 };
 
 function ChannelPreferenceSection() {
+  const total = OVERALL_SPLIT.mailOnly + OVERALL_SPLIT.whatsappOnly + OVERALL_SPLIT.both;
+  const cards = [
+    {
+      label: "Mail only",
+      value: OVERALL_SPLIT.mailOnly,
+      color: CH_COLORS.mailOnly,
+      Icon: Mail,
+    },
+    {
+      label: "WhatsApp only",
+      value: OVERALL_SPLIT.whatsappOnly,
+      color: CH_COLORS.whatsappOnly,
+      Icon: MessageCircle,
+    },
+    {
+      label: "Both Mail & WhatsApp",
+      value: OVERALL_SPLIT.both,
+      color: CH_COLORS.both,
+      Icon: CheckCircle2,
+    },
+  ];
+
+  const tableRows = useMemo(() => {
+    return COMM_CHANNEL_STATS.map((r) => ({
+      ...r,
+      mailPct: Math.round((r.mailOnly / r.total) * 100),
+      waPct: Math.round((r.whatsappOnly / r.total) * 100),
+      bothPct: Math.round((r.both / r.total) * 100),
+    })).sort((a, b) => b.waPct - a.waPct);
+  }, []);
+
   return (
     <SectionCard
-      title="Channel Preference Distribution"
-      description="How vendor subscriptions are split across Mail, WhatsApp, and Both, from Preference Centre choices. Portal delivery is always on and not counted here."
+      title="Channel Preference Split"
+      description="How vendor subscriptions split across Mail, WhatsApp, and Both — sourced from Preference Centre. Portal delivery is always on and not counted here. Sample data only."
     >
-      <div className="grid gap-6 lg:grid-cols-2">
-        <OverallSplitDonut />
-        <ChannelTrendChart />
+      {/* Stat cards */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {cards.map((c) => {
+          const pct = ((c.value / total) * 100).toFixed(1);
+          return (
+            <div
+              key={c.label}
+              className="rounded-lg border border-border bg-background p-4"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-md"
+                  style={{ background: `${c.color}22`, color: c.color }}
+                >
+                  <c.Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="text-[12px] font-medium text-muted-foreground">
+                  {c.label}
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold tabular-nums text-foreground">
+                  {c.value.toLocaleString()}
+                </span>
+                <span className="text-[12px] text-muted-foreground tabular-nums">
+                  {pct}% of total
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <div className="mt-6">
-        <ChannelBreakdownList />
+
+      {/* 4-week trend */}
+      <div className="mt-6 rounded-lg border border-border bg-background p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              Last 4 weeks
+            </h3>
+            <p className="text-[11px] text-muted-foreground">
+              WhatsApp adoption trending up as vendors opt in.
+            </p>
+          </div>
+          <ul className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+            {[
+              { label: "Mail only", color: CH_COLORS.mailOnly },
+              { label: "Both", color: CH_COLORS.both },
+              { label: "WhatsApp only", color: CH_COLORS.whatsappOnly },
+            ].map((l) => (
+              <li key={l.label} className="inline-flex items-center gap-1.5">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: l.color }}
+                />
+                {l.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={CHANNEL_TREND}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis
+                dataKey="week"
+                tick={{ fontSize: 11 }}
+                stroke="var(--muted-foreground)"
+              />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                stroke="var(--muted-foreground)"
+              />
+              <RTooltip
+                formatter={(v: number) => v.toLocaleString()}
+                contentStyle={{ fontSize: 12 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="mailOnly"
+                name="Mail only"
+                stackId="1"
+                stroke={CH_COLORS.mailOnly}
+                fill={CH_COLORS.mailOnly}
+                fillOpacity={0.55}
+              />
+              <Area
+                type="monotone"
+                dataKey="both"
+                name="Both"
+                stackId="1"
+                stroke={CH_COLORS.both}
+                fill={CH_COLORS.both}
+                fillOpacity={0.75}
+              />
+              <Area
+                type="monotone"
+                dataKey="whatsappOnly"
+                name="WhatsApp only"
+                stackId="1"
+                stroke={CH_COLORS.whatsappOnly}
+                fill={CH_COLORS.whatsappOnly}
+                fillOpacity={0.8}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="mt-6 rounded-lg border border-border bg-background">
+        <div className="border-b border-border p-4">
+          <h3 className="text-sm font-semibold text-foreground">
+            By comm type
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            Sorted by highest WhatsApp adoption first.
+          </p>
+        </div>
+        <div className="max-h-[420px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background">
+              <TableRow>
+                <TableHead>Comm type</TableHead>
+                <TableHead className="text-right">Mail</TableHead>
+                <TableHead className="text-right">WhatsApp</TableHead>
+                <TableHead className="text-right">Both</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tableRows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium text-foreground">
+                    {r.name}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {r.mailPct}%
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    <span
+                      className="inline-flex items-center gap-1 font-semibold"
+                      style={{ color: CH_COLORS.whatsappOnly }}
+                    >
+                      {r.waPct}%
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {r.bothPct}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </SectionCard>
   );
 }
 
-function OverallSplitDonut() {
-  const total = OVERALL_SPLIT.mailOnly + OVERALL_SPLIT.whatsappOnly + OVERALL_SPLIT.both;
-  const data = [
-    { name: "Mail only", value: OVERALL_SPLIT.mailOnly, color: CH_COLORS.mailOnly },
-    { name: "Both", value: OVERALL_SPLIT.both, color: CH_COLORS.both },
-    { name: "WhatsApp only", value: OVERALL_SPLIT.whatsappOnly, color: CH_COLORS.whatsappOnly },
-  ];
-  return (
-    <div className="rounded-lg border border-border bg-background p-4">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-foreground">Overall split</h3>
-        <p className="text-[11px] text-muted-foreground">
-          Across all {COMM_CATALOG.length} comm types.
-        </p>
-      </div>
-      <div className="relative h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={64}
-              outerRadius={92}
-              paddingAngle={2}
-              stroke="none"
-            >
-              {data.map((d) => (
-                <Cell key={d.name} fill={d.color} />
-              ))}
-            </Pie>
-            <RTooltip
-              formatter={(v: number, n: string) => [
-                `${v.toLocaleString()} (${((v / total) * 100).toFixed(1)}%)`,
-                n,
-              ]}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <div className="text-lg font-semibold tabular-nums text-foreground">
-            {total.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-muted-foreground">subscriptions</div>
-        </div>
-      </div>
-      <ul className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
-        {data.map((d) => {
-          const pct = ((d.value / total) * 100).toFixed(1);
-          return (
-            <li
-              key={d.name}
-              className="rounded-md border border-border bg-muted/30 p-2"
-            >
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: d.color }}
-                />
-                <span className="text-muted-foreground">{d.name}</span>
-              </div>
-              <div className="mt-0.5 font-semibold text-foreground tabular-nums">
-                {d.value.toLocaleString()}{" "}
-                <span className="text-muted-foreground font-normal">
-                  ({pct}%)
-                </span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-function ChannelTrendChart() {
-  return (
-    <div className="rounded-lg border border-border bg-background p-4">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-foreground">
-          Trend over time
-        </h3>
-        <p className="text-[11px] text-muted-foreground">
-          Last 8 weeks. WhatsApp adoption is rising as vendors opt in.
-        </p>
-      </div>
-      <div className="h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={CHANNEL_TREND} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis dataKey="week" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-            <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-            <RTooltip
-              formatter={(v: number) => v.toLocaleString()}
-              contentStyle={{ fontSize: 12 }}
-            />
-            <Area
-              type="monotone"
-              dataKey="mailOnly"
-              name="Mail only"
-              stackId="1"
-              stroke={CH_COLORS.mailOnly}
-              fill={CH_COLORS.mailOnly}
-              fillOpacity={0.55}
-            />
-            <Area
-              type="monotone"
-              dataKey="both"
-              name="Both"
-              stackId="1"
-              stroke={CH_COLORS.both}
-              fill={CH_COLORS.both}
-              fillOpacity={0.75}
-            />
-            <Area
-              type="monotone"
-              dataKey="whatsappOnly"
-              name="WhatsApp only"
-              stackId="1"
-              stroke={CH_COLORS.whatsappOnly}
-              fill={CH_COLORS.whatsappOnly}
-              fillOpacity={0.75}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-      <ul className="mt-2 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-        {[
-          { label: "Mail only", color: CH_COLORS.mailOnly },
-          { label: "Both", color: CH_COLORS.both },
-          { label: "WhatsApp only", color: CH_COLORS.whatsappOnly },
-        ].map((l) => (
-          <li key={l.label} className="inline-flex items-center gap-1.5">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ background: l.color }}
-            />
-            {l.label}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ChannelBreakdownList() {
-  const [sortBy, setSortBy] = useState<"whatsapp" | "mail" | "volume">("volume");
-  const [showAll, setShowAll] = useState(false);
-
-  const rows = useMemo(() => {
-    // Mail share = (mailOnly + both/2) / total; WA share = (whatsappOnly + both/2) / total.
-    const enriched = COMM_CHANNEL_STATS.map((r) => {
-      const mailShare = (r.mailOnly + r.both / 2) / r.total;
-      const waShare = (r.whatsappOnly + r.both / 2) / r.total;
-      return { ...r, mailShare, waShare };
-    });
-    if (sortBy === "whatsapp") enriched.sort((a, b) => b.waShare - a.waShare);
-    else if (sortBy === "mail") enriched.sort((a, b) => b.mailShare - a.mailShare);
-    else enriched.sort((a, b) => b.total - a.total);
-    return enriched;
-  }, [sortBy]);
-
-  const shown = showAll ? rows : rows.slice(0, 12);
-
-  return (
-    <div className="rounded-lg border border-border bg-background p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">
-            Breakdown by comm type
-          </h3>
-          <p className="text-[11px] text-muted-foreground">
-            Diverging bar centred on 50/50. Left = Mail share (grey), right = WhatsApp share (green).
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px]">
-          <span className="text-muted-foreground">Sort by</span>
-          <div className="inline-flex overflow-hidden rounded-md border border-border">
-            {(
-              [
-                { k: "volume", label: "Volume" },
-                { k: "whatsapp", label: "WhatsApp share" },
-                { k: "mail", label: "Mail share" },
-              ] as const
-            ).map((o) => (
-              <button
-                key={o.k}
-                type="button"
-                onClick={() => setSortBy(o.k)}
-                className={cn(
-                  "px-2.5 py-1 font-medium transition-colors",
-                  sortBy === o.k
-                    ? "bg-foreground text-background"
-                    : "bg-background text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <ul className="divide-y divide-border">
-        {shown.map((r) => {
-          const lean =
-            r.waShare - r.mailShare > 0.1
-              ? "wa"
-              : r.mailShare - r.waShare > 0.1
-                ? "mail"
-                : "balanced";
-          const mailPct = Math.round(r.mailShare * 100);
-          const waPct = Math.round(r.waShare * 100);
-          return (
-            <li
-              key={r.id}
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] items-center gap-3 py-2"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-[13px] font-medium text-foreground">
-                  {r.name}
-                </div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {r.total.toLocaleString()} subs
-                </div>
-              </div>
-              {/* Diverging bar */}
-              <div className="flex items-center">
-                <div className="flex flex-1 justify-end">
-                  <div
-                    className="h-3 rounded-l-sm bg-[--mail]"
-                    style={
-                      {
-                        width: `${mailPct}%`,
-                        ["--mail" as string]: CH_COLORS.mailOnly,
-                      } as React.CSSProperties
-                    }
-                    title={`Mail share ${mailPct}%`}
-                  />
-                </div>
-                <div className="mx-0 h-4 w-px bg-border" />
-                <div className="flex flex-1 justify-start">
-                  <div
-                    className="h-3 rounded-r-sm bg-[--wa]"
-                    style={
-                      {
-                        width: `${waPct}%`,
-                        ["--wa" as string]: CH_COLORS.whatsappOnly,
-                      } as React.CSSProperties
-                    }
-                    title={`WhatsApp share ${waPct}%`}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-[11px] tabular-nums text-muted-foreground">
-                  <Mail className="mr-0.5 inline h-3 w-3" />
-                  {mailPct}%
-                  <span className="mx-1">·</span>
-                  <MessageCircle className="mr-0.5 inline h-3 w-3" />
-                  {waPct}%
-                </span>
-                <Badge
-                  className={cn(
-                    "text-[10px]",
-                    lean === "wa"
-                      ? "bg-cat-green-soft text-cat-green hover:bg-cat-green-soft"
-                      : lean === "mail"
-                        ? "bg-muted text-muted-foreground hover:bg-muted"
-                        : "bg-cat-amber-soft text-cat-amber hover:bg-cat-amber-soft",
-                  )}
-                >
-                  {lean === "wa"
-                    ? "Leans WhatsApp"
-                    : lean === "mail"
-                      ? "Leans Mail"
-                      : "Balanced"}
-                </Badge>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
-      {rows.length > 12 && (
-        <div className="mt-3 flex justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAll((v) => !v)}
-          >
-            {showAll ? "Show top 12" : `Show all ${rows.length}`}
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
 
