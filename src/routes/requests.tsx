@@ -1327,6 +1327,11 @@ interface ClubbingMatch {
   reasons: string[];
 }
 
+interface ContentQuality {
+  score: number;
+  reason?: string;
+}
+
 // Preloaded matches keyed by request ID. Requests not listed here have no
 // match and the panel stays hidden — this keeps the preview deterministic.
 const PRELOADED_MATCHES: Record<string, ClubbingMatch> = {
@@ -1392,6 +1397,14 @@ const AUTO_MATCH_POOL: Omit<ClubbingMatch, "match">[] = [
   },
 ];
 
+const REWORK_REASONS = [
+  "Subject line too long",
+  "CTA unclear or missing",
+  "Tone mismatch",
+  "Low readability",
+  "Excessive punctuation",
+];
+
 export function getClubbingMatch(requestId: string): ClubbingMatch | null {
   const preloaded = PRELOADED_MATCHES[requestId];
   if (preloaded) return preloaded.match >= 40 ? preloaded : null;
@@ -1405,6 +1418,22 @@ export function getClubbingMatch(requestId: string): ClubbingMatch | null {
   return { match: score, ...pick };
 }
 
+export function getContentQuality(requestId: string): ContentQuality {
+  const preloaded: Record<string, ContentQuality> = {
+    "REQ-1001": { score: 8.2, reason: "Subject line too long" },
+    "REQ-1002": { score: 9.4 },
+  };
+  if (preloaded[requestId]) return preloaded[requestId];
+
+  const r = hashSeed(`quality:${requestId}`);
+  const score = Math.round((6 + r * 4) * 10) / 10; // 6.0 to 10.0
+  if (score >= 9) return { score };
+  return {
+    score,
+    reason: REWORK_REASONS[Math.floor(r * REWORK_REASONS.length)],
+  };
+}
+
 function ClubbingMatchPanel({ requestId }: { requestId: string }) {
   const match = getClubbingMatch(requestId);
   if (!match) return null;
@@ -1413,6 +1442,9 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
   const label = strong
     ? "Good chance of clubbing"
     : "Medium chance of clubbing";
+
+  const quality = getContentQuality(requestId);
+  const rework = quality.score < 9;
 
   return (
     <div
@@ -1444,6 +1476,29 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
         {label}
       </p>
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-sm text-foreground">
+          Content Quality Score:{" "}
+          <span className="font-semibold tabular-nums">
+            {quality.score.toFixed(1)}/10
+          </span>
+        </span>
+        {rework ? (
+          <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">
+            Needs Rework
+          </Badge>
+        ) : (
+          <Badge className="bg-cat-green-soft text-cat-green hover:bg-cat-green-soft">
+            Publish ready
+          </Badge>
+        )}
+        {rework && quality.reason && (
+          <span className="text-xs text-muted-foreground">
+            — {quality.reason}
+          </span>
+        )}
+      </div>
+
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium text-foreground">
@@ -1471,6 +1526,7 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
     </div>
   );
 }
+
 
 
 
