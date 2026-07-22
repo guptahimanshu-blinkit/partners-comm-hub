@@ -77,7 +77,7 @@ function SettingsPage() {
 }
 
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
-  const [prefs, setPrefs] = useState<CommPrefs>(() => buildDefaultPrefs(CATEGORIES));
+  const [prefs, setPrefs] = useState<CommPrefs>(() => buildDefaultPrefs());
   const [digest, setDigest] = useState<Record<string, Digest>>({
     reports_analytics: "Weekly",
     daily_ops: "Daily",
@@ -566,7 +566,7 @@ function RolePicker({
 function EmployeePreferences({ employeeRole }: { employeeRole: string }) {
   const { assignments } = useRoleAssignments();
   const [prefs, setPrefs] = useState<CommPrefs>(() =>
-    buildDefaultPrefs(CATEGORIES),
+    buildDefaultPrefs(),
   );
 
   const visible = useMemo(
