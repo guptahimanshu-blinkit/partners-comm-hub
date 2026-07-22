@@ -262,12 +262,12 @@ function RoleSwitcher() {
                         role === r && "font-medium",
                       )}
                     >
-                      {ROLE_LABELS[r]}
+                      {ROLE_SURFACE_LABELS[r]}
                     </span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-[220px]">
                     <DropdownMenuLabel className="text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-                      {ROLE_LABELS[r]}
+                      {ROLE_SURFACE_LABELS[r]}
                     </DropdownMenuLabel>
                     <DropdownMenuRadioGroup
                       value={role === r ? employeeRole : ""}
@@ -296,12 +296,12 @@ function RoleSwitcher() {
                         role === r && "font-medium",
                       )}
                     >
-                      {ROLE_LABELS[r]}
+                      {ROLE_SURFACE_LABELS[r]}
                     </span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-[220px]">
                     <DropdownMenuLabel className="text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-                      {ROLE_LABELS[r]}
+                      {ROLE_SURFACE_LABELS[r]}
                     </DropdownMenuLabel>
                     <DropdownMenuRadioGroup
                       value={role === r ? internalRole : ""}
@@ -322,7 +322,7 @@ function RoleSwitcher() {
             }
             return (
               <DropdownMenuRadioItem key={r} value={r}>
-                {ROLE_LABELS[r]}
+                {ROLE_SURFACE_LABELS[r]}
               </DropdownMenuRadioItem>
             );
           })}
