@@ -199,15 +199,21 @@ function CommSubscriptionSection({
     categories[0]?.id ?? null,
   );
 
-  const toggle = (subId: string, channel: keyof CommChannels) => {
-    setPrefs((p) => ({
-      ...p,
-      [subId]: {
-        ...(p[subId] ?? { mail: true, whatsapp: false }),
-        [channel]: !(p[subId]?.[channel] ?? false),
-      },
-    }));
+  const toggle = (
+    commId: string,
+    channel: keyof CommChannels,
+    mandatory: boolean,
+  ) => {
+    setPrefs((p) => {
+      const cur = p[commId] ?? { mail: true, whatsapp: false };
+      const nextVal = !cur[channel];
+      const other = channel === "mail" ? cur.whatsapp : cur.mail;
+      // Mandatory categories: never let both drop to false.
+      if (mandatory && !nextVal && !other) return p;
+      return { ...p, [commId]: { ...cur, [channel]: nextVal } };
+    });
   };
+
 
   return (
     <section className="mb-8 rounded-xl border border-border bg-card">
