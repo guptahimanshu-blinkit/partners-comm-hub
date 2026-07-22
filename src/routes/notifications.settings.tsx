@@ -666,7 +666,10 @@ function EmployeePreferences({ employeeRole }: { employeeRole: string }) {
           footerNote="Mandatory comms are always delivered on Mail. You can add WhatsApp on top."
           emptyState="No categories are assigned to your role yet."
         />
+
+        <PageDisclaimer />
       </div>
+
     </AppShell>
   );
 }
