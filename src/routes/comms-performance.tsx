@@ -151,9 +151,11 @@ function CommsPerformancePage() {
         <KpiRow />
         <TemplateCtrCard />
         <HourlyCtrCard />
+        <ChannelPreferenceSection />
         <BounceCard />
         <NonOpenerCard />
         <FinanceGroupCard />
+
       </div>
     </AppShell>
   );
