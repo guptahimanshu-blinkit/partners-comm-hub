@@ -11,7 +11,21 @@ import {
   UserCog,
   LifeBuoy,
   CheckCircle2,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RTooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -27,6 +41,9 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
+import { COMM_CATALOG } from "@/lib/comm-catalog";
+import type { CategoryId } from "@/lib/mock-data";
+
 
 export const Route = createFileRoute("/comms-performance")({
   head: () => ({
