@@ -217,12 +217,19 @@ function RoleSwitcher() {
   ];
   const internalSubRoles: InternalRole[] = ["Template Submitter", "Approver"];
 
+  const ROLE_SURFACE_LABELS: Record<PortalRole, string> = {
+    vendor_admin: "Vendor Admin (PartnersBiz Portal)",
+    vendor_employee: "Vendor Employee (PartnersBiz Portal)",
+    internal_ops: "Internal Ops (Blinkit) (Workdesk)",
+  };
+
   const label =
     role === "vendor_employee"
-      ? `${ROLE_LABELS[role]} · ${employeeRole}`
+      ? `${ROLE_SURFACE_LABELS[role]} · ${employeeRole}`
       : role === "internal_ops"
-        ? `${ROLE_LABELS[role]} · ${internalRole}`
-        : ROLE_LABELS[role];
+        ? `${ROLE_SURFACE_LABELS[role]} · ${internalRole}`
+        : ROLE_SURFACE_LABELS[role];
+
 
   return (
     <DropdownMenu>
