@@ -37,6 +37,7 @@ import {
   type Category,
   type CategoryId,
 } from "@/lib/mock-data";
+import { COMM_CATALOG, commsByCategory } from "@/lib/comm-catalog";
 import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
 import {
   useRoleAssignments,
@@ -56,17 +57,16 @@ export const Route = createFileRoute("/notifications/settings")({
 type Digest = "Real-time" | "Daily" | "Weekly";
 
 type CommChannels = { mail: boolean; whatsapp: boolean };
-type CommPrefs = Record<string, CommChannels>; // key = subCategory id
+type CommPrefs = Record<string, CommChannels>; // key = comm id from COMM_CATALOG
 
-function buildDefaultPrefs(cats: Category[]): CommPrefs {
+function buildDefaultPrefs(): CommPrefs {
   const out: CommPrefs = {};
-  for (const cat of cats) {
-    for (const sub of cat.subCategories) {
-      out[sub.id] = { mail: true, whatsapp: false };
-    }
+  for (const item of COMM_CATALOG) {
+    out[item.id] = { ...item.defaults };
   }
   return out;
 }
+
 
 function SettingsPage() {
   const { role, employeeRole } = useRole();
