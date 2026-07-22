@@ -287,55 +287,40 @@ function CommSubscriptionSection({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {cat.subCategories.map((sub) => {
+                        {commsByCategory(cat.id).map((comm) => {
                           const val =
-                            prefs[sub.id] ?? { mail: true, whatsapp: false };
-                          const mailLocked = cat.mandatory;
+                            prefs[comm.id] ?? { mail: true, whatsapp: false };
+                          const mandatory = cat.mandatory;
+                          const mailLocked =
+                            mandatory && val.mail && !val.whatsapp;
+                          const waLocked =
+                            mandatory && val.whatsapp && !val.mail;
                           return (
-                            <TableRow key={sub.id}>
+                            <TableRow key={comm.id}>
                               <TableCell className="font-medium">
-                                {sub.label}
+                                {comm.name}
                               </TableCell>
-                              <TableCell className="text-center">
-                                {mailLocked ? (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                                          <Checkbox
-                                            checked
-                                            disabled
-                                            aria-label="Mail (locked)"
-                                          />
-                                          <Lock className="h-3 w-3" />
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        Mail is mandatory for this comm.
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                ) : (
-                                  <Checkbox
-                                    checked={val.mail}
-                                    onCheckedChange={() => toggle(sub.id, "mail")}
-                                    aria-label={`Mail for ${sub.label}`}
-                                  />
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Checkbox
-                                  checked={val.whatsapp}
-                                  onCheckedChange={() =>
-                                    toggle(sub.id, "whatsapp")
-                                  }
-                                  aria-label={`WhatsApp for ${sub.label}`}
-                                />
-                              </TableCell>
+                              <ChannelCell
+                                checked={val.mail}
+                                locked={mailLocked}
+                                onToggle={() =>
+                                  toggle(comm.id, "mail", mandatory)
+                                }
+                                label={`Mail for ${comm.name}`}
+                              />
+                              <ChannelCell
+                                checked={val.whatsapp}
+                                locked={waLocked}
+                                onToggle={() =>
+                                  toggle(comm.id, "whatsapp", mandatory)
+                                }
+                                label={`WhatsApp for ${comm.name}`}
+                              />
                             </TableRow>
                           );
                         })}
                       </TableBody>
+
                     </Table>
                   </div>
                 )}
