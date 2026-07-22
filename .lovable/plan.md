@@ -1,46 +1,45 @@
-# Per-comm subscription in Preference Centre
+## Add "Channel Preference Distribution" section to Comms Performance (Workdesk)
 
-Replace the current category-level channel toggle (Mail / WhatsApp + "Add another way") in Preference Centre with an expand-per-category view that lets vendors pick channels per individual comm type. Applies to both Vendor Admin and Vendor Employee preference screens in `src/routes/notifications.settings.tsx`. Nothing else on the page changes (Role Assignment, Digest frequency, Role Routing all stay as-is).
+New section appended to `src/routes/comms-performance.tsx`, using existing Workdesk yellow theme and `SectionCard` pattern. Data source: aggregate the `defaults` on `COMM_CATALOG` (58 comms) to derive base counts, then multiply by a per-comm sample "subscriber count" so the numbers look like vendor subscriptions, not just comm types. Everything is static sample data — no wiring to live preference state.
 
-## Comm list per category (from existing `CATEGORIES[].subCategories` in `src/lib/mock-data.ts`)
+### Three sub-panels inside one `SectionCard`
 
-- **Action Required** (mandatory) — PO Cancellations, ASN Errors
-- **Finance & Payments** (mandatory) — Rejected Invoices, Payment On Hold
-- **Reports & Analytics** — Fill Rate Scorecard, Sales Reports
-- **Daily Ops Updates** — GRN Updates, Stock on Hand
-- **Reminders** — Near-Expiry POs, Pending ASN
-- **Account & Access** (mandatory) — Login & OTP, Role Changes
+**1. Overall split — Donut chart**
+- Three slices: Mail only, WhatsApp only, Both.
+- Center label shows total subscriptions (e.g. "12,480 subscriptions").
+- Legend with count + percentage per slice.
+- Chart: Recharts `PieChart` with `innerRadius` (already used elsewhere in the project via shadcn/Recharts).
+- Sample split (from catalog defaults, weighted): Mail only ~48%, Both ~37%, WhatsApp only ~15%.
 
-No new sample data; we use the existing `subCategories` as the comm-type rows. If later you want more (e.g. "PO Mailer", "Payment Advice", "Invoice Rejected" as separate rows), we add them to `mock-data.ts` in a follow-up.
+**2. Trend over time — Stacked area chart**
+- Last 8 weeks, weekly buckets ("W-8" … "This week").
+- Three stacked series: Mail only, Both, WhatsApp only.
+- Storyline in sample data: WhatsApp only and Both grow steadily as vendors opt in; Mail only slowly declines.
+- Chart: Recharts `AreaChart` with `stackId="1"`, category colors (Mail = neutral grey, Both = Workdesk yellow, WhatsApp = green `#25D366`).
 
-## Interaction
+**3. Breakdown by comm type — Horizontal diverging bar list**
+- One row per comm (top 12 by subscription volume, with a "Show all 58" toggle).
+- Row layout: comm name on the left, then a diverging bar centered on 0 — Mail share extends left (grey), WhatsApp share extends right (green). Both counts contribute half to each side.
+- Right-side label: dominant channel chip ("Leans WhatsApp" / "Leans Mail" / "Balanced").
+- Sortable header: "Sort by WhatsApp share" / "Sort by Mail share".
+- No third-party lib needed — plain flex bars, matches existing table styling.
 
-- Each category is a collapsible row. Header shows: color dot, category label, mandatory badge if applicable, right-side summary like "2 comms · Mail + WhatsApp on 1", and a chevron.
-- Clicking the header expands to a small table with columns: **Comm type**, **Mail** (checkbox), **WhatsApp** (checkbox).
-- Only one category expanded at a time (accordion). Portal helper text stays: "Portal is always included. Choose what else gets added on top."
-- Toasts on toggle are dropped to keep interaction quiet; state is local (prototype only), same as today.
+### Sample data shape (added inline in the route file)
 
-## Mandatory-channel lock logic
+```ts
+// per-comm subscription counts, derived from COMM_CATALOG + sample multiplier
+type ChannelSplit = { mailOnly: number; whatsappOnly: number; both: number };
+const commChannelStats: Array<{ id: string; name: string; category: CategoryId; split: ChannelSplit }> = …;
 
-- Applies to every comm under **Action Required**, **Finance & Payments**, and **Account & Access** (the three `mandatory: true` categories).
-- Mail is the locked default for mandatory comms — Mail checkbox is checked and disabled with a lock icon + tooltip "Mail is mandatory for this comm."
-- WhatsApp is freely toggleable on mandatory comms (opt-in extra channel).
-- Non-mandatory categories: both Mail and WhatsApp are freely toggleable; either or both may be off (neither is allowed → user simply won't receive that comm, matching "or neither where permitted").
-- Net effect: on mandatory comms at least one channel (Mail) is always on; on non-mandatory comms all four combinations are allowed.
+// 8-week trend, hand-tuned to tell the "WhatsApp adoption rising" story
+const channelTrend: Array<{ week: string; mailOnly: number; whatsappOnly: number; both: number }> = …;
+```
 
-## Vendor Admin vs Vendor Employee
+### Placement
+Insert new `<ChannelPreferenceSection />` after the existing "Content Quality" / CTR blocks and before Bounce/Non-opener trackers, so it reads as: performance → preferences → deliverability.
 
-- **Vendor Admin** view: shows all 6 categories. This defines the org default per comm.
-- **Vendor Employee** view: shows only categories assigned to their role via existing `useRoleAssignments()` **plus** the mandatory categories (Action Required, Account & Access) since those are always delivered — mandatory categories are shown here now (previously hidden) so the employee can still opt into WhatsApp for them. Footer note updates to: "Mandatory comms are always delivered on Mail. You can add WhatsApp on top."
-- Both views share one `CategoryChannelList` component; the only difference is the category list passed in.
-
-## Files touched
-
-- `src/routes/notifications.settings.tsx` — replace the "Delivery channels" section body in `SettingsInner` and the entire body of `EmployeePreferences` with the new accordion component. Remove the `channels`, `extras`, `addExtra`, and `ADMIN_CHANNELS` bits that drove the old toggle. Keep Role Assignment, Digest frequency, Role Routing sections untouched.
-- No changes to `mock-data.ts`, `role-assignments.ts`, or any other file.
-
-## Confirmations requested before I build
-
-1. Comm list per category above (using existing `subCategories`) is acceptable for the prototype — no new comm types added right now.
-2. Mandatory lock = **Mail always on, WhatsApp optional** for all comms in Action Required / Finance & Payments / Account & Access. OK?
-3. Employee view should now **include** mandatory categories (WhatsApp-only choice, Mail locked). OK, or keep them hidden as today?
+### Confirmations before building
+1. **Chart choice** — Donut + Stacked Area + Diverging horizontal bars. OK, or would you prefer a single bar chart or a 100% stacked bar for the overall split?
+2. **Trend window** — 8 weekly buckets. OK, or prefer 12 weeks / 6 months monthly?
+3. **Breakdown default** — top 12 comms with a "Show all 58" expander. OK, or show all 58 up front grouped by category?
+4. **Story in sample data** — WhatsApp adoption trending up, Mail only trending down. OK for the presentation narrative?
