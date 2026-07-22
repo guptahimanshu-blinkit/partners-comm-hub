@@ -338,14 +338,56 @@ function CommSubscriptionSection({
   );
 }
 
+function ChannelCell({
+  checked,
+  locked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  locked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  const box = (
+    <Checkbox
+      checked={checked}
+      disabled={locked}
+      onCheckedChange={onToggle}
+      aria-label={locked ? `${label} (locked)` : label}
+    />
+  );
+  if (!locked) {
+    return <TableCell className="text-center">{box}</TableCell>;
+  }
+  return (
+    <TableCell className="text-center">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+              {box}
+              <Lock className="h-3 w-3" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            Mandatory, at least one channel required.
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </TableCell>
+  );
+}
+
 function summarize(cat: Category, prefs: CommPrefs) {
-  const total = cat.subCategories.length;
+  const items = commsByCategory(cat.id);
+  const total = items.length;
   let mail = 0;
   let wa = 0;
   let both = 0;
   let off = 0;
-  for (const sub of cat.subCategories) {
-    const v = prefs[sub.id] ?? { mail: true, whatsapp: false };
+  for (const comm of items) {
+    const v = prefs[comm.id] ?? { mail: true, whatsapp: false };
     if (v.mail && v.whatsapp) both++;
     else if (v.mail) mail++;
     else if (v.whatsapp) wa++;
@@ -358,6 +400,7 @@ function summarize(cat: Category, prefs: CommPrefs) {
   if (off) parts.push(`${off} off`);
   return parts.join(" · ");
 }
+
 
 function RoleRoutingTable() {
   const { routing, setRouting } = useRoleRouting();
