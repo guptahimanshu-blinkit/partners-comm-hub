@@ -303,8 +303,8 @@ function CommSubscriptionSection({
                                 locked={mailLocked}
                                 onToggle={() => toggle(comm.id, "mail")}
                                 label={`Mail for ${comm.name}`}
-                                lockReason="Mandatory, always delivered on Mail."
                               />
+
                               {comm.whatsappAvailable ? (
                                 <ChannelCell
                                   checked={val.whatsapp}
