@@ -202,15 +202,15 @@ function CommSubscriptionSection({
   const toggle = (
     commId: string,
     channel: keyof CommChannels,
-    mandatory: boolean,
   ) => {
     setPrefs((p) => {
       const cur = p[commId] ?? { mail: true, whatsapp: false };
-      const nextVal = !cur[channel];
-      const other = channel === "mail" ? cur.whatsapp : cur.mail;
-      // Mandatory categories: never let both drop to false.
-      if (mandatory && !nextVal && !other) return p;
-      return { ...p, [commId]: { ...cur, [channel]: nextVal } };
+      const item = COMM_CATALOG.find((c) => c.id === commId);
+      // WhatsApp can't be toggled on for comms where it isn't available.
+      if (channel === "whatsapp" && item && !item.whatsappAvailable) return p;
+      // Mandatory comms: Mail is locked on.
+      if (channel === "mail" && item?.mandatory) return p;
+      return { ...p, [commId]: { ...cur, [channel]: !cur[channel] } };
     });
   };
 
@@ -252,14 +252,6 @@ function CommSubscriptionSection({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate font-medium">{cat.label}</span>
-                      {cat.mandatory && (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 text-[10px] text-muted-foreground"
-                        >
-                          <Lock className="h-3 w-3" /> Mandatory
-                        </Badge>
-                      )}
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {summary}
@@ -281,7 +273,7 @@ function CommSubscriptionSection({
                           <TableHead className="w-[110px] text-center">
                             Mail
                           </TableHead>
-                          <TableHead className="w-[110px] text-center">
+                          <TableHead className="w-[160px] text-center">
                             WhatsApp
                           </TableHead>
                         </TableRow>
@@ -290,32 +282,55 @@ function CommSubscriptionSection({
                         {commsByCategory(cat.id).map((comm) => {
                           const val =
                             prefs[comm.id] ?? { mail: true, whatsapp: false };
-                          const mandatory = cat.mandatory;
-                          const mailLocked =
-                            mandatory && val.mail && !val.whatsapp;
-                          const waLocked =
-                            mandatory && val.whatsapp && !val.mail;
+                          const mailLocked = !!comm.mandatory;
                           return (
                             <TableRow key={comm.id}>
                               <TableCell className="font-medium">
-                                {comm.name}
+                                <span className="inline-flex items-center gap-2">
+                                  {comm.name}
+                                  {comm.mandatory && (
+                                    <Badge
+                                      variant="outline"
+                                      className="gap-1 text-[10px] text-muted-foreground"
+                                    >
+                                      <Lock className="h-3 w-3" /> Mandatory
+                                    </Badge>
+                                  )}
+                                </span>
                               </TableCell>
                               <ChannelCell
                                 checked={val.mail}
                                 locked={mailLocked}
-                                onToggle={() =>
-                                  toggle(comm.id, "mail", mandatory)
-                                }
+                                onToggle={() => toggle(comm.id, "mail")}
                                 label={`Mail for ${comm.name}`}
+                                lockReason="Mandatory, always delivered on Mail."
                               />
-                              <ChannelCell
-                                checked={val.whatsapp}
-                                locked={waLocked}
-                                onToggle={() =>
-                                  toggle(comm.id, "whatsapp", mandatory)
-                                }
-                                label={`WhatsApp for ${comm.name}`}
-                              />
+                              {comm.whatsappAvailable ? (
+                                <ChannelCell
+                                  checked={val.whatsapp}
+                                  locked={false}
+                                  onToggle={() => toggle(comm.id, "whatsapp")}
+                                  label={`WhatsApp for ${comm.name}`}
+                                />
+                              ) : (
+                                <TableCell className="text-center">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                          <span aria-hidden>—</span>
+                                          <span className="hidden sm:inline">
+                                            Not on WhatsApp
+                                          </span>
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        This comm isn't sent on WhatsApp today.
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </TableCell>
+                              )}
                             </TableRow>
                           );
                         })}
@@ -337,6 +352,7 @@ function CommSubscriptionSection({
     </section>
   );
 }
+
 
 function ChannelCell({
   checked,
