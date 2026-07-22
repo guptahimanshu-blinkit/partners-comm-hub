@@ -177,10 +177,23 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
             </p>
           </section>
         )}
+
+        <PageDisclaimer />
       </div>
     </AppShell>
   );
 }
+
+function PageDisclaimer() {
+  return (
+    <p className="mt-6 flex items-start gap-2 text-xs text-muted-foreground">
+      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      Prototype, sample data only, built to demonstrate the workflow, not the
+      actual current mandatory list or channel availability.
+    </p>
+  );
+}
+
 
 function CommSubscriptionSection({
   categories,
