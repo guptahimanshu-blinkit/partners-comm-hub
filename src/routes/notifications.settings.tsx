@@ -78,10 +78,8 @@ function SettingsPage() {
 
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
   const [prefs, setPrefs] = useState<CommPrefs>(() => buildDefaultPrefs());
-  const [digest, setDigest] = useState<Record<string, Digest>>({
-    reports_analytics: "Weekly",
-    daily_ops: "Daily",
-  });
+
+
 
   return (
     <AppShell>
