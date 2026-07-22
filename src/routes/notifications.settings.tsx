@@ -106,53 +106,6 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
 
         {isAdmin ? <RoleAssignmentSection /> : null}
 
-        <section className="mb-8 rounded-xl border border-border bg-card">
-          <div className="border-b border-border p-4">
-            <h2 className="font-semibold">Digest frequency</h2>
-            <p className="text-sm text-muted-foreground">
-              Available for informational categories only. Weekly is the minimum
-              frequency.
-            </p>
-          </div>
-          <div className="divide-y divide-border">
-            {CATEGORIES.filter((c) => c.digestEligible).map((cat) => (
-              <div
-                key={cat.id}
-                className="flex flex-wrap items-center justify-between gap-3 p-4"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={cn(
-                      "h-2.5 w-2.5 shrink-0 rounded-full",
-                      colorClasses[cat.color].dot,
-                    )}
-                  />
-                  <span className="font-medium">{cat.label}</span>
-                </div>
-                <Select
-                  value={digest[cat.id] ?? "Weekly"}
-                  onValueChange={(v) =>
-                    setDigest((p) => ({ ...p, [cat.id]: v as Digest }))
-                  }
-                >
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Real-time">Real-time</SelectItem>
-                    <SelectItem value="Daily">Daily</SelectItem>
-                    <SelectItem value="Weekly">Weekly (min)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-start gap-2 border-t border-border p-4 text-xs text-muted-foreground">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            You can't set a digest lower than Weekly — this prevents important
-            summaries from being missed.
-          </div>
-        </section>
 
         {isAdmin ? (
           <section className="rounded-xl border border-border bg-card">
