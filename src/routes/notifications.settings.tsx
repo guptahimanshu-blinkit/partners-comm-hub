@@ -37,6 +37,7 @@ import {
   type Category,
   type CategoryId,
 } from "@/lib/mock-data";
+import { COMM_CATALOG, commsByCategory } from "@/lib/comm-catalog";
 import { useRoleRouting, type AssignedRole } from "@/lib/role-routing";
 import {
   useRoleAssignments,
@@ -56,17 +57,16 @@ export const Route = createFileRoute("/notifications/settings")({
 type Digest = "Real-time" | "Daily" | "Weekly";
 
 type CommChannels = { mail: boolean; whatsapp: boolean };
-type CommPrefs = Record<string, CommChannels>; // key = subCategory id
+type CommPrefs = Record<string, CommChannels>; // key = comm id from COMM_CATALOG
 
-function buildDefaultPrefs(cats: Category[]): CommPrefs {
+function buildDefaultPrefs(): CommPrefs {
   const out: CommPrefs = {};
-  for (const cat of cats) {
-    for (const sub of cat.subCategories) {
-      out[sub.id] = { mail: true, whatsapp: false };
-    }
+  for (const item of COMM_CATALOG) {
+    out[item.id] = { ...item.defaults };
   }
   return out;
 }
+
 
 function SettingsPage() {
   const { role, employeeRole } = useRole();
@@ -77,7 +77,7 @@ function SettingsPage() {
 }
 
 function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
-  const [prefs, setPrefs] = useState<CommPrefs>(() => buildDefaultPrefs(CATEGORIES));
+  const [prefs, setPrefs] = useState<CommPrefs>(() => buildDefaultPrefs());
   const [digest, setDigest] = useState<Record<string, Digest>>({
     reports_analytics: "Weekly",
     daily_ops: "Daily",
@@ -199,15 +199,21 @@ function CommSubscriptionSection({
     categories[0]?.id ?? null,
   );
 
-  const toggle = (subId: string, channel: keyof CommChannels) => {
-    setPrefs((p) => ({
-      ...p,
-      [subId]: {
-        ...(p[subId] ?? { mail: true, whatsapp: false }),
-        [channel]: !(p[subId]?.[channel] ?? false),
-      },
-    }));
+  const toggle = (
+    commId: string,
+    channel: keyof CommChannels,
+    mandatory: boolean,
+  ) => {
+    setPrefs((p) => {
+      const cur = p[commId] ?? { mail: true, whatsapp: false };
+      const nextVal = !cur[channel];
+      const other = channel === "mail" ? cur.whatsapp : cur.mail;
+      // Mandatory categories: never let both drop to false.
+      if (mandatory && !nextVal && !other) return p;
+      return { ...p, [commId]: { ...cur, [channel]: nextVal } };
+    });
   };
+
 
   return (
     <section className="mb-8 rounded-xl border border-border bg-card">
@@ -281,55 +287,40 @@ function CommSubscriptionSection({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {cat.subCategories.map((sub) => {
+                        {commsByCategory(cat.id).map((comm) => {
                           const val =
-                            prefs[sub.id] ?? { mail: true, whatsapp: false };
-                          const mailLocked = cat.mandatory;
+                            prefs[comm.id] ?? { mail: true, whatsapp: false };
+                          const mandatory = cat.mandatory;
+                          const mailLocked =
+                            mandatory && val.mail && !val.whatsapp;
+                          const waLocked =
+                            mandatory && val.whatsapp && !val.mail;
                           return (
-                            <TableRow key={sub.id}>
+                            <TableRow key={comm.id}>
                               <TableCell className="font-medium">
-                                {sub.label}
+                                {comm.name}
                               </TableCell>
-                              <TableCell className="text-center">
-                                {mailLocked ? (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                                          <Checkbox
-                                            checked
-                                            disabled
-                                            aria-label="Mail (locked)"
-                                          />
-                                          <Lock className="h-3 w-3" />
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        Mail is mandatory for this comm.
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                ) : (
-                                  <Checkbox
-                                    checked={val.mail}
-                                    onCheckedChange={() => toggle(sub.id, "mail")}
-                                    aria-label={`Mail for ${sub.label}`}
-                                  />
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Checkbox
-                                  checked={val.whatsapp}
-                                  onCheckedChange={() =>
-                                    toggle(sub.id, "whatsapp")
-                                  }
-                                  aria-label={`WhatsApp for ${sub.label}`}
-                                />
-                              </TableCell>
+                              <ChannelCell
+                                checked={val.mail}
+                                locked={mailLocked}
+                                onToggle={() =>
+                                  toggle(comm.id, "mail", mandatory)
+                                }
+                                label={`Mail for ${comm.name}`}
+                              />
+                              <ChannelCell
+                                checked={val.whatsapp}
+                                locked={waLocked}
+                                onToggle={() =>
+                                  toggle(comm.id, "whatsapp", mandatory)
+                                }
+                                label={`WhatsApp for ${comm.name}`}
+                              />
                             </TableRow>
                           );
                         })}
                       </TableBody>
+
                     </Table>
                   </div>
                 )}
@@ -347,14 +338,56 @@ function CommSubscriptionSection({
   );
 }
 
+function ChannelCell({
+  checked,
+  locked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  locked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  const box = (
+    <Checkbox
+      checked={checked}
+      disabled={locked}
+      onCheckedChange={onToggle}
+      aria-label={locked ? `${label} (locked)` : label}
+    />
+  );
+  if (!locked) {
+    return <TableCell className="text-center">{box}</TableCell>;
+  }
+  return (
+    <TableCell className="text-center">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+              {box}
+              <Lock className="h-3 w-3" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            Mandatory, at least one channel required.
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </TableCell>
+  );
+}
+
 function summarize(cat: Category, prefs: CommPrefs) {
-  const total = cat.subCategories.length;
+  const items = commsByCategory(cat.id);
+  const total = items.length;
   let mail = 0;
   let wa = 0;
   let both = 0;
   let off = 0;
-  for (const sub of cat.subCategories) {
-    const v = prefs[sub.id] ?? { mail: true, whatsapp: false };
+  for (const comm of items) {
+    const v = prefs[comm.id] ?? { mail: true, whatsapp: false };
     if (v.mail && v.whatsapp) both++;
     else if (v.mail) mail++;
     else if (v.whatsapp) wa++;
@@ -367,6 +400,7 @@ function summarize(cat: Category, prefs: CommPrefs) {
   if (off) parts.push(`${off} off`);
   return parts.join(" · ");
 }
+
 
 function RoleRoutingTable() {
   const { routing, setRouting } = useRoleRouting();
@@ -566,7 +600,7 @@ function RolePicker({
 function EmployeePreferences({ employeeRole }: { employeeRole: string }) {
   const { assignments } = useRoleAssignments();
   const [prefs, setPrefs] = useState<CommPrefs>(() =>
-    buildDefaultPrefs(CATEGORIES),
+    buildDefaultPrefs(),
   );
 
   const visible = useMemo(
