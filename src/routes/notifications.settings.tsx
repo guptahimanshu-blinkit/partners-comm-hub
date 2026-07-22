@@ -54,7 +54,7 @@ export const Route = createFileRoute("/notifications/settings")({
   component: SettingsPage,
 });
 
-type Digest = "Real-time" | "Daily" | "Weekly";
+
 
 type CommChannels = { mail: boolean; whatsapp: boolean };
 type CommPrefs = Record<string, CommChannels>; // key = comm id from COMM_CATALOG
