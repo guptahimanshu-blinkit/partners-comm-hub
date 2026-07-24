@@ -46,6 +46,12 @@ export function POCancellationDialog({
 
   const acknowledge = () => {
     if (actionItemId) resolveActionItem(actionItemId, "accept");
+    logVendorAction({
+      vendorName,
+      poNumber,
+      kind: "acknowledge",
+      text: `Vendor ${vendorName} acknowledged cancellation for PO #${poNumber}`,
+    });
     toast.success("Cancellation acknowledged", {
       description: "Dispatch halted. Workdesk telemetry updated.",
     });
