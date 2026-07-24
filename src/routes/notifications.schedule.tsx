@@ -283,8 +283,7 @@ function ScheduleNotificationPage() {
                 <div className="sm:col-span-2">
                   <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Body preview</dt>
                   <dd className="mt-0.5 rounded-md border border-border bg-background/60 p-2 text-[11px] leading-relaxed text-muted-foreground">
-                    {selected.emailBody?.slice(0, 220) ??
-                      "Hi {{vendor_name}}, this is a notification regarding {{po_number}}. Please action by {{due_date}}."}
+                    {"Hi {{vendor_name}}, this is a notification regarding {{po_number}}. Please action by {{due_date}}."}
                   </dd>
                 </div>
               </dl>
