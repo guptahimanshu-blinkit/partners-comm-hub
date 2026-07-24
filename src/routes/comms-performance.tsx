@@ -153,14 +153,28 @@ function CommsPerformancePage() {
           </p>
         </header>
 
-        <KpiRow />
-        <TemplateCtrCard />
-        <HourlyCtrCard />
-        <ChannelPreferenceSection />
-        <BounceCard />
-        <NonOpenerCard />
-        <FinanceGroupCard />
+        <Tabs defaultValue="running" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="running">Running Templates & Live Logs</TabsTrigger>
+            <TabsTrigger value="metrics">Performance metrics</TabsTrigger>
+          </TabsList>
 
+          <TabsContent value="running" className="space-y-6">
+            <OperationsRiskClearanceCard />
+            <RunningTemplatesTable />
+            <TelemetryStreamCard />
+          </TabsContent>
+
+          <TabsContent value="metrics" className="space-y-6">
+            <KpiRow />
+            <TemplateCtrCard />
+            <HourlyCtrCard />
+            <ChannelPreferenceSection />
+            <BounceCard />
+            <NonOpenerCard />
+            <FinanceGroupCard />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
   );
