@@ -156,7 +156,9 @@ function ScheduleNotificationPage() {
     });
 
 
-    toast.success(`${selected.templateName} scheduled — Approver notified`);
+    toast.success(`Approver notified`, {
+      description: `Sparsh J. scheduled campaign "${selected.templateName}" targeting ${segment.label} (${segment.count?.toLocaleString?.() ?? "1,212"} vendors).`,
+    });
     setTemplateId("");
     setScheduleAt("");
     setSegmentKey("all");
