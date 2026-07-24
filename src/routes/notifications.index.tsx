@@ -296,7 +296,7 @@ function NotificationCentreInner({
                   n={n}
                   selected={selectedId === n.id}
                   onSelect={() => setSelectedId(selectedId === n.id ? "" : n.id)}
-                  onViewDetails={() => setDetailFor(n)}
+                  onViewDetails={() => openViewDetails(n)}
                   onRaiseTicket={() => setTicketFor(n)}
                   onFlag={() => setFlagFor(n)}
                 />
