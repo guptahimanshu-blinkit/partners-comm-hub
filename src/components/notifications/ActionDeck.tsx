@@ -8,6 +8,8 @@ import {
   Paperclip,
   Keyboard,
   ArrowRight,
+  LifeBuoy,
+  PackageX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,11 @@ import { toast } from "sonner";
 import { useActionItems, resolveActionItem, type ActionItem } from "@/lib/requests-store";
 import type { AppNotification } from "@/lib/mock-data";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
+import {
+  POCancellationDialog,
+  type POCancellationPayload,
+} from "@/components/notifications/POCancellationDialog";
+import { getActionItemCtaKind, CTA_LABEL } from "@/lib/action-cta";
 
 function useCountdown(dueHours: number) {
   const [target] = useState(() => Date.now() + dueHours * 3_600_000);
@@ -52,53 +59,92 @@ function CountdownChip({ dueHours, urgent }: { dueHours: number; urgent?: boolea
   );
 }
 
+function actionToPOPayload(a: ActionItem): POCancellationPayload {
+  return {
+    poNumber: a.poInvoiceNo,
+    vendorName: a.vendorName,
+    warehouse: "Kolkata K4 Feeder Warehouse",
+    reason: "Buyer inventory adjustment / Facility capacity",
+    actionItemId: a.id,
+  };
+}
+
 /** Pinned red P1 banners for the most critical pending actions. */
 export function PinnedP1Banners() {
   const items = useActionItems();
   const p1 = items.filter((i) => i.status === "pending" && i.dueHours <= 12).slice(0, 6);
+  const [poPayload, setPoPayload] = useState<POCancellationPayload | null>(null);
+  const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
+
   if (p1.length === 0) return null;
+
+  const handleClick = (a: ActionItem, kind: ReturnType<typeof getActionItemCtaKind>) => {
+    if (kind === "po_cancel") {
+      setPoPayload(actionToPOPayload(a));
+      return;
+    }
+    resolveActionItem(a.id, "accept");
+    toast.success("Confirmed & Reconciled ✓");
+  };
 
   return (
     <div className="mb-4 space-y-2">
-      {p1.map((a) => (
-        <div
-          key={a.id}
-          className="flex flex-col gap-3 rounded-xl border border-red-300/70 bg-red-50 p-4 shadow-sm dark:border-red-900/60 dark:bg-red-950/30 sm:flex-row sm:items-center"
-        >
-          <div className="flex items-start gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-600 text-white">
-              <AlertOctagon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
-                <Badge className="bg-red-600 text-white hover:bg-red-600">P1</Badge>
-                <span className="text-[11px] font-medium text-red-900/80 dark:text-red-200/80">
-                  {a.category}
-                </span>
-                <CountdownChip dueHours={a.dueHours} urgent />
+      {p1.map((a) => {
+        const kind = getActionItemCtaKind(a);
+        const label = CTA_LABEL[kind];
+        return (
+          <div
+            key={a.id}
+            className="flex flex-col gap-3 rounded-xl border border-red-300/70 bg-red-50 p-4 shadow-sm dark:border-red-900/60 dark:bg-red-950/30 sm:flex-row sm:items-center"
+          >
+            <div className="flex items-start gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-600 text-white">
+                {kind === "po_cancel" ? (
+                  <PackageX className="h-5 w-5" />
+                ) : (
+                  <AlertOctagon className="h-5 w-5" />
+                )}
+              </span>
+              <div className="min-w-0">
+                <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
+                  <Badge className="bg-red-600 text-white hover:bg-red-600">P1</Badge>
+                  <span className="text-[11px] font-medium text-red-900/80 dark:text-red-200/80">
+                    {a.category}
+                  </span>
+                  <CountdownChip dueHours={a.dueHours} urgent />
+                </div>
+                <p className="truncate text-sm font-semibold text-red-950 dark:text-red-100">
+                  {a.title}
+                </p>
+                <p className="text-xs text-red-900/80 dark:text-red-200/80">
+                  {a.poInvoiceNo} · {a.amountDue}
+                </p>
               </div>
-              <p className="truncate text-sm font-semibold text-red-950 dark:text-red-100">
-                {a.title}
-              </p>
-              <p className="text-xs text-red-900/80 dark:text-red-200/80">
-                {a.poInvoiceNo} · {a.amountDue}
-              </p>
+            </div>
+            <div className="sm:ml-auto">
+              <Button
+                size="sm"
+                className="bg-red-600 text-white hover:bg-red-700"
+                onClick={() => handleClick(a, kind)}
+              >
+                {label} <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
-          <div className="sm:ml-auto">
-            <Button
-              size="sm"
-              className="bg-red-600 text-white hover:bg-red-700"
-              onClick={() => {
-                resolveActionItem(a.id, "accept");
-                toast.success("Confirmed & Reconciled ✓");
-              }}
-            >
-              Reconcile Now <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
+
+      <POCancellationDialog
+        open={!!poPayload}
+        onOpenChange={(v) => !v && setPoPayload(null)}
+        payload={poPayload}
+        onRaiseTicket={(n) => setTicketFor(n)}
+      />
+      <RaiseTicketDialog
+        notification={ticketFor}
+        open={!!ticketFor}
+        onOpenChange={(v) => !v && setTicketFor(null)}
+      />
     </div>
   );
 }
@@ -131,11 +177,19 @@ export function ActionCardDeck() {
   const items = useActionItems();
   const pending = useMemo(() => items.filter((i) => i.status === "pending"), [items]);
   const [disputeFor, setDisputeFor] = useState<AppNotification | null>(null);
+  const [poPayload, setPoPayload] = useState<POCancellationPayload | null>(null);
 
   const top = pending[0];
   const peek = pending[1];
+  const topKind = top ? getActionItemCtaKind(top) : "generic";
+  const isPOCancel = topKind === "po_cancel";
 
   const doAccept = (a: ActionItem) => {
+    const kind = getActionItemCtaKind(a);
+    if (kind === "po_cancel") {
+      setPoPayload(actionToPOPayload(a));
+      return;
+    }
     resolveActionItem(a.id, "accept");
     toast.success("Confirmed & Reconciled ✓");
   };
@@ -176,6 +230,11 @@ export function ActionCardDeck() {
     );
   }
 
+  const acceptLabel = isPOCancel ? "Stop Dispatch" : "Confirm";
+  const disputeLabel = isPOCancel ? "Raise Support Ticket" : "Dispute";
+  const AcceptIcon = isPOCancel ? PackageX : Check;
+  const DisputeIcon = isPOCancel ? LifeBuoy : XIcon;
+
   return (
     <div className="mx-auto max-w-xl">
       <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
@@ -184,8 +243,8 @@ export function ActionCardDeck() {
         </span>
         <span className="inline-flex items-center gap-1">
           <Keyboard className="h-3.5 w-3.5" />
-          <kbd className="rounded border bg-muted px-1">A</kbd> dispute ·
-          <kbd className="rounded border bg-muted px-1">D</kbd> confirm ·
+          <kbd className="rounded border bg-muted px-1">A</kbd> {disputeLabel.toLowerCase()} ·
+          <kbd className="rounded border bg-muted px-1">D</kbd> {acceptLabel.toLowerCase()} ·
           <kbd className="rounded border bg-muted px-1">W</kbd> snooze
         </span>
       </div>
@@ -234,7 +293,7 @@ export function ActionCardDeck() {
               className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
               onClick={() => doDispute(top)}
             >
-              <XIcon className="mr-1 h-4 w-4" /> Dispute
+              <DisputeIcon className="mr-1 h-4 w-4" /> {disputeLabel}
               <kbd className="ml-1 rounded border bg-muted px-1 text-[10px]">A</kbd>
             </Button>
             <Button
@@ -249,7 +308,7 @@ export function ActionCardDeck() {
               className="bg-cat-green text-white hover:bg-cat-green/90"
               onClick={() => doAccept(top)}
             >
-              <Check className="mr-1 h-4 w-4" /> Confirm
+              <AcceptIcon className="mr-1 h-4 w-4" /> {acceptLabel}
               <kbd className="ml-1 rounded border bg-white/20 px-1 text-[10px]">D</kbd>
             </Button>
           </div>
@@ -260,6 +319,12 @@ export function ActionCardDeck() {
         notification={disputeFor}
         open={!!disputeFor}
         onOpenChange={(v) => !v && setDisputeFor(null)}
+      />
+      <POCancellationDialog
+        open={!!poPayload}
+        onOpenChange={(v) => !v && setPoPayload(null)}
+        payload={poPayload}
+        onRaiseTicket={(n) => setDisputeFor(n)}
       />
     </div>
   );

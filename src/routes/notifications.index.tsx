@@ -39,6 +39,12 @@ import {
   PinnedP1Banners,
   ActionCardDeck,
 } from "@/components/notifications/ActionDeck";
+import {
+  POCancellationDialog,
+  findActionItemByPO,
+  type POCancellationPayload,
+} from "@/components/notifications/POCancellationDialog";
+import { getNotificationCtaKind, CTA_LABEL } from "@/lib/action-cta";
 import { useRole } from "@/lib/role-context";
 import { useRoleAssignments, isCategoryAssignedTo } from "@/lib/role-assignments";
 import {
@@ -81,7 +87,29 @@ function NotificationCentreInner({
   const [detailFor, setDetailFor] = useState<AppNotification | null>(null);
   const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
   const [flagFor, setFlagFor] = useState<AppNotification | null>(null);
+  const [poPayload, setPoPayload] = useState<POCancellationPayload | null>(null);
   const [viewMode, setViewMode] = useState<"deck" | "list">("list");
+
+  const openViewDetails = (n: AppNotification) => {
+    if (getNotificationCtaKind(n) === "po_cancel") {
+      const poField = n.detail.find((d) => /po number/i.test(d.label));
+      const poNumber = poField?.value ?? n.subject.match(/PO\s*#?(\S+)/i)?.[1] ?? "";
+      const facility = n.detail.find((d) => /facility|warehouse/i.test(d.label))?.value;
+      const linked = findActionItemByPO(poNumber);
+      setPoPayload({
+        poNumber: poNumber || "—",
+        vendorName: linked?.vendorName ?? "ITC Limited",
+        warehouse: facility ?? "Kolkata K4 Feeder Warehouse",
+        reason:
+          n.detail.find((d) => /reason/i.test(d.label))?.value ??
+          "Buyer inventory adjustment / Facility capacity",
+        actionItemId: linked?.id,
+        sourceNotification: n,
+      });
+      return;
+    }
+    setDetailFor(n);
+  };
 
 
   const visible = useMemo(
@@ -268,7 +296,7 @@ function NotificationCentreInner({
                   n={n}
                   selected={selectedId === n.id}
                   onSelect={() => setSelectedId(selectedId === n.id ? "" : n.id)}
-                  onViewDetails={() => setDetailFor(n)}
+                  onViewDetails={() => openViewDetails(n)}
                   onRaiseTicket={() => setTicketFor(n)}
                   onFlag={() => setFlagFor(n)}
                 />
@@ -292,6 +320,12 @@ function NotificationCentreInner({
         notification={flagFor}
         open={!!flagFor}
         onOpenChange={(v) => !v && setFlagFor(null)}
+      />
+      <POCancellationDialog
+        open={!!poPayload}
+        onOpenChange={(v) => !v && setPoPayload(null)}
+        payload={poPayload}
+        onRaiseTicket={(n) => setTicketFor(n)}
       />
 
     </AppShell>
@@ -383,25 +417,42 @@ function NotificationCard({
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {n.cta === "view_details" ? (
-                <Button size="sm" onClick={onViewDetails} className="gap-1.5">
-                  <ExternalLink className="h-4 w-4" /> View Details
-                </Button>
-              ) : (
-                <Button size="sm" onClick={onRaiseTicket} className="gap-1.5">
-                  <LifeBuoy className="h-4 w-4" /> Raise Ticket
-                </Button>
-              )}
-              {n.cta === "view_details" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onRaiseTicket}
-                  className="gap-1.5"
-                >
-                  <LifeBuoy className="h-4 w-4" /> Raise Ticket
-                </Button>
-              )}
+              {(() => {
+                const kind = getNotificationCtaKind(n);
+                const isActionable = kind !== "generic" || n.cta === "view_details";
+                const primaryLabel =
+                  kind === "generic"
+                    ? n.cta === "view_details"
+                      ? "View Details"
+                      : "Raise Ticket"
+                    : `${CTA_LABEL[kind]} →`;
+                return (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={isActionable ? onViewDetails : onRaiseTicket}
+                      className="gap-1.5"
+                    >
+                      {kind === "generic" && n.cta !== "view_details" ? (
+                        <LifeBuoy className="h-4 w-4" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4" />
+                      )}
+                      {primaryLabel}
+                    </Button>
+                    {isActionable && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onRaiseTicket}
+                        className="gap-1.5"
+                      >
+                        <LifeBuoy className="h-4 w-4" /> Raise Ticket
+                      </Button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             {n.category === "reports_analytics" &&
               (n.attachment?.type === "PDF" ||
