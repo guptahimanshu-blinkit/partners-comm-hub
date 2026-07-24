@@ -450,6 +450,22 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
         </div>
       )}
 
+      {(c.status === "Running" || c.status === "Failing") && <LiveEditBanner />}
+
+      <Section title="Preset sensitivity strategy">
+        <SensitivityStrategies active={strategyForCampaign(c)} />
+      </Section>
+
+      <Section title="Sequence timeline">
+        <SequenceTimeline campaign={c} />
+      </Section>
+
+      <Section title="Recipient audit & telemetry">
+        <RecipientAudit seed={c.id} />
+      </Section>
+
+
+
       {/* Configuration snapshot */}
       <Section title="Configuration snapshot">
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
