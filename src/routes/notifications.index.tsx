@@ -321,6 +321,12 @@ function NotificationCentreInner({
         open={!!flagFor}
         onOpenChange={(v) => !v && setFlagFor(null)}
       />
+      <POCancellationDialog
+        open={!!poPayload}
+        onOpenChange={(v) => !v && setPoPayload(null)}
+        payload={poPayload}
+        onRaiseTicket={(n) => setTicketFor(n)}
+      />
 
     </AppShell>
   );
