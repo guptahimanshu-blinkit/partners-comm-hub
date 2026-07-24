@@ -68,6 +68,7 @@ import {
   type CampaignChannel,
   type CampaignStatus,
   type TemplateRequest,
+  useVendorActionEvents,
 } from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
 import { toast } from "sonner";
