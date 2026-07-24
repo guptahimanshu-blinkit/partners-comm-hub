@@ -11,7 +11,16 @@ import {
   AlertTriangle,
   CalendarClock,
   Circle,
+  Zap,
+  Bell,
+  Shield,
+  Pause,
+  Save,
+  Download,
+  ArrowDown,
+  Ticket,
 } from "lucide-react";
+
 
 
 import { AppShell } from "@/components/layout/AppShell";
