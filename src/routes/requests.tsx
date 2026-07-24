@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, useRef, type KeyboardEvent } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   PlusCircle,
@@ -10,6 +10,12 @@ import {
   XCircle,
   Clock,
   Layers,
+  AlertTriangle,
+  ShieldCheck,
+  Database,
+  Cloud,
+  FileUp,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,11 +58,17 @@ import {
   rejectRequest,
   nowStamp,
   timeWaiting,
-  COMM_TYPE_TO_CATEGORY,
   CATEGORY_PRIORITY,
   usePublishLogs,
   acknowledgeLog,
   flagLog,
+  isValidEmail,
+  inferCategoryRules,
+  type InferredRules,
+  type SubCategoryPurpose,
+  type DomainType,
+  type AttachmentConfig,
+  type PreflightChecks,
   type PublishLog,
   type TemplateRequest,
   type FrequencyOption,
@@ -65,6 +77,21 @@ import {
   type CommTypeOption,
   type RejectionCategory,
 } from "@/lib/requests-store";
+
+const SUB_CATEGORIES: SubCategoryPurpose[] = [
+  "Reports",
+  "Announcements",
+  "Campaigns",
+  "Defect Flow Communications",
+];
+const DOMAINS: DomainType[] = [
+  "Operations & Appointments",
+  "Finance & Payments",
+  "Assortment / MDM",
+  "Warehouse Ops",
+  "Monetization",
+];
+
 
 export const Route = createFileRoute("/requests")({
   head: () => ({
