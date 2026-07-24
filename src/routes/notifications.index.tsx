@@ -87,7 +87,29 @@ function NotificationCentreInner({
   const [detailFor, setDetailFor] = useState<AppNotification | null>(null);
   const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
   const [flagFor, setFlagFor] = useState<AppNotification | null>(null);
+  const [poPayload, setPoPayload] = useState<POCancellationPayload | null>(null);
   const [viewMode, setViewMode] = useState<"deck" | "list">("list");
+
+  const openViewDetails = (n: AppNotification) => {
+    if (getNotificationCtaKind(n) === "po_cancel") {
+      const poField = n.detail.find((d) => /po number/i.test(d.label));
+      const poNumber = poField?.value ?? n.subject.match(/PO\s*#?(\S+)/i)?.[1] ?? "";
+      const facility = n.detail.find((d) => /facility|warehouse/i.test(d.label))?.value;
+      const linked = findActionItemByPO(poNumber);
+      setPoPayload({
+        poNumber: poNumber || "—",
+        vendorName: linked?.vendorName ?? "ITC Limited",
+        warehouse: facility ?? "Kolkata K4 Feeder Warehouse",
+        reason:
+          n.detail.find((d) => /reason/i.test(d.label))?.value ??
+          "Buyer inventory adjustment / Facility capacity",
+        actionItemId: linked?.id,
+        sourceNotification: n,
+      });
+      return;
+    }
+    setDetailFor(n);
+  };
 
 
   const visible = useMemo(
