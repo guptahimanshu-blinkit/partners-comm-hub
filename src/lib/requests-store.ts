@@ -424,6 +424,61 @@ export function usePublishLogs(): PublishLog[] {
   return PUBLISH_LOGS;
 }
 
+/* ------------------------------------------------------------------ */
+/* Vendor action telemetry — cross-surface events                     */
+/* ------------------------------------------------------------------ */
+
+export interface VendorActionEvent {
+  id: string;
+  when: string; // ISO
+  text: string;
+  vendorName: string;
+  poNumber?: string;
+  kind: "acknowledge" | "dispute" | "snooze" | "reconcile";
+}
+
+const VENDOR_EVENTS: VendorActionEvent[] = [
+  {
+    id: "VE-SEED-1",
+    when: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    text: "Vendor Kwality Foods acknowledged cancellation for PO #KF-77120",
+    vendorName: "Kwality Foods",
+    poNumber: "KF-77120",
+    kind: "acknowledge",
+  },
+];
+const vendorEventListeners: Set<() => void> = new Set();
+
+function notifyVendorEvents() {
+  vendorEventListeners.forEach((l) => l());
+}
+
+export function logVendorAction(evt: Omit<VendorActionEvent, "id" | "when"> & { when?: string }) {
+  VENDOR_EVENTS.unshift({
+    id: `VE-${Date.now().toString(36).toUpperCase()}`,
+    when: evt.when ?? new Date().toISOString(),
+    ...evt,
+  });
+  notifyVendorEvents();
+}
+
+export function getVendorActionEvents(): VendorActionEvent[] {
+  return VENDOR_EVENTS;
+}
+
+export function useVendorActionEvents(): VendorActionEvent[] {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const l = () => setTick((t) => t + 1);
+    vendorEventListeners.add(l);
+    return () => {
+      vendorEventListeners.delete(l);
+    };
+  }, []);
+  return VENDOR_EVENTS;
+}
+
+
 function seedPublishLogs(): PublishLog[] {
   return [
     {
