@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useActionItems, resolveActionItem, type ActionItem } from "@/lib/requests-store";
+import { useActionItems, resolveActionItem, recordVendorAction, type ActionItem } from "@/lib/requests-store";
 import type { AppNotification } from "@/lib/mock-data";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
 import {
