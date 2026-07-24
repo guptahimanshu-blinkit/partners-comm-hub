@@ -515,17 +515,22 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
               </span>
             </div>
           </div>
-          {canEdit && (
+          {canEdit && !editMode && (
             <button
               type="button"
-              onClick={() =>
-                alert(
-                  "Edit flow is a prototype stub — edits happen on the source request in Workdesk / Requests.",
-                )
-              }
+              onClick={startEdit}
               className="rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
             >
               Edit
+            </button>
+          )}
+          {editMode && (
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+            >
+              Cancel
             </button>
           )}
         </div>
