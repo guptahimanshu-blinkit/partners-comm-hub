@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useActionItems, resolveActionItem, type ActionItem } from "@/lib/requests-store";
+import { useActionItems, resolveActionItem, recordVendorAction, type ActionItem } from "@/lib/requests-store";
 import type { AppNotification } from "@/lib/mock-data";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
 import {
@@ -84,8 +84,21 @@ export function PinnedP1Banners() {
       return;
     }
     resolveActionItem(a.id, "accept");
-    toast.success("Confirmed & Reconciled ✓");
+    recordVendorAction({
+      vendorName: a.vendorName ?? "ITC Limited",
+      vendorId: "M-4412",
+      templateId: "APOLLO-2291",
+      templateName: "Rebate Reconciliation Notice",
+      campaignId: "c-002",
+      poInvoiceNo: a.poInvoiceNo,
+      actionType: "Reconciled Statement",
+      statusTransition: "Pending Reconciliation ──► Reconciled",
+      clearedRiskFlag: "Financial discrepancy cleared",
+      channel: "PartnersBiz Portal",
+    });
+    toast.success("Statement reconciled — Workdesk telemetry updated ✓");
   };
+
 
   return (
     <div className="mb-4 space-y-2">
@@ -191,8 +204,21 @@ export function ActionCardDeck() {
       return;
     }
     resolveActionItem(a.id, "accept");
-    toast.success("Confirmed & Reconciled ✓");
+    recordVendorAction({
+      vendorName: a.vendorName ?? "ITC Limited",
+      vendorId: "M-4412",
+      templateId: "APOLLO-2291",
+      templateName: "Rebate Reconciliation Notice",
+      campaignId: "c-002",
+      poInvoiceNo: a.poInvoiceNo,
+      actionType: "Reconciled Statement",
+      statusTransition: "Pending Reconciliation ──► Reconciled",
+      clearedRiskFlag: "Financial discrepancy cleared",
+      channel: "PartnersBiz Portal",
+    });
+    toast.success("Statement reconciled — Workdesk telemetry updated ✓");
   };
+
   const doDispute = (a: ActionItem) => {
     setDisputeFor(actionToNotification(a));
     resolveActionItem(a.id, "dispute");
