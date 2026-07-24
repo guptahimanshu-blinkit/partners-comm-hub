@@ -46,17 +46,28 @@ export function POCancellationDialog({
 
   const acknowledge = () => {
     if (actionItemId) resolveActionItem(actionItemId, "accept");
+    recordVendorAction({
+      vendorName: vendorName === "—" ? "ITC Limited" : vendorName,
+      vendorId: "M-4412",
+      templateId: "APOLLO-8410F2",
+      templateName: "PO Cancellation Notice",
+      campaignId: "c-001",
+      poInvoiceNo: `PO #${poNumber}`,
+      actionType: "Acknowledged & Stopped",
+      statusTransition: "Pending Vendor Ack ──► Acknowledged & Stopped",
+      clearedRiskFlag: "In-transit dispatch risk cleared",
+      channel: "PartnersBiz Portal",
+    });
     logVendorAction({
       vendorName,
       poNumber,
       kind: "acknowledge",
       text: `Vendor ${vendorName} acknowledged cancellation for PO #${poNumber}`,
     });
-    toast.success("Cancellation acknowledged", {
-      description: "Dispatch halted. Workdesk telemetry updated.",
-    });
+    toast.success(`PO #${poNumber} cancellation acknowledged — Workdesk status updated to Acknowledged & Stopped ✓`);
     onOpenChange(false);
   };
+
 
   const raiseDispute = () => {
     // Build a lightweight AppNotification for the ticket dialog if none was supplied
