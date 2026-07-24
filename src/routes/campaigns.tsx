@@ -70,6 +70,8 @@ import {
   type CampaignStatus,
   type TemplateRequest,
   useVendorActionEvents,
+  useVendorTelemetry,
+  type VendorActionTelemetry,
 } from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -704,6 +706,10 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
         <p className="mt-3 text-[11px] text-muted-foreground">
           Sample data · edits happen on the source request in Workdesk / Requests.
         </p>
+      </Section>
+
+      <Section title="Vendor action telemetry log">
+        <VendorTelemetryLog campaign={c} />
       </Section>
     </>
   );
@@ -2640,6 +2646,99 @@ function StepReview({
         <FileText className="h-3 w-3" />
         Prototype · campaign is stored in-session only.
       </p>
+    </div>
+  );
+}
+
+function VendorTelemetryLog({ campaign }: { campaign: Campaign }) {
+  const allTelemetry = useVendorTelemetry();
+  const logs = allTelemetry.filter((t) => t.campaignId === campaign.id);
+  const total = Math.max(1, Math.round(campaign.audienceCount));
+  const completed = logs.filter(
+    (l) =>
+      l.actionType === "Acknowledged & Stopped" ||
+      l.actionType === "Reconciled Statement",
+  ).length;
+  const pct = Math.min(100, Math.round((completed / total) * 100));
+
+  const latestAck = logs.find(
+    (l) => l.actionType === "Acknowledged & Stopped",
+  );
+  const anyReconciled = logs.find(
+    (l) => l.actionType === "Reconciled Statement",
+  );
+  const riskCleared = latestAck ?? anyReconciled;
+
+  const actionTone: Record<VendorActionTelemetry["actionType"], string> = {
+    "Acknowledged & Stopped": "bg-emerald-100 text-emerald-800",
+    "Reconciled Statement": "bg-emerald-100 text-emerald-800",
+    Disputed: "bg-rose-100 text-rose-800",
+    Snoozed: "bg-amber-100 text-amber-800",
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-border bg-muted/30 p-3">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-medium">Goal completed</span>
+          <span className="tabular-nums text-muted-foreground">
+            {completed.toLocaleString()} / {total.toLocaleString()} vendors ({pct}%)
+          </span>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      {riskCleared && (
+        <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          PO Status: {riskCleared.actionType} ·{" "}
+          {riskCleared.clearedRiskFlag} ✓
+        </div>
+      )}
+
+      <div className="rounded-lg border border-border bg-background">
+        <div className="border-b border-border px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          Audit log stream
+        </div>
+        {logs.length === 0 ? (
+          <div className="px-3 py-4 text-xs text-muted-foreground">
+            No vendor actions logged for this campaign yet.
+          </div>
+        ) : (
+          <ol className="divide-y divide-border">
+            {logs.map((l) => (
+              <li key={l.id} className="px-3 py-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="tabular-nums text-muted-foreground">
+                    {l.timestamp}
+                  </span>
+                  <span className="font-medium">
+                    {l.vendorName} ({l.vendorId})
+                  </span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      actionTone[l.actionType],
+                    )}
+                  >
+                    {l.actionType}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    · {l.channel}
+                  </span>
+                </div>
+                <div className="mt-1 text-muted-foreground">
+                  {l.poInvoiceNo} — {l.statusTransition}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }
