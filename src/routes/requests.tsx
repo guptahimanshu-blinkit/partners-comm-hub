@@ -1690,7 +1690,7 @@ function PublishedDetailDialog({
                   <DetailRow label="CTA" value={request.cta} />
                   <DetailRow
                     label="Submitted by"
-                    value={`${request.submittedBy} (${request.email})`}
+                    value={`${request.submittedBy} (${request.primaryEmail})`}
                   />
                   <DetailRow label="Team" value={request.team.join(", ")} />
                 </div>
