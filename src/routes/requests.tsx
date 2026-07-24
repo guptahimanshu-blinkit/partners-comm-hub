@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, useRef, type KeyboardEvent } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   PlusCircle,
@@ -10,6 +10,12 @@ import {
   XCircle,
   Clock,
   Layers,
+  AlertTriangle,
+  ShieldCheck,
+  Database,
+  Cloud,
+  FileUp,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,11 +58,17 @@ import {
   rejectRequest,
   nowStamp,
   timeWaiting,
-  COMM_TYPE_TO_CATEGORY,
   CATEGORY_PRIORITY,
   usePublishLogs,
   acknowledgeLog,
   flagLog,
+  isValidEmail,
+  inferCategoryRules,
+  type InferredRules,
+  type SubCategoryPurpose,
+  type DomainType,
+  type AttachmentConfig,
+  type PreflightChecks,
   type PublishLog,
   type TemplateRequest,
   type FrequencyOption,
@@ -65,6 +77,21 @@ import {
   type CommTypeOption,
   type RejectionCategory,
 } from "@/lib/requests-store";
+
+const SUB_CATEGORIES: SubCategoryPurpose[] = [
+  "Reports",
+  "Announcements",
+  "Campaigns",
+  "Defect Flow Communications",
+];
+const DOMAINS: DomainType[] = [
+  "Operations & Appointments",
+  "Finance & Payments",
+  "Assortment / MDM",
+  "Warehouse Ops",
+  "Monetization",
+];
+
 
 export const Route = createFileRoute("/requests")({
   head: () => ({
@@ -168,10 +195,10 @@ const COMM_TYPES: CommTypeOption[] = [
 ];
 const REJECTION_CATEGORIES: RejectionCategory[] = [
   "Content Issue",
-  "Wrong Category or Config",
+  "Wrong Config",
   "Clubbing Conflict",
-  "Missing Info",
   "Compliance Concern",
+  "Missing Info",
 ];
 
 // ------- Page -------
@@ -589,47 +616,76 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [templateId, setTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [team, setTeam] = useState<string[]>([]);
   const [slackPoc, setSlackPoc] = useState("");
   const [purpose, setPurpose] = useState("");
   const [sentTo, setSentTo] = useState<string[]>([]);
-  const [attachName, setAttachName] = useState("");
   const [vendorListName, setVendorListName] = useState("");
   const [mfrListName, setMfrListName] = useState("");
   const [subject, setSubject] = useState("");
+  const [body, setBody] = useState(
+    "Hi {{vendor_name}}, your PO {{po_number}} of {{amount_due}} is due on {{due_date}}.",
+  );
   const [formulaFlags, setFormulaFlags] = useState<string[]>([]);
-  const [losesMoneyOrTime, setLoses] = useState<"Yes" | "No" | "">("");
-  const [commType, setCommType] = useState<CommTypeOption | "">("");
-  const [attachment, setAttachment] = useState<AttachmentOption>("None");
+  const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
+  const [domain, setDomain] = useState<DomainType | "">("");
+  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
+    type: "none",
+  });
+  const [chartQuery, setChartQuery] = useState("");
   const [cta, setCta] = useState<CtaOption>("None");
   const [ctaDest, setCtaDest] = useState("");
   const [frequency, setFrequency] = useState<FrequencyOption[]>([]);
-  const [cc, setCc] = useState("");
+  const [ccEmails, setCcEmails] = useState<string[]>([]);
   const [analyst, setAnalyst] = useState("");
   const [waMessage, setWaMessage] = useState("");
   const [waFreq, setWaFreq] = useState<FrequencyOption[]>([]);
   const [waCta, setWaCta] = useState("");
+  const [audienceCount, setAudienceCount] = useState(450);
 
-  const resolved = useMemo<{ category: CategoryId; priority: "P1" | "P2" | "P3" } | null>(() => {
-    if (losesMoneyOrTime === "Yes") {
-      return { category: "action_required", priority: "P1" };
-    }
-    if (losesMoneyOrTime === "No" && commType) {
-      const cat = COMM_TYPE_TO_CATEGORY[commType];
-      return { category: cat, priority: CATEGORY_PRIORITY[cat] };
-    }
-    return null;
-  }, [losesMoneyOrTime, commType]);
+  const inferred: InferredRules | null = useMemo(() => {
+    if (!subCategory || !domain) return null;
+    return inferCategoryRules(subCategory, domain);
+  }, [subCategory, domain]);
 
   const showWhatsApp = sentTo.includes("Low Tech Vendors");
+  const emailValid = isValidEmail(email);
+  const emailError = emailTouched && email.length > 0 && !emailValid;
+
+  const preflight: PreflightChecks = {
+    audienceCount,
+    requiresApproval: audienceCount > 1000,
+    isAtFrequencyCap: frequency.length >= 3,
+    waValidated: showWhatsApp ? waMessage.trim().length > 0 : true,
+  };
+
+  const attachmentOption: AttachmentOption = useMemo(() => {
+    if (attachmentConfig.type === "none") return "None";
+    const name = (
+      attachmentConfig.fileName ||
+      attachmentConfig.queryKey ||
+      attachmentConfig.s3Path ||
+      ""
+    ).toLowerCase();
+    if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv"))
+      return "Excel Export";
+    if (name.endsWith(".pdf")) return "PDF";
+    return "PDF";
+  }, [attachmentConfig]);
 
   const submit = () => {
-    if (!templateId || !templateName || !email || !subject || !purpose) {
+    if (!templateId || !templateName || !subject || !purpose) {
       toast.error("Please fill required fields");
       return;
     }
-    if (!resolved) {
-      toast.error("Please complete Comms Categorization");
+    if (!email || !emailValid) {
+      setEmailTouched(true);
+      toast.error("Please enter a valid primary email");
+      return;
+    }
+    if (!inferred || !subCategory || !domain) {
+      toast.error("Please select Sub-Category and Domain");
       return;
     }
     const req: TemplateRequest = {
@@ -642,24 +698,26 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       slackPoc,
       purpose,
       sentTo,
-      emailAttachmentsName: attachName || "-",
+      emailAttachmentsName: attachmentConfig.fileName || "-",
       vendorListName: vendorListName || "-",
       manufacturerListName: mfrListName || "-",
       subject,
       formulaFlags,
-      commType: commType || undefined,
-      categoryId: resolved.category,
-      priority: resolved.priority,
-      attachment,
+      subCategory,
+      domain,
+      categoryId: inferred.categoryId,
+      priority: inferred.priority,
+      attachment: attachmentOption,
+      attachmentConfig,
       cta,
       ctaDestination: cta === "Direct Link" ? ctaDest : undefined,
       frequency,
-      ccEmails: cc ? [cc] : [],
+      ccEmails,
       analystPoc: analyst || undefined,
       whatsapp: showWhatsApp
         ? { message: waMessage, frequency: waFreq, cta: waCta }
         : undefined,
-
+      preflightChecks: preflight,
       status: "Pending",
       submittedBy: "You",
       submittedAt: new Date().toISOString(),
@@ -689,9 +747,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               <SelectItem value="Template Approval">Template Approval</SelectItem>
             </SelectContent>
           </Select>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            More request types can be added here later.
-          </p>
         </FormRow>
 
         <FormRow label="Template ID" required>
@@ -707,12 +762,24 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setTemplateName(e.target.value)}
           />
         </FormRow>
-        <FormRow label="Email" required>
+        <FormRow label="Primary Email" required>
           <Input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="abc@zomato.com"
+            onBlur={() => setEmailTouched(true)}
+            placeholder="ops@vendor.com"
+            className={cn(emailError && "border-cat-red focus-visible:ring-cat-red/40")}
+            aria-invalid={emailError}
           />
+          {emailError && (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-cat-red">
+              <AlertTriangle className="h-3 w-3" />
+              Please enter a valid email address (e.g. ops@vendor.com)
+            </p>
+          )}
+        </FormRow>
+        <FormRow label="CC Emails">
+          <EmailPillInput values={ccEmails} onChange={setCcEmails} />
         </FormRow>
         <FormRow label="Team (max 2)">
           <MultiSelect
@@ -753,17 +820,20 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             placeholder="Pick vendor segment"
           />
         </FormRow>
-        <FormRow label="Email Attachments">
-          <FileField value={attachName} onChange={setAttachName} />
+        <FormRow label="Estimated audience size">
+          <Input
+            type="number"
+            value={audienceCount}
+            onChange={(e) =>
+              setAudienceCount(Math.max(0, Number(e.target.value) || 0))
+            }
+          />
         </FormRow>
         <FormRow label="Vendor ID list">
           <FileField value={vendorListName} onChange={setVendorListName} />
         </FormRow>
         <FormRow label="Manufacturer ID list">
           <FileField value={mfrListName} onChange={setMfrListName} />
-        </FormRow>
-        <FormRow label="Subject line on the mail" required>
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
         </FormRow>
         <FormRow label="Does this include any formula generated attachment or table in mail body (max 2)">
           <MultiSelect
@@ -776,75 +846,98 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         </FormRow>
       </section>
 
-      {/* Comms Categorization */}
+      {/* Comms Categorization - Inference engine */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <div>
           <h3 className="text-sm font-semibold">Comms Categorization</h3>
           <p className="text-xs text-muted-foreground">
-            Determines category, priority, and inherited configuration.
+            Pick a purpose and domain — category, priority, channels, and
+            expiry are inferred automatically.
           </p>
         </div>
-        <FormRow label="Is this an actionable task?" required>
-          <div className="flex gap-2">
-            {(["Yes", "No"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => {
-                  setLoses(v);
-                  if (v === "Yes") setCommType("");
-                }}
-                className={cn(
-                  "rounded-lg border px-4 py-2 text-sm font-medium transition-colors",
-                  losesMoneyOrTime === v
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-muted",
-                )}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </FormRow>
-
-        {losesMoneyOrTime === "No" && (
-          <FormRow label="What type of communication is this?" required>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormRow label="Sub-Category Purpose" required>
             <Select
-              value={commType}
-              onValueChange={(v) => setCommType(v as CommTypeOption)}
+              value={subCategory}
+              onValueChange={(v) => setSubCategory(v as SubCategoryPurpose)}
             >
               <SelectTrigger className="h-9">
-                <SelectValue placeholder="Select type" />
+                <SelectValue placeholder="Select purpose" />
               </SelectTrigger>
               <SelectContent>
-                {COMM_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
+                {SUB_CATEGORIES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </FormRow>
-        )}
+          <FormRow label="Domain" required>
+            <Select
+              value={domain}
+              onValueChange={(v) => setDomain(v as DomainType)}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Select domain" />
+              </SelectTrigger>
+              <SelectContent>
+                {DOMAINS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormRow>
+        </div>
 
-        {resolved && <InheritedPanel categoryId={resolved.category} priority={resolved.priority} />}
+        {inferred && <InferredRulesPanel rules={inferred} />}
       </section>
 
-      {/* Attachment + CTA + Frequency */}
+      {/* Template Editor with liquid variables + triple preview */}
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <div>
+          <h3 className="text-sm font-semibold">Template Editor</h3>
+          <p className="text-xs text-muted-foreground">
+            Use Liquid variables like{" "}
+            <code className="rounded bg-muted px-1">{"{{vendor_name}}"}</code>{" "}
+            — detected variables highlight below.
+          </p>
+        </div>
+        <FormRow label="Subject line" required>
+          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <LiquidVarPills text={subject} />
+        </FormRow>
+        <FormRow label="Body">
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={5}
+          />
+          <LiquidVarPills text={body} />
+        </FormRow>
+        <FormRow label="Inline SQL Chart binding (optional)">
+          <Input
+            value={chartQuery}
+            onChange={(e) => setChartQuery(e.target.value)}
+            placeholder="rebate_trend_by_vendor.sql"
+          />
+          {chartQuery && <InlineSqlChartPreview label={chartQuery} />}
+        </FormRow>
+
+        <TriplePreviewPane
+          subject={subject}
+          body={body}
+          waMessage={waMessage || body.slice(0, 300)}
+          templateId={templateId || "PMT-04"}
+        />
+      </section>
+
+      {/* Smart attachment + CTA + Frequency */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Attachment">
-          <Select value={attachment} onValueChange={(v) => setAttachment(v as AttachmentOption)}>
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(["None", "PDF", "Image", "Excel Export"] as const).map((v) => (
-                <SelectItem key={v} value={v}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SmartAttachment value={attachmentConfig} onChange={setAttachmentConfig} />
         </FormRow>
         <FormRow label="Call to Action">
           <Select value={cta} onValueChange={(v) => setCta(v as CtaOption)}>
@@ -870,9 +963,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         </FormRow>
         <FormRow label="Frequency of the mail to be sent (max 2)">
           <FrequencyPickerLight values={frequency} onChange={setFrequency} />
-        </FormRow>
-        <FormRow label="Email ID to add in CC (optional)">
-          <Input value={cc} onChange={(e) => setCc(e.target.value)} />
         </FormRow>
         <FormRow label="Analyst POC (optional)">
           <Select value={analyst} onValueChange={setAnalyst}>
@@ -907,6 +997,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         </section>
       )}
 
+      <PreflightPanel checks={preflight} whatsappRequired={showWhatsApp} />
+
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onDone}>
           Cancel
@@ -916,6 +1008,490 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     </div>
   );
 }
+
+// ---------- Email pill input ----------
+function EmailPillInput({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [errorIdx, setErrorIdx] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const commit = (raw: string) => {
+    const parts = raw
+      .split(/[,\s]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    const next = [...values];
+    for (const p of parts) {
+      if (!next.includes(p)) next.push(p);
+    }
+    onChange(next);
+    setDraft("");
+  };
+
+  const remove = (email: string) =>
+    onChange(values.filter((e) => e !== email));
+
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      commit(draft);
+    } else if (e.key === "Backspace" && !draft && values.length > 0) {
+      remove(values[values.length - 1]);
+    }
+  };
+
+  return (
+    <div>
+      <div
+        onClick={() => inputRef.current?.focus()}
+        className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-2 py-1.5 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0"
+      >
+        {values.map((v, i) => {
+          const valid = isValidEmail(v);
+          return (
+            <span
+              key={v}
+              onMouseEnter={() => !valid && setErrorIdx(i)}
+              onMouseLeave={() => setErrorIdx(null)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium",
+                valid
+                  ? "bg-primary/10 text-primary"
+                  : "bg-cat-red-soft text-cat-red",
+              )}
+            >
+              {!valid && <AlertTriangle className="h-3 w-3" />}
+              {v}
+              <button
+                type="button"
+                onClick={() => remove(v)}
+                className="rounded-full hover:bg-black/10"
+                aria-label={`Remove ${v}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          );
+        })}
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKey}
+          onBlur={() => draft && commit(draft)}
+          placeholder={
+            values.length === 0
+              ? "Type an email and press Enter or comma"
+              : ""
+          }
+          className="flex-1 min-w-[140px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      {errorIdx !== null && (
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-cat-red">
+          <AlertTriangle className="h-3 w-3" />
+          Invalid email — hover the red pill to remove it
+        </p>
+      )}
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Add multiple with Enter or comma. Backspace removes the last tag.
+      </p>
+    </div>
+  );
+}
+
+// ---------- Inferred Rules Panel ----------
+function InferredRulesPanel({ rules }: { rules: InferredRules }) {
+  const cfg = CATEGORY_CONFIG[rules.categoryId];
+  return (
+    <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+            System-Inferred Rules
+          </span>
+        </div>
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Locked — derived from purpose × domain
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <Badge className={cn("hover:bg-inherit", colorClasses[cfg.color].badge)}>
+          Category: {cfg.label}
+        </Badge>
+        <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">
+          Priority: {rules.priority}
+        </Badge>
+        {rules.channels.map((c) => (
+          <Badge key={c} variant="outline">
+            {c}
+          </Badge>
+        ))}
+        <Badge variant="secondary">Batching: {rules.batching}</Badge>
+        <Badge variant="secondary">Expiry: {rules.expiry}</Badge>
+        <Badge
+          className={cn(
+            "hover:bg-inherit",
+            rules.unsubscribe === "LOCKED_DISABLED"
+              ? "bg-cat-red-soft text-cat-red"
+              : "bg-cat-green-soft text-cat-green",
+          )}
+        >
+          {rules.unsubscribe === "LOCKED_DISABLED"
+            ? "Unsubscribe: Locked"
+            : "Unsubscribe: Allowed"}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Smart attachment ----------
+function SmartAttachment({
+  value,
+  onChange,
+}: {
+  value: AttachmentConfig;
+  onChange: (v: AttachmentConfig) => void;
+}) {
+  const tabs: Array<{
+    key: AttachmentConfig["type"];
+    label: string;
+    icon: typeof Ban;
+  }> = [
+    { key: "none", label: "No Attachment", icon: Ban },
+    { key: "static", label: "Static Upload", icon: FileUp },
+    { key: "query", label: "SQL Query Output", icon: Database },
+    { key: "s3", label: "S3 Path Pattern", icon: Cloud },
+  ];
+
+  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files?.[0];
+    if (f) onChange({ type: "static", fileName: f.name });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
+        {tabs.map((t) => {
+          const on = value.type === t.key;
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onChange({ type: t.key })}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                on
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {value.type === "static" && (
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onDrop}
+          className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border bg-muted/30 px-3 py-6 text-center text-xs text-muted-foreground hover:bg-muted/50"
+        >
+          <FileUp className="h-5 w-5" />
+          <span className="font-medium">
+            {value.fileName ?? "Drag & drop a file, or click to browse"}
+          </span>
+          <span className="text-[10px]">
+            Auto-detects .pdf / .xlsx extension
+          </span>
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onChange({ type: "static", fileName: f.name });
+            }}
+          />
+        </label>
+      )}
+
+      {value.type === "query" && (
+        <Input
+          value={value.queryKey ?? ""}
+          onChange={(e) =>
+            onChange({ type: "query", queryKey: e.target.value })
+          }
+          placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
+        />
+      )}
+
+      {value.type === "s3" && (
+        <Input
+          value={value.s3Path ?? ""}
+          onChange={(e) => onChange({ type: "s3", s3Path: e.target.value })}
+          placeholder="s3://reports/{mfr_id}_Q2.pdf"
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------- Liquid variable pills ----------
+function extractLiquidVars(text: string): string[] {
+  const out = new Set<string>();
+  const re = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) out.add(m[1]);
+  return [...out];
+}
+
+function LiquidVarPills({ text }: { text: string }) {
+  const vars = extractLiquidVars(text);
+  if (vars.length === 0) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {vars.map((v) => (
+        <span
+          key={v}
+          className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-700"
+        >
+          {`{{${v}}}`}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function fillSample(text: string): string {
+  const samples: Record<string, string> = {
+    vendor_name: "Kwality Foods",
+    amount_due: "₹42,300",
+    due_date: "18 Aug 2026",
+    po_number: "PO-88213",
+  };
+  return text.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g, (_, k) =>
+    samples[k] ? samples[k] : `{{${k}}}`,
+  );
+}
+
+// ---------- Inline SQL chart preview ----------
+function InlineSqlChartPreview({ label }: { label: string }) {
+  const bars = [42, 68, 55, 81, 34, 90, 62];
+  const max = Math.max(...bars);
+  return (
+    <div className="mt-2 rounded-lg border border-border bg-background p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-mono text-[11px] text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-[10px] text-muted-foreground">
+          Live SQL preview · sample data
+        </span>
+      </div>
+      <svg viewBox="0 0 210 80" className="w-full">
+        {bars.map((b, i) => {
+          const h = (b / max) * 60;
+          return (
+            <rect
+              key={i}
+              x={i * 30 + 6}
+              y={70 - h}
+              width={20}
+              height={h}
+              rx={2}
+              className="fill-primary/70"
+            />
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ---------- Triple preview pane ----------
+function TriplePreviewPane({
+  subject,
+  body,
+  waMessage,
+  templateId,
+}: {
+  subject: string;
+  body: string;
+  waMessage: string;
+  templateId: string;
+}) {
+  const [tab, setTab] = useState<"email" | "whatsapp" | "dashboard">("email");
+  const [sample, setSample] = useState(true);
+  const s = (t: string) => (sample ? fillSample(t) : t);
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1">
+          {(["email", "whatsapp", "dashboard"] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              className={cn(
+                "rounded-md px-3 py-1 text-xs font-medium capitalize",
+                tab === k
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {k === "email"
+                ? "Email"
+                : k === "whatsapp"
+                  ? "WhatsApp"
+                  : "PartnersBiz Dashboard"}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={sample}
+            onChange={(e) => setSample(e.target.checked)}
+            className="h-3.5 w-3.5"
+          />
+          Toggle Sample Data
+        </label>
+      </div>
+
+      {tab === "email" && (
+        <div className="mx-auto max-w-lg rounded-md border border-border bg-background p-4 text-sm shadow-sm">
+          <div className="border-b border-border pb-2">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Subject
+            </div>
+            <div className="font-semibold">
+              {s(subject) || <span className="text-muted-foreground">(empty)</span>}
+            </div>
+          </div>
+          <p className="whitespace-pre-wrap pt-3 text-[13px] leading-relaxed">
+            {s(body) || <span className="text-muted-foreground">(empty)</span>}
+          </p>
+        </div>
+      )}
+
+      {tab === "whatsapp" && (
+        <div className="mx-auto max-w-md rounded-2xl bg-[#ECE5DD] p-3">
+          <div className="ml-auto max-w-full space-y-1 rounded-2xl rounded-tr-sm bg-[#DCF8C6] p-3 shadow-sm">
+            <div className="text-[10px] font-semibold text-[#075E54]">
+              #{templateId}
+            </div>
+            <p className="whitespace-pre-wrap text-[13px] leading-snug text-[#111]">
+              {s(waMessage) ||
+                <span className="text-muted-foreground">(empty)</span>}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {tab === "dashboard" && (
+        <div className="mx-auto max-w-md rounded-lg border border-border bg-background p-4 shadow-sm">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-primary" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              PartnersBiz Notification
+            </span>
+          </div>
+          <div className="text-sm font-semibold">
+            {s(subject) || "(empty)"}
+          </div>
+          <p className="mt-1 text-[12px] text-muted-foreground line-clamp-2">
+            {s(body)}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Preflight governance panel ----------
+function PreflightPanel({
+  checks,
+  whatsappRequired,
+}: {
+  checks: PreflightChecks;
+  whatsappRequired: boolean;
+}) {
+  const items: Array<{ ok: boolean; label: string; detail: string }> = [
+    {
+      ok: !checks.requiresApproval,
+      label: "Audience Threshold Gate",
+      detail: checks.requiresApproval
+        ? `${checks.audienceCount} recipients — Requires Comms-Admin Approval before launch`
+        : `${checks.audienceCount} recipients — within safe threshold`,
+    },
+    {
+      ok: !checks.isAtFrequencyCap,
+      label: "Weekly Frequency Cap (Max 3/week)",
+      detail: checks.isAtFrequencyCap
+        ? "Audience is at frequency cap — send may be throttled"
+        : "Audience under weekly cap",
+    },
+    {
+      ok: whatsappRequired ? checks.waValidated : true,
+      label: "WhatsApp Meta ID Registry",
+      detail: whatsappRequired
+        ? checks.waValidated
+          ? "Template body present — Meta ID will be registered on approve"
+          : "Missing WhatsApp variant — cannot pass Meta registry"
+        : "Not required for this segment",
+    },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold">Pre-flight Governance Checks</h3>
+      </div>
+      <ul className="space-y-2">
+        {items.map((it) => (
+          <li
+            key={it.label}
+            className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3"
+          >
+            <div className="min-w-0">
+              <div className="text-sm font-medium">{it.label}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {it.detail}
+              </div>
+            </div>
+            {it.ok ? (
+              <Badge className="bg-cat-green-soft text-cat-green hover:bg-cat-green-soft">
+                <CheckCircle2 className="mr-1 h-3 w-3" /> Pass
+              </Badge>
+            ) : (
+              <Badge className="bg-cat-amber-soft text-cat-amber hover:bg-cat-amber-soft">
+                <AlertTriangle className="mr-1 h-3 w-3" />
+                {it.label.includes("Audience")
+                  ? "Requires Comms-Admin Approval"
+                  : "Attention"}
+              </Badge>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 
 function FormRow({
   label,

@@ -1,15 +1,29 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { PlusCircle, ArrowRight, ShieldAlert, Info } from "lucide-react";
+import { PlusCircle, ArrowRight, Info, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRole } from "@/lib/role-context";
-import { colorClasses, type Category, type CategoryId } from "@/lib/mock-data";
+import { colorClasses } from "@/lib/mock-data";
+import {
+  inferCategoryRules,
+  type SubCategoryPurpose,
+  type DomainType,
+  type InferredRules,
+} from "@/lib/requests-store";
 
 export const Route = createFileRoute("/add-communication")({
   head: () => ({
@@ -18,99 +32,57 @@ export const Route = createFileRoute("/add-communication")({
   component: AddCommunicationPage,
 });
 
-interface CommConfig {
-  label: string;
-  color: Category["color"];
-  channel: string;
-  batching: string;
-  escalation: string;
-  expiry: string;
-}
-
-const CONFIG: Record<CategoryId, CommConfig> = {
-  action_required: {
-    label: "Action Required",
-    color: "red",
-    channel: "Both (Portal + Mail)",
-    batching: "Real time no batching",
-    escalation: "Auto escalate to Ops/CM queue",
-    expiry: "Persist until resolved",
-  },
-  finance_payments: {
-    label: "Finance & Payments",
-    color: "amber",
-    channel: "Both (Portal + Mail)",
-    batching: "Real time / weekly by type",
-    escalation: "Auto escalate disputes only",
-    expiry: "Persist until resolved",
-  },
-  reports_analytics: {
-    label: "Reports & Analytics",
-    color: "green",
-    channel: "Portal first mail optional",
-    batching: "Weekly / Monthly / Quarterly",
-    escalation: "None informational",
-    expiry: "Auto expire next cycle",
-  },
-  daily_ops: {
-    label: "Daily Ops Updates",
-    color: "blue",
-    channel: "Portal + batched digest mail",
-    batching: "Daily digest fixed time",
-    escalation: "None confirmation only",
-    expiry: "48 to 72 hrs",
-  },
-  reminders: {
-    label: "Reminders",
-    color: "purple",
-    channel: "Portal push + mail if P1",
-    batching: "Single scheduled trigger",
-    escalation: "Auto escalate to queue at threshold",
-    expiry: "Auto clear at deadline",
-  },
-  account_access: {
-    label: "Account & Access",
-    color: "grey",
-    channel: "Mail only",
-    batching: "Real time no batching",
-    escalation: "Escalate to Admin queue non OTP only",
-    expiry: "OTP window / until login",
-  },
-};
-
-const COMM_TYPES: { key: string; label: string; category: CategoryId }[] = [
-  { key: "financial", label: "Financial", category: "finance_payments" },
-  { key: "periodic", label: "Periodic", category: "reports_analytics" },
-  { key: "high_frequency", label: "High frequency", category: "daily_ops" },
-  { key: "pre_emptive", label: "Pre emptive", category: "reminders" },
-  { key: "security", label: "Security", category: "account_access" },
+const SUB_CATEGORIES: SubCategoryPurpose[] = [
+  "Reports",
+  "Announcements",
+  "Campaigns",
+  "Defect Flow Communications",
 ];
+const DOMAINS: DomainType[] = [
+  "Operations & Appointments",
+  "Finance & Payments",
+  "Assortment / MDM",
+  "Warehouse Ops",
+  "Monetization",
+];
+
+const CATEGORY_LABEL: Record<string, string> = {
+  action_required: "Action Required",
+  finance_payments: "Finance & Payments",
+  reports_analytics: "Reports & Analytics",
+  daily_ops: "Daily Ops Updates",
+  reminders: "Reminders",
+  account_access: "Account & Access",
+};
+const CATEGORY_COLOR: Record<string, "red" | "amber" | "green" | "blue" | "purple" | "grey"> = {
+  action_required: "red",
+  finance_payments: "amber",
+  reports_analytics: "green",
+  daily_ops: "blue",
+  reminders: "purple",
+  account_access: "grey",
+};
 
 function AddCommunicationPage() {
   const { role } = useRole();
 
   const [name, setName] = useState("");
   const [trigger, setTrigger] = useState("");
-  const [losesMoney, setLosesMoney] = useState<"yes" | "no" | null>(null);
-  const [commType, setCommType] = useState<string | null>(null);
+  const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
+  const [domain, setDomain] = useState<DomainType | "">("");
 
-  const resolvedCategory: CategoryId | null = useMemo(() => {
-    if (losesMoney === "yes") return "action_required";
-    if (losesMoney === "no" && commType) {
-      return COMM_TYPES.find((t) => t.key === commType)?.category ?? null;
-    }
-    return null;
-  }, [losesMoney, commType]);
+  const inferred: InferredRules | null = useMemo(() => {
+    if (!subCategory || !domain) return null;
+    return inferCategoryRules(subCategory, domain);
+  }, [subCategory, domain]);
 
   if (role !== "internal_ops") return <Navigate to="/notifications" />;
-
-  const config = resolvedCategory ? CONFIG[resolvedCategory] : null;
 
   const reset = () => {
     setName("");
     setTrigger("");
-    setLosesMoney(null);
-    setCommType(null);
+    setSubCategory("");
+    setDomain("");
   };
 
   const submit = () => {
@@ -129,18 +101,18 @@ function AddCommunicationPage() {
           </h1>
         </div>
         <p className="mb-4 text-sm text-muted-foreground">
-          Draft a new comm, configuration is assigned automatically by category.
+          Draft a new comm — category, priority, channels, batching, and expiry
+          are inferred automatically from purpose × domain.
         </p>
 
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Content is finalized in Apollo and scheduled via Workdesk. All new or edited
-            communications go through a single review step before going live, regardless
-            of which team submits them.
+            Content is finalized in Apollo and scheduled via Workdesk. All new or
+            edited communications go through a single review step before going
+            live, regardless of which team submits them.
           </p>
         </div>
-
 
         <div className="space-y-5 rounded-xl border border-border bg-card p-5">
           <div className="grid gap-2">
@@ -164,99 +136,93 @@ function AddCommunicationPage() {
           </div>
 
           <div className="grid gap-2">
-            <Label>Is this an actionable task?</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={losesMoney === "yes" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => {
-                  setLosesMoney("yes");
-                  setCommType(null);
-                }}
-              >
-                Yes
-              </Button>
-              <Button
-                type="button"
-                variant={losesMoney === "no" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setLosesMoney("no")}
-              >
-                No
-              </Button>
-            </div>
+            <Label>Sub-Category Purpose</Label>
+            <Select
+              value={subCategory}
+              onValueChange={(v) => setSubCategory(v as SubCategoryPurpose)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select purpose" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUB_CATEGORIES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {losesMoney === "no" && (
-            <div className="grid gap-2">
-              <Label>What type of communication is this?</Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {COMM_TYPES.map((t) => (
-                  <Button
-                    key={t.key}
-                    type="button"
-                    variant={commType === t.key ? "default" : "outline"}
-                    className="w-full"
-                    onClick={() => setCommType(t.key)}
-                  >
-                    {t.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {resolvedCategory === "action_required" && config && (
-            <div
-              className={cn(
-                "flex items-start gap-3 rounded-xl border p-4",
-                "border-cat-red/40 bg-cat-red-soft/40",
-              )}
+          <div className="grid gap-2">
+            <Label>Domain</Label>
+            <Select
+              value={domain}
+              onValueChange={(v) => setDomain(v as DomainType)}
             >
-              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-cat-red" />
-              <div>
-                <p className="text-sm font-semibold text-cat-red">
-                  Category = Action Required
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  High-impact comm — no further questions needed.
-                </p>
-              </div>
-            </div>
-          )}
+              <SelectTrigger>
+                <SelectValue placeholder="Select domain" />
+              </SelectTrigger>
+              <SelectContent>
+                {DOMAINS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          {config && (
-            <div className="overflow-hidden rounded-xl border border-border bg-muted/30">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Configuration preview
+          {inferred && (
+            <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                  System-Inferred Rules
                 </span>
-                <span
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge
                   className={cn(
-                    "rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                    colorClasses[config.color].badge,
+                    "hover:bg-inherit",
+                    colorClasses[CATEGORY_COLOR[inferred.categoryId]].badge,
                   )}
                 >
-                  {config.label}
-                </span>
+                  Category: {CATEGORY_LABEL[inferred.categoryId]}
+                </Badge>
+                <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">
+                  Priority: {inferred.priority}
+                </Badge>
+                {inferred.channels.map((c) => (
+                  <Badge key={c} variant="outline">
+                    {c}
+                  </Badge>
+                ))}
+                <Badge variant="secondary">Batching: {inferred.batching}</Badge>
+                <Badge variant="secondary">Expiry: {inferred.expiry}</Badge>
+                <Badge
+                  className={cn(
+                    "hover:bg-inherit",
+                    inferred.unsubscribe === "LOCKED_DISABLED"
+                      ? "bg-cat-red-soft text-cat-red"
+                      : "bg-cat-green-soft text-cat-green",
+                  )}
+                >
+                  {inferred.unsubscribe === "LOCKED_DISABLED"
+                    ? "Unsubscribe: Locked"
+                    : "Unsubscribe: Allowed"}
+                </Badge>
               </div>
-              <dl className="divide-y divide-border">
-                <ConfigRow label="Channel" value={config.channel} />
-                <ConfigRow label="Batching" value={config.batching} />
-                <ConfigRow label="Escalation" value={config.escalation} />
-                <ConfigRow label="Portal Expiry" value={config.expiry} />
-              </dl>
             </div>
           )}
 
-          {config && (
+          {inferred && (
             <>
               <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-3">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  Check the Send Calendar to see if this can be clubbed with an existing
-                  send before submitting.
+                  Check the Send Calendar to see if this can be clubbed with an
+                  existing send before submitting.
                 </p>
               </div>
               <Button className="w-full gap-1.5" onClick={submit}>
@@ -271,14 +237,5 @@ function AddCommunicationPage() {
         </p>
       </div>
     </AppShell>
-  );
-}
-
-function ConfigRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 px-4 py-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-right text-xs font-medium text-foreground">{value}</dd>
-    </div>
   );
 }
