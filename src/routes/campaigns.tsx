@@ -707,6 +707,10 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
           Sample data · edits happen on the source request in Workdesk / Requests.
         </p>
       </Section>
+
+      <Section title="Vendor action telemetry log">
+        <VendorTelemetryLog campaign={c} />
+      </Section>
     </>
   );
 }
