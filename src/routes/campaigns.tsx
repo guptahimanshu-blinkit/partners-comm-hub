@@ -19,6 +19,15 @@ import {
   Download,
   ArrowDown,
   Ticket,
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  X,
+  ArrowUp,
+  Pencil,
+  Users,
+  Info,
+  FileText,
 } from "lucide-react";
 
 
@@ -34,15 +43,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { useCampaigns, type Campaign, type CampaignChannel, type CampaignStatus } from "@/lib/requests-store";
+import {
+  useCampaigns,
+  useRequests,
+  addCampaign,
+  nowStamp,
+  type Campaign,
+  type CampaignChannel,
+  type CampaignStatus,
+  type TemplateRequest,
+} from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
+import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/campaigns")({
   head: () => ({
@@ -89,6 +118,8 @@ function CampaignsPage() {
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | "All">("All");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Campaign | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
+
 
   const canSee =
     role === "internal_ops" &&
@@ -118,13 +149,22 @@ function CampaignsPage() {
           <div className="mt-0.5 rounded-lg bg-primary/15 p-2 text-primary">
             <Megaphone className="h-5 w-5" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
             <p className="text-sm text-muted-foreground">
               Simulating: Workdesk · live once an Approver acknowledges a published template
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setWizardOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Campaign
+          </button>
         </header>
+
 
         {/* Toolbar */}
         <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
@@ -286,6 +326,12 @@ function CampaignsPage() {
         campaign={selected}
         onClose={() => setSelected(null)}
       />
+
+      <NewCampaignWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+      />
+
     </AppShell>
   );
 }
@@ -1109,3 +1155,1207 @@ function RecipientAudit({ seed }: { seed: string }) {
   );
 }
 
+
+// ============= New Campaign Wizard (6 steps) =============
+
+type Owner =
+  | "biz-fin"
+  | "finance-ops"
+  | "category"
+  | "monetisation"
+  | "supply";
+type UseCase = "Announcement" | "Actionable Task" | "Payment" | "Promo / Ads";
+type TargetLevel = "Vendor" | "Manufacturer";
+type AudienceMethod = "Role-based" | "Ad-hoc Users" | "Excel Upload";
+type TriggerKind = "One-time" | "Event-based" | "Recurring";
+type StrategyChoice = "FYI" | "Standard" | "Critical";
+type EscalationChannel = "WhatsApp" | "Dashboard Banner";
+
+type WizMessage = {
+  key: string;
+  requestId: string;
+  templateId: string;
+  name: string;
+  channel: CampaignChannel;
+  variables: string[];
+};
+
+const OWNER_LABEL: Record<Owner, string> = {
+  "biz-fin": "Business Finance",
+  "finance-ops": "Finance Ops",
+  category: "Category Team",
+  monetisation: "Monetisation",
+  supply: "Supply Chain",
+};
+
+const USE_CASES: {
+  key: UseCase;
+  tag: string;
+  desc: string;
+  Icon: typeof Bell;
+}[] = [
+  {
+    key: "Announcement",
+    tag: "FYI",
+    desc: "Broadcast an update — no action expected.",
+    Icon: Bell,
+  },
+  {
+    key: "Actionable Task",
+    tag: "Needs action",
+    desc: "Vendor must accept, dispute or resolve.",
+    Icon: Zap,
+  },
+  {
+    key: "Payment",
+    tag: "Financial",
+    desc: "Invoice, hold, or payout related.",
+    Icon: Shield,
+  },
+  {
+    key: "Promo / Ads",
+    tag: "Opt-in",
+    desc: "Monetisation nudges vendors have opted into.",
+    Icon: Megaphone,
+  },
+];
+
+const SEGMENTS: { key: string; count: number }[] = [
+  { key: "All vendors", count: 3880 },
+  { key: "Tech Enabled Vendors", count: 1240 },
+  { key: "Low Tech Vendors", count: 640 },
+  { key: "Finance POC only", count: 412 },
+  { key: "North zone — Category A", count: 1212 },
+];
+
+const CHANNEL_OPTIONS: CampaignChannel[] = ["Email", "WhatsApp", "Dashboard"];
+
+const EVENT_TRIGGERS = [
+  "invoice_overdue",
+  "ads_credit_low",
+  "grn_discrepancy_raised",
+  "po_cancelled",
+];
+
+const RECURRING_PATTERNS = [
+  "Every Monday at 10:00 IST",
+  "Every weekday at 09:00 IST",
+  "1st of every month at 09:00 IST",
+];
+
+const STEP_TITLES = [
+  "Basics",
+  "Audience",
+  "Message sequencing",
+  "Schedule",
+  "Reminders",
+  "Review & launch",
+];
+
+const LIQUID_REGEX = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g;
+
+function detectVariables(text: string): string[] {
+  const found = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = LIQUID_REGEX.exec(text)) !== null) found.add(m[1]);
+  return Array.from(found);
+}
+
+function inferChannelFromName(name: string): CampaignChannel {
+  const n = name.toLowerCase();
+  if (n.includes("whatsapp") || n.includes("wa ")) return "WhatsApp";
+  if (n.includes("banner") || n.includes("dashboard") || n.includes("card"))
+    return "Dashboard";
+  return "Email";
+}
+
+function initialWizardState() {
+  return {
+    step: 1 as 1 | 2 | 3 | 4 | 5 | 6,
+    // Step 1
+    name: "",
+    owner: "" as Owner | "",
+    useCase: "" as UseCase | "",
+    // Step 2
+    targetLevel: "Vendor" as TargetLevel,
+    segment: SEGMENTS[0].key,
+    methods: new Set<AudienceMethod>(["Role-based"]),
+    // Step 3
+    messages: [] as WizMessage[],
+    libraryOpen: false,
+    // Step 4
+    trigger: "One-time" as TriggerKind,
+    triggerDate: "",
+    triggerTime: "10:00",
+    triggerEvent: EVENT_TRIGGERS[0],
+    recurringPattern: RECURRING_PATTERNS[0],
+    // Step 5
+    strategy: "Standard" as StrategyChoice,
+    escalationChannel: "WhatsApp" as EscalationChannel,
+    reminderTemplate: "",
+  };
+}
+
+function NewCampaignWizard({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const requests = useRequests();
+  const campaigns = useCampaigns();
+  const [s, setS] = useState(initialWizardState);
+
+  const approvedTemplates = useMemo(
+    () => requests.filter((r) => r.status === "Approved"),
+    [requests],
+  );
+
+  const audienceCount = useMemo(() => {
+    const seg = SEGMENTS.find((x) => x.key === s.segment);
+    return seg?.count ?? 0;
+  }, [s.segment]);
+
+  const overlapWarning = useMemo(() => {
+    const active = campaigns.filter(
+      (c) => c.status === "Running" || c.status === "Scheduled",
+    );
+    return active.find(
+      (c) => c.segment === s.segment && audienceCount > 500,
+    );
+  }, [campaigns, s.segment, audienceCount]);
+
+  const remindersDisabled = s.trigger === "Recurring";
+  const requiresApproval = audienceCount > 1000;
+
+  const canNext = (() => {
+    if (s.step === 1) return s.name.trim() && s.owner && s.useCase;
+    if (s.step === 2) return s.methods.size > 0;
+    if (s.step === 3) return s.messages.length > 0;
+    if (s.step === 4) {
+      if (s.trigger === "One-time") return s.triggerDate && s.triggerTime;
+      if (s.trigger === "Event-based") return !!s.triggerEvent;
+      return !!s.recurringPattern;
+    }
+    if (s.step === 5) return true;
+    return true;
+  })();
+
+  const reset = () => setS(initialWizardState());
+
+  const handleClose = () => {
+    onClose();
+    // Reset after close animation
+    setTimeout(reset, 200);
+  };
+
+  const buildCampaign = (status: CampaignStatus): Campaign => {
+    const first = s.messages[0];
+    const uniqChannels: CampaignChannel[] = Array.from(
+      new Set(s.messages.map((m) => m.channel)),
+    );
+    const reminderCount =
+      s.strategy === "Critical" ? 5 : s.strategy === "Standard" ? 3 : 1;
+    return {
+      id: `CMP-W${Math.floor(Math.random() * 900000 + 100000)}`,
+      requestId: first?.requestId ?? "REQ-WIZARD",
+      templateId: first?.templateId ?? "APOLLO-WIZARD",
+      name: s.name.trim(),
+      categoryId:
+        s.useCase === "Payment"
+          ? "finance_payments"
+          : s.useCase === "Actionable Task"
+            ? "action_required"
+            : s.useCase === "Promo / Ads"
+              ? "reminders"
+              : "daily_ops",
+      priority:
+        s.strategy === "Critical"
+          ? "P1"
+          : s.strategy === "Standard"
+            ? "P2"
+            : "P3",
+      purpose: `${s.useCase} campaign owned by ${OWNER_LABEL[s.owner as Owner]}.`,
+      channels: uniqChannels.length ? uniqChannels : ["Email"],
+      segment: s.segment,
+      audienceCount,
+      triggerType: s.trigger === "Recurring" ? "Recurring" : "One time",
+      frequency: s.trigger === "Recurring" ? "Weekly" : "Once",
+      reminders: remindersDisabled ? 0 : reminderCount,
+      status,
+      attachment: "None",
+      cta: "Direct Link",
+      formulaFlags: ["None"],
+      approvedBy: status === "Pending approval" ? "—" : "Aisha Khan",
+      acknowledgedAt:
+        status === "Pending approval" ? "Awaiting acknowledgement" : nowStamp(),
+      firstSend:
+        s.trigger === "One-time"
+          ? `${s.triggerDate}, ${s.triggerTime}`
+          : s.trigger === "Recurring"
+            ? s.recurringPattern
+            : `On event: ${s.triggerEvent}`,
+      submitterName: "Himanshu Gupta",
+      requestApprovedAt: nowStamp(),
+      publishedAt: new Date().toISOString(),
+    };
+  };
+
+  const launch = () => {
+    const status: CampaignStatus = requiresApproval
+      ? "Pending approval"
+      : s.trigger === "Recurring"
+        ? "Running"
+        : "Scheduled";
+    addCampaign(buildCampaign(status));
+    toast.success(
+      requiresApproval
+        ? "Approval requested from Comms Admin."
+        : "Campaign launched.",
+    );
+    handleClose();
+  };
+
+  const saveDraft = () => {
+    toast.success("Draft saved (prototype — not persisted).");
+    handleClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <DialogContent className="workdesk max-h-[90vh] w-full max-w-3xl overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-lg">New Campaign</DialogTitle>
+        </DialogHeader>
+
+        <Stepper current={s.step} />
+
+        <div className="mt-4 space-y-4">
+          {s.step === 1 && (
+            <StepBasics state={s} setState={setS} />
+          )}
+          {s.step === 2 && (
+            <StepAudience
+              state={s}
+              setState={setS}
+              audienceCount={audienceCount}
+              overlapName={overlapWarning?.name}
+            />
+          )}
+          {s.step === 3 && (
+            <StepSequencing
+              state={s}
+              setState={setS}
+              approvedTemplates={approvedTemplates}
+            />
+          )}
+          {s.step === 4 && <StepSchedule state={s} setState={setS} />}
+          {s.step === 5 && (
+            <StepReminders
+              state={s}
+              setState={setS}
+              disabled={remindersDisabled}
+            />
+          )}
+          {s.step === 6 && (
+            <StepReview
+              state={s}
+              audienceCount={audienceCount}
+              requiresApproval={requiresApproval}
+            />
+          )}
+        </div>
+
+        <DialogFooter className="mt-6 flex-row items-center justify-between gap-2 sm:justify-between">
+          <button
+            type="button"
+            onClick={() =>
+              s.step > 1 && setS((p) => ({ ...p, step: (p.step - 1) as 1 }))
+            }
+            disabled={s.step === 1}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
+          </button>
+
+          <div className="flex items-center gap-2">
+            {s.step === 6 && (
+              <button
+                type="button"
+                onClick={saveDraft}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Save as draft
+              </button>
+            )}
+            {s.step < 6 && (
+              <button
+                type="button"
+                onClick={() =>
+                  canNext &&
+                  setS((p) => ({ ...p, step: (p.step + 1) as 2 }))
+                }
+                disabled={!canNext}
+                className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+              >
+                Next <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {s.step === 6 && (
+              <button
+                type="button"
+                onClick={launch}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-semibold",
+                  requiresApproval
+                    ? "border-cat-amber/40 bg-cat-amber text-white hover:bg-cat-amber/90"
+                    : "border-primary/40 bg-primary text-primary-foreground hover:bg-primary/90",
+                )}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                {requiresApproval ? "Request Admin Approval" : "Launch Campaign"}
+              </button>
+            )}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Stepper({ current }: { current: number }) {
+  return (
+    <ol className="mt-2 flex items-center gap-1 overflow-x-auto pb-1">
+      {STEP_TITLES.map((title, idx) => {
+        const n = idx + 1;
+        const done = current > n;
+        const active = current === n;
+        return (
+          <li key={title} className="flex min-w-0 items-center gap-1">
+            <div
+              className={cn(
+                "grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[10px] font-semibold",
+                done
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : active
+                    ? "border-primary bg-primary/15 text-foreground"
+                    : "border-border bg-muted/40 text-muted-foreground",
+              )}
+            >
+              {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : n}
+            </div>
+            <span
+              className={cn(
+                "truncate text-[11px]",
+                active
+                  ? "font-semibold text-foreground"
+                  : "text-muted-foreground",
+              )}
+            >
+              {title}
+            </span>
+            {n < STEP_TITLES.length && (
+              <span className="mx-1 h-px w-4 shrink-0 bg-border" />
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+type WizState = ReturnType<typeof initialWizardState>;
+type WizSetter = React.Dispatch<React.SetStateAction<WizState>>;
+
+function StepBasics({
+  state,
+  setState,
+}: {
+  state: WizState;
+  setState: WizSetter;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <Label htmlFor="wiz-name">Campaign name</Label>
+        <Input
+          id="wiz-name"
+          placeholder="e.g. Q2 Rebate Reconciliation"
+          value={state.name}
+          onChange={(e) => setState((p) => ({ ...p, name: e.target.value }))}
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="wiz-owner">Owner</Label>
+        <select
+          id="wiz-owner"
+          value={state.owner}
+          onChange={(e) =>
+            setState((p) => ({ ...p, owner: e.target.value as Owner }))
+          }
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="">Select owner…</option>
+          {(Object.keys(OWNER_LABEL) as Owner[]).map((k) => (
+            <option key={k} value={k}>
+              {OWNER_LABEL[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2">
+        <Label>Use case</Label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {USE_CASES.map((u) => {
+            const active = state.useCase === u.key;
+            return (
+              <button
+                key={u.key}
+                type="button"
+                onClick={() =>
+                  setState((p) => ({ ...p, useCase: u.key }))
+                }
+                className={cn(
+                  "flex items-start gap-2 rounded-lg border p-3 text-left transition",
+                  active
+                    ? "border-primary/60 bg-primary/10 shadow-sm"
+                    : "border-border bg-background hover:bg-muted/40",
+                )}
+              >
+                <u.Icon
+                  className={cn(
+                    "mt-0.5 h-4 w-4 shrink-0",
+                    active ? "text-primary" : "text-muted-foreground",
+                  )}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">
+                      {u.key}
+                    </span>
+                    <span className="rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] text-muted-foreground">
+                      {u.tag}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                    {u.desc}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepAudience({
+  state,
+  setState,
+  audienceCount,
+  overlapName,
+}: {
+  state: WizState;
+  setState: WizSetter;
+  audienceCount: number;
+  overlapName?: string;
+}) {
+  const toggleMethod = (m: AudienceMethod) => {
+    setState((p) => {
+      const next = new Set(p.methods);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return { ...p, methods: next };
+    });
+  };
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <Label>Target level</Label>
+        <div className="flex gap-2">
+          {(["Vendor", "Manufacturer"] as TargetLevel[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setState((p) => ({ ...p, targetLevel: t }))}
+              className={cn(
+                "flex-1 rounded-md border px-3 py-2 text-sm font-medium",
+                state.targetLevel === t
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted/40",
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="wiz-segment">Segment</Label>
+        <select
+          id="wiz-segment"
+          value={state.segment}
+          onChange={(e) =>
+            setState((p) => ({ ...p, segment: e.target.value }))
+          }
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          {SEGMENTS.map((seg) => (
+            <option key={seg.key} value={seg.key}>
+              {seg.key} · {seg.count.toLocaleString("en-IN")}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2">
+        <Label>Recipient method</Label>
+        <div className="space-y-1.5">
+          {(["Role-based", "Ad-hoc Users", "Excel Upload"] as AudienceMethod[]).map(
+            (m) => (
+              <label
+                key={m}
+                className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <Checkbox
+                  checked={state.methods.has(m)}
+                  onCheckedChange={() => toggleMethod(m)}
+                />
+                <span>{m}</span>
+                {m === "Role-based" && (
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    Finance POC / Owner
+                  </span>
+                )}
+              </label>
+            ),
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+        <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <div>
+          <div className="font-semibold text-foreground">
+            {audienceCount.toLocaleString("en-IN")}{" "}
+            {state.targetLevel.toLowerCase()}s resolved
+          </div>
+          <p className="mt-0.5 text-muted-foreground">
+            Live audience count for “{state.segment}”.
+          </p>
+        </div>
+      </div>
+
+      {overlapName && (
+        <div className="flex items-start gap-2 rounded-lg border border-cat-amber/40 bg-cat-amber/10 p-3 text-xs">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-cat-amber" />
+          <div>
+            <div className="font-semibold text-foreground">
+              Audience overlaps &gt;50% with active campaign
+            </div>
+            <p className="mt-0.5 text-muted-foreground">
+              “{overlapName}” is already targeting this segment.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepSequencing({
+  state,
+  setState,
+  approvedTemplates,
+}: {
+  state: WizState;
+  setState: WizSetter;
+  approvedTemplates: TemplateRequest[];
+}) {
+  const move = (idx: number, dir: -1 | 1) => {
+    setState((p) => {
+      const arr = [...p.messages];
+      const j = idx + dir;
+      if (j < 0 || j >= arr.length) return p;
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return { ...p, messages: arr };
+    });
+  };
+  const remove = (key: string) =>
+    setState((p) => ({
+      ...p,
+      messages: p.messages.filter((m) => m.key !== key),
+    }));
+  const addFromTemplate = (t: TemplateRequest) => {
+    const vars = detectVariables(`${t.subject} ${t.purpose}`);
+    setState((p) => ({
+      ...p,
+      libraryOpen: false,
+      messages: [
+        ...p.messages,
+        {
+          key: `${t.id}-${Date.now()}`,
+          requestId: t.id,
+          templateId: t.templateId,
+          name: t.templateName,
+          channel: inferChannelFromName(t.templateName),
+          variables: vars.length ? vars : ["vendor_name"],
+        },
+      ],
+    }));
+  };
+  const setChannel = (key: string, ch: CampaignChannel) =>
+    setState((p) => ({
+      ...p,
+      messages: p.messages.map((m) =>
+        m.key === key ? { ...m, channel: ch } : m,
+      ),
+    }));
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Drag together the ordered comms chain — each message fires in sequence.
+        Only approved templates from Requests are selectable.
+      </p>
+
+      {state.messages.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-xs text-muted-foreground">
+          No messages added yet. Add one from the template library below.
+        </div>
+      )}
+
+      <ol className="space-y-2">
+        {state.messages.map((m, i) => (
+          <li
+            key={m.key}
+            className="flex items-start gap-2 rounded-lg border border-border bg-background p-3"
+          >
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+              {i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <ChannelBadge channel={m.channel} />
+                <span className="text-sm font-medium text-foreground">
+                  {m.name}
+                </span>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {m.templateId}
+                </span>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                {m.variables.map((v) => (
+                  <span
+                    key={v}
+                    className="rounded-full border border-cat-amber/30 bg-cat-amber/10 px-1.5 py-0 font-mono text-[10px] text-cat-amber"
+                  >
+                    {`{{${v}}}`}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <span className="text-[10px] text-muted-foreground">
+                  Channel:
+                </span>
+                {CHANNEL_OPTIONS.map((ch) => (
+                  <button
+                    key={ch}
+                    type="button"
+                    onClick={() => setChannel(m.key, ch)}
+                    className={cn(
+                      "rounded-md border px-1.5 py-0.5 text-[10px]",
+                      m.channel === ch
+                        ? "border-primary/50 bg-primary/15 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {ch}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <IconBtn
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                title="Move up"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </IconBtn>
+              <IconBtn
+                onClick={() => move(i, 1)}
+                disabled={i === state.messages.length - 1}
+                title="Move down"
+              >
+                <ArrowDown className="h-3.5 w-3.5" />
+              </IconBtn>
+              <IconBtn
+                onClick={() =>
+                  toast.info("Edit template — prototype stub.")
+                }
+                title="Edit template"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </IconBtn>
+              <IconBtn
+                onClick={() => remove(m.key)}
+                title="Remove"
+                danger
+              >
+                <X className="h-3.5 w-3.5" />
+              </IconBtn>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <button
+        type="button"
+        onClick={() => setState((p) => ({ ...p, libraryOpen: true }))}
+        className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add Message from Template Library
+      </button>
+
+      <TemplateLibraryDialog
+        open={state.libraryOpen}
+        templates={approvedTemplates}
+        onPick={addFromTemplate}
+        onClose={() =>
+          setState((p) => ({ ...p, libraryOpen: false }))
+        }
+      />
+    </div>
+  );
+}
+
+function IconBtn({
+  onClick,
+  disabled,
+  title,
+  danger,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  title: string;
+  danger?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={cn(
+        "grid h-6 w-6 place-items-center rounded-md border",
+        disabled
+          ? "border-border bg-muted/30 text-muted-foreground/40"
+          : danger
+            ? "border-cat-red/40 bg-cat-red/10 text-cat-red hover:bg-cat-red/20"
+            : "border-border bg-background text-foreground hover:bg-muted",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ChannelBadge({ channel }: { channel: CampaignChannel }) {
+  const Icon =
+    channel === "Email"
+      ? Mail
+      : channel === "WhatsApp"
+        ? MessageCircle
+        : LayoutDashboard;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-1.5 py-0 text-[10px] font-medium text-foreground">
+      <Icon className="h-3 w-3" />
+      {channel}
+    </span>
+  );
+}
+
+function TemplateLibraryDialog({
+  open,
+  templates,
+  onPick,
+  onClose,
+}: {
+  open: boolean;
+  templates: TemplateRequest[];
+  onPick: (t: TemplateRequest) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="workdesk max-h-[70vh] w-full max-w-lg overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-base">Pick a template</DialogTitle>
+        </DialogHeader>
+        {templates.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No approved templates yet — get a request approved in Requests
+            first.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {templates.map((t) => (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  onClick={() => onPick(t)}
+                  className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground">
+                      {t.templateName}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                      {t.templateId}
+                    </div>
+                  </div>
+                  <Plus className="h-4 w-4 text-primary" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function StepSchedule({
+  state,
+  setState,
+}: {
+  state: WizState;
+  setState: WizSetter;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <Label>Trigger</Label>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {(["One-time", "Event-based", "Recurring"] as TriggerKind[]).map(
+            (t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setState((p) => ({ ...p, trigger: t }))}
+                className={cn(
+                  "rounded-lg border p-3 text-left text-sm font-medium",
+                  state.trigger === t
+                    ? "border-primary/60 bg-primary/10 text-foreground"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted/40",
+                )}
+              >
+                {t}
+              </button>
+            ),
+          )}
+        </div>
+      </div>
+
+      {state.trigger === "One-time" && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="wiz-date">Date</Label>
+            <Input
+              id="wiz-date"
+              type="date"
+              value={state.triggerDate}
+              onChange={(e) =>
+                setState((p) => ({ ...p, triggerDate: e.target.value }))
+              }
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="wiz-time">Time (IST)</Label>
+            <Input
+              id="wiz-time"
+              type="time"
+              value={state.triggerTime}
+              onChange={(e) =>
+                setState((p) => ({ ...p, triggerTime: e.target.value }))
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      {state.trigger === "Event-based" && (
+        <div className="grid gap-1.5">
+          <Label htmlFor="wiz-event">Event</Label>
+          <select
+            id="wiz-event"
+            value={state.triggerEvent}
+            onChange={(e) =>
+              setState((p) => ({ ...p, triggerEvent: e.target.value }))
+            }
+            className="h-9 rounded-md border border-input bg-background px-2 font-mono text-sm"
+          >
+            {EVENT_TRIGGERS.map((ev) => (
+              <option key={ev} value={ev}>
+                {ev}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {state.trigger === "Recurring" && (
+        <>
+          <div className="grid gap-1.5">
+            <Label htmlFor="wiz-recur">Cadence</Label>
+            <select
+              id="wiz-recur"
+              value={state.recurringPattern}
+              onChange={(e) =>
+                setState((p) => ({
+                  ...p,
+                  recurringPattern: e.target.value,
+                }))
+              }
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              {RECURRING_PATTERNS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
+            <span className="text-foreground">
+              Reminders are not applicable for recurring campaigns — Step 5
+              will be skipped.
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StepReminders({
+  state,
+  setState,
+  disabled,
+}: {
+  state: WizState;
+  setState: WizSetter;
+  disabled: boolean;
+}) {
+  if (disabled) {
+    return (
+      <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
+        <span className="text-foreground">
+          Reminders not applicable for recurring campaigns.
+        </span>
+      </div>
+    );
+  }
+  const strategies: {
+    key: StrategyChoice;
+    tag: string;
+    Icon: typeof Bell;
+    summary: string;
+  }[] = [
+    {
+      key: "FYI",
+      tag: "Low touch",
+      Icon: Bell,
+      summary: "Max 1 reminder · same channel · fixed 5d interval.",
+    },
+    {
+      key: "Standard",
+      tag: "Backoff",
+      Icon: Zap,
+      summary:
+        "Exponential backoff 2d → 4d → 8d · Email → WhatsApp → Dashboard.",
+    },
+    {
+      key: "Critical",
+      tag: "SLA enforced",
+      Icon: Shield,
+      summary:
+        "Every 2d ×5 · multi-channel dispatch · broadens audience · auto-ticket on expiry.",
+    },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {strategies.map((str) => {
+          const active = state.strategy === str.key;
+          return (
+            <button
+              key={str.key}
+              type="button"
+              onClick={() =>
+                setState((p) => ({ ...p, strategy: str.key }))
+              }
+              className={cn(
+                "rounded-lg border p-3 text-left transition",
+                active
+                  ? "border-primary/60 bg-primary/10 shadow-sm"
+                  : "border-border bg-background hover:bg-muted/40",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <str.Icon className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">{str.key}</span>
+                <span className="ml-auto rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] text-muted-foreground">
+                  {str.tag}
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                {str.summary}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <Label htmlFor="wiz-esc">Escalation channel</Label>
+          <select
+            id="wiz-esc"
+            value={state.escalationChannel}
+            onChange={(e) =>
+              setState((p) => ({
+                ...p,
+                escalationChannel: e.target.value as EscalationChannel,
+              }))
+            }
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            <option>WhatsApp</option>
+            <option>Dashboard Banner</option>
+          </select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="wiz-remtpl">Reminder template</Label>
+          <Input
+            id="wiz-remtpl"
+            placeholder="e.g. APOLLO-REMINDER-01"
+            value={state.reminderTemplate}
+            onChange={(e) =>
+              setState((p) => ({
+                ...p,
+                reminderTemplate: e.target.value,
+              }))
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepReview({
+  state,
+  audienceCount,
+  requiresApproval,
+}: {
+  state: WizState;
+  audienceCount: number;
+  requiresApproval: boolean;
+}) {
+  const scheduleText =
+    state.trigger === "One-time"
+      ? `One-time · ${state.triggerDate || "—"} ${state.triggerTime}`
+      : state.trigger === "Event-based"
+        ? `Event · ${state.triggerEvent}`
+        : `Recurring · ${state.recurringPattern}`;
+  const reminderText =
+    state.trigger === "Recurring"
+      ? "n/a (recurring)"
+      : `${state.strategy} · escalate via ${state.escalationChannel}`;
+  const rows: [string, string][] = [
+    ["Name", state.name || "—"],
+    [
+      "Owner",
+      state.owner ? OWNER_LABEL[state.owner as Owner] : "—",
+    ],
+    ["Use case", state.useCase || "—"],
+    [
+      "Audience",
+      `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment}`,
+    ],
+    [
+      "Message chain",
+      state.messages.length
+        ? state.messages
+            .map((m, i) => `${i + 1}. ${m.channel} → ${m.name}`)
+            .join("  ·  ")
+        : "—",
+    ],
+    ["Schedule", scheduleText],
+    ["Reminder policy", reminderText],
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <tbody>
+            {rows.map(([k, v]) => (
+              <tr key={k} className="border-b border-border last:border-b-0">
+                <th className="w-40 bg-muted/40 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {k}
+                </th>
+                <td className="px-3 py-2 text-foreground">{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {requiresApproval ? (
+        <div className="flex items-start gap-2 rounded-lg border border-cat-red/40 bg-cat-red/5 p-3 text-xs">
+          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-cat-red" />
+          <div>
+            <div className="font-semibold text-cat-red">
+              Approval Required
+            </div>
+            <p className="mt-0.5 text-foreground">
+              Target audience ({audienceCount.toLocaleString("en-IN")})
+              exceeds the 1,000 recipient threshold. Launch will route to
+              Comms-Admin as a Pending approval.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div>
+            <div className="font-semibold text-foreground">
+              Ready to launch
+            </div>
+            <p className="mt-0.5 text-muted-foreground">
+              Audience within threshold — no additional approval required.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <FileText className="h-3 w-3" />
+        Prototype · campaign is stored in-session only.
+      </p>
+    </div>
+  );
+}
