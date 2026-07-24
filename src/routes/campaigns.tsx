@@ -429,6 +429,46 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
     c.status === "Failing" ||
     c.status === "Completed";
   const canEdit = c.status !== "Completed";
+  const isLive = c.status === "Running" || c.status === "Failing";
+  const [editMode, setEditMode] = useState(false);
+  const [draft, setDraft] = useState<{
+    sensitivity: "FYI" | "Standard" | "Critical";
+    reminders: number;
+    frequency: Campaign["frequency"];
+    extraVendorIds: string[];
+    newVendorId: string;
+  }>({
+    sensitivity: c.sensitivity ?? strategyForCampaign(c),
+    reminders: c.reminders,
+    frequency: c.frequency,
+    extraVendorIds: c.extraVendorIds ?? [],
+    newVendorId: "",
+  });
+
+  const startEdit = () => {
+    setDraft({
+      sensitivity: c.sensitivity ?? strategyForCampaign(c),
+      reminders: c.reminders,
+      frequency: c.frequency,
+      extraVendorIds: c.extraVendorIds ?? [],
+      newVendorId: "",
+    });
+    setEditMode(true);
+  };
+
+  const applyChanges = () => {
+    updateCampaign(c.id, {
+      sensitivity: draft.sensitivity,
+      reminders: draft.reminders,
+      frequency: draft.frequency,
+      extraVendorIds: draft.extraVendorIds,
+    });
+    toast.success("Live changes applied", {
+      description: "Future reminder steps updated. Delivered steps remain locked.",
+    });
+    setEditMode(false);
+  };
+
 
   return (
     <>
