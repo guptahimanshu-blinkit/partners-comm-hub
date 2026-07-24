@@ -24,6 +24,97 @@ export type RejectionCategory =
   | "Missing Info"
   | "Compliance Concern";
 
+// -------- New category / rule inference types --------
+
+export type SubCategoryPurpose =
+  | "Reports"
+  | "Announcements"
+  | "Campaigns"
+  | "Defect Flow Communications";
+
+export type DomainType =
+  | "Operations & Appointments"
+  | "Finance & Payments"
+  | "Assortment / MDM"
+  | "Warehouse Ops"
+  | "Monetization";
+
+export type SequenceTier = "FYI" | "Standard" | "Critical";
+
+export type AttachmentSourceType = "none" | "static" | "query" | "s3";
+
+export interface AttachmentConfig {
+  type: AttachmentSourceType;
+  queryKey?: string;
+  s3Path?: string;
+  fileName?: string;
+}
+
+export interface PreflightChecks {
+  audienceCount: number;
+  requiresApproval: boolean;
+  isAtFrequencyCap: boolean;
+  waValidated: boolean;
+}
+
+export interface TelemetryLog {
+  id: string;
+  timestamp: string;
+  channel: string;
+  event: string;
+  status: string;
+}
+
+export interface InferredRules {
+  categoryId: CategoryId;
+  priority: PriorityLevel;
+  channels: Array<"Portal" | "Mail" | "WhatsApp">;
+  batching: string;
+  expiry: string;
+  unsubscribe: "LOCKED_DISABLED" | "ALLOWED";
+}
+
+// RFC 5322 (simplified, practical) email regex.
+export const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+export function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email.trim());
+}
+
+export function inferCategoryRules(
+  subCategory: SubCategoryPurpose,
+  domain: DomainType,
+): InferredRules {
+  const isActionable =
+    subCategory === "Defect Flow Communications" ||
+    subCategory === "Campaigns";
+
+  if (isActionable) {
+    const categoryId: CategoryId =
+      domain === "Finance & Payments" ? "finance_payments" : "action_required";
+    return {
+      categoryId,
+      priority: "P1",
+      channels: ["Portal", "Mail", "WhatsApp"],
+      batching: "Real-time (No Batching)",
+      expiry: "Persists until resolved",
+      unsubscribe: "LOCKED_DISABLED",
+    };
+  }
+
+  const categoryId: CategoryId =
+    subCategory === "Reports" ? "reports_analytics" : "daily_ops";
+  return {
+    categoryId,
+    priority: "P3",
+    channels: ["Portal", "Mail"],
+    batching: "Daily Digest (18:00 IST)",
+    expiry: "48-72 hours / Next cycle",
+    unsubscribe: "ALLOWED",
+  };
+}
+
 export interface WhatsAppDraft {
   message: string;
   frequency: FrequencyOption[];
@@ -35,7 +126,8 @@ export interface TemplateRequest {
   requestType: RequestType;
   templateId: string;
   templateName: string;
-  email: string;
+  primaryEmail: string;
+  ccEmails: string[];
   team: string[];
   slackPoc: string;
   purpose: string;
@@ -45,17 +137,21 @@ export interface TemplateRequest {
   manufacturerListName: string;
   subject: string;
   formulaFlags: string[];
-  losesMoneyOrTime: "Yes" | "No";
+  subCategory?: SubCategoryPurpose;
+  domain?: DomainType;
   commType?: CommTypeOption;
   categoryId: CategoryId;
   priority: PriorityLevel;
   attachment: AttachmentOption;
+  attachmentConfig?: AttachmentConfig;
   cta: CtaOption;
   ctaDestination?: string;
   frequency: FrequencyOption[];
-  ccEmail?: string;
   analystPoc?: string;
   whatsapp?: WhatsAppDraft;
+  sequenceTier?: SequenceTier;
+  preflightChecks?: PreflightChecks;
+  telemetryLogs?: TelemetryLog[];
   status: RequestStatus;
   submittedBy: string;
   submittedAt: string;
@@ -74,14 +170,17 @@ type StoreGlobal = {
   __PB_LOG_LISTENERS?: Set<() => void>;
   __PB_CAMPAIGNS?: Campaign[];
   __PB_CMP_LISTENERS?: Set<() => void>;
+  __PB_ACTIONS?: ActionItem[];
+  __PB_ACT_LISTENERS?: Set<() => void>;
   __PB_STORE_HYDRATED?: boolean;
 };
 const g = globalThis as unknown as StoreGlobal;
 
 const STORAGE_KEYS = {
-  requests: "pbcc_requests_v3",
-  publishLogs: "pbcc_publish_logs_v3",
-  campaigns: "pbcc_campaigns_v3",
+  requests: "pbcc_requests_v4",
+  publishLogs: "pbcc_publish_logs_v4",
+  campaigns: "pbcc_campaigns_v4",
+  actions: "pbcc_actions_v4",
 } as const;
 
 function readStoredArray<T>(key: string): T[] | null {
@@ -129,6 +228,13 @@ function hydrateStoreFromStorage(force = false) {
     CAMPAIGNS = storedCampaigns;
     g.__PB_CAMPAIGNS = storedCampaigns;
     emitCampaigns();
+  }
+
+  const storedActions = readStoredArray<ActionItem>(STORAGE_KEYS.actions);
+  if (storedActions) {
+    ACTIONS = storedActions;
+    g.__PB_ACTIONS = storedActions;
+    emitActions();
   }
 }
 
@@ -415,9 +521,6 @@ function remindersFor(priority: PriorityLevel): number {
   return priority === "P1" ? 2 : priority === "P2" ? 1 : 0;
 }
 
-// Parse a display string like "18 Jul 2026, 09:00 AM" and decide status.
-// Recurring campaigns are always "Running"; one-time ones flip from
-// "Scheduled" to "Running" once the scheduled moment has passed.
 function computeCampaignStatus(
   isOnce: boolean,
   scheduledFor: string,
@@ -507,7 +610,6 @@ export function useCampaigns(): Campaign[] {
 function seedCampaigns(): Campaign[] {
   const list: Campaign[] = [];
 
-  // 1. Running — derived from acknowledged seed log (REQ-SEED-A)
   const reqA = REQUESTS.find((r) => r.id === "REQ-SEED-A");
   const logA = PUBLISH_LOGS.find((l) => l.id === "PUB-2002");
   if (reqA && logA) {
@@ -518,7 +620,6 @@ function seedCampaigns(): Campaign[] {
     );
   }
 
-  // 2. Completed — Appointment Slot Confirmation
   list.push({
     id: "CMP-1901",
     requestId: "REQ-CMP-COMPLETED",
@@ -548,7 +649,6 @@ function seedCampaigns(): Campaign[] {
     publishedAt: iso(20160),
   });
 
-  // 3. Failing — GST filing reminder
   list.push({
     id: "CMP-1902",
     requestId: "REQ-CMP-FAILING",
@@ -582,7 +682,6 @@ function seedCampaigns(): Campaign[] {
       "3 WhatsApp deliveries bounced (invalid numbers). Retry queued.",
   });
 
-  // 4. Scheduled — WhatsApp only, Low Tech vendors
   list.push({
     id: "CMP-1903",
     requestId: "REQ-CMP-WA",
@@ -613,7 +712,6 @@ function seedCampaigns(): Campaign[] {
     publishedAt: iso(300),
   });
 
-  // 5. Pending approval — Email + Dashboard, awaiting acknowledgement
   list.push({
     id: "CMP-1904",
     requestId: "REQ-CMP-PENDING",
@@ -646,8 +744,127 @@ function seedCampaigns(): Campaign[] {
   return list;
 }
 
+// -------- Action Deck (PartnersBiz vendor-facing action items) --------
 
+export type ActionItemStatus = "pending" | "accepted" | "disputed" | "snoozed";
 
+export interface ActionItem {
+  id: string;
+  poInvoiceNo: string;
+  title: string;
+  category: string;
+  amountDue: string;
+  dueHours: number;
+  status: ActionItemStatus;
+  vendorName?: string;
+  attachmentName?: string;
+}
+
+let ACTIONS: ActionItem[] =
+  g.__PB_ACTIONS ?? (g.__PB_ACTIONS = seedActionItems());
+const actionListeners: Set<() => void> =
+  g.__PB_ACT_LISTENERS ?? (g.__PB_ACT_LISTENERS = new Set());
+function emitActions() {
+  actionListeners.forEach((l) => l());
+}
+function setActions(next: ActionItem[]) {
+  ACTIONS = next;
+  g.__PB_ACTIONS = next;
+  writeStoredArray(STORAGE_KEYS.actions, next);
+  emitActions();
+}
+
+export function getActionItems(): ActionItem[] {
+  hydrateStoreFromStorage();
+  return ACTIONS;
+}
+
+export function useActionItems(): ActionItem[] {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const l = () => setTick((t) => t + 1);
+    actionListeners.add(l);
+    hydrateStoreFromStorage();
+    return () => {
+      actionListeners.delete(l);
+    };
+  }, []);
+  return ACTIONS;
+}
+
+export function resolveActionItem(
+  id: string,
+  action: "accept" | "dispute" | "snooze",
+): void {
+  hydrateStoreFromStorage();
+  const nextStatus: ActionItemStatus =
+    action === "accept"
+      ? "accepted"
+      : action === "dispute"
+        ? "disputed"
+        : "snoozed";
+  setActions(
+    ACTIONS.map((a) => (a.id === id ? { ...a, status: nextStatus } : a)),
+  );
+}
+
+function seedActionItems(): ActionItem[] {
+  return [
+    {
+      id: "ACT-5001",
+      poInvoiceNo: "INV-KF-88214",
+      title: "Invoice mismatch — GRN vs invoice value",
+      category: "Finance & Payments",
+      amountDue: "₹1,42,860",
+      dueHours: 12,
+      status: "pending",
+      vendorName: "Kwality Foods",
+      attachmentName: "grn_diff_kf_88214.pdf",
+    },
+    {
+      id: "ACT-5002",
+      poInvoiceNo: "PO-KF-77120",
+      title: "PO cancellation — please stop dispatch",
+      category: "Action Required",
+      amountDue: "—",
+      dueHours: 4,
+      status: "pending",
+      vendorName: "Kwality Foods",
+    },
+    {
+      id: "ACT-5003",
+      poInvoiceNo: "INV-DF-22019",
+      title: "Debit note raised for short supply",
+      category: "Finance & Payments",
+      amountDue: "₹38,420",
+      dueHours: 36,
+      status: "pending",
+      vendorName: "Dairy Fresh Pvt Ltd",
+      attachmentName: "debit_note_22019.pdf",
+    },
+    {
+      id: "ACT-5004",
+      poInvoiceNo: "APT-99881",
+      title: "Missed appointment slot — reschedule required",
+      category: "Operations & Appointments",
+      amountDue: "—",
+      dueHours: 24,
+      status: "pending",
+      vendorName: "Aashirvaad Supplies",
+    },
+    {
+      id: "ACT-5005",
+      poInvoiceNo: "INV-KF-88101",
+      title: "Payment on hold — resubmit tax invoice",
+      category: "Finance & Payments",
+      amountDue: "₹2,04,750",
+      dueHours: 48,
+      status: "pending",
+      vendorName: "Kwality Foods",
+      attachmentName: "tax_invoice_hold.pdf",
+    },
+  ];
+}
 
 
 export function nowStamp(): string {
@@ -700,7 +917,8 @@ function seed(): TemplateRequest[] {
       requestType: "Template Approval",
       templateId: "APOLLO-4A2F91",
       templateName: "PO Cancellation Alert — Kolkata K4",
-      email: "priya.n@zomato.com",
+      primaryEmail: "priya.n@zomato.com",
+      ccEmails: ["ops-north@zomato.com"],
       team: ["Supply Chain", "Ops"],
       slackPoc: "@arjun.k",
       purpose:
@@ -711,14 +929,15 @@ function seed(): TemplateRequest[] {
       manufacturerListName: "mfrs_north.csv",
       subject: "Urgent: PO Cancellation for your dispatch",
       formulaFlags: ["Table in Body"],
-      losesMoneyOrTime: "Yes",
+      subCategory: "Defect Flow Communications",
+      domain: "Operations & Appointments",
       categoryId: "action_required",
       priority: "P1",
       attachment: "PDF",
       cta: "Autofilled Help & Support Ticket",
       frequency: ["Once"],
-      ccEmail: "ops-north@zomato.com",
       analystPoc: "@meera.s",
+      sequenceTier: "Critical",
       whatsapp: {
         message:
           "Your PO has been cancelled. Please stop dispatch immediately. Contact your CM for details.",
@@ -734,7 +953,8 @@ function seed(): TemplateRequest[] {
       requestType: "Template Approval",
       templateId: "APOLLO-7C1D08",
       templateName: "Weekly Fill Rate Scorecard",
-      email: "rahul.d@zomato.com",
+      primaryEmail: "rahul.d@zomato.com",
+      ccEmails: [],
       team: ["Analytics"],
       slackPoc: "@rahul.d",
       purpose: "Share weekly fill rate performance with vendor supply chain leads.",
@@ -744,7 +964,8 @@ function seed(): TemplateRequest[] {
       manufacturerListName: "mfrs_all.csv",
       subject: "Your Weekly Fill Rate Scorecard is ready",
       formulaFlags: ["Formula Attachment"],
-      losesMoneyOrTime: "No",
+      subCategory: "Reports",
+      domain: "Operations & Appointments",
       commType: "Periodic",
       categoryId: "reports_analytics",
       priority: "P3",
@@ -752,6 +973,7 @@ function seed(): TemplateRequest[] {
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/reports/fill-rate",
       frequency: ["Weekly"],
+      sequenceTier: "Standard",
       status: "Pending",
       submittedBy: "Rahul Deshmukh",
       submittedAt: iso(180),
@@ -761,7 +983,8 @@ function seed(): TemplateRequest[] {
       requestType: "Template Approval",
       templateId: "APOLLO-9E5B22",
       templateName: "Payment on Hold — Invoice Rejection",
-      email: "finance-comms@zomato.com",
+      primaryEmail: "finance-comms@zomato.com",
+      ccEmails: [],
       team: ["Finance"],
       slackPoc: "@nikhil.r",
       purpose:
@@ -772,13 +995,15 @@ function seed(): TemplateRequest[] {
       manufacturerListName: "mfrs_finance.csv",
       subject: "Action needed: Payment on hold",
       formulaFlags: ["None"],
-      losesMoneyOrTime: "Yes",
+      subCategory: "Defect Flow Communications",
+      domain: "Finance & Payments",
       categoryId: "action_required",
       priority: "P1",
       attachment: "PDF",
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/invoices",
       frequency: ["Once"],
+      sequenceTier: "Critical",
       status: "Approved",
       submittedBy: "Nikhil Rao",
       submittedAt: iso(1440),
@@ -789,7 +1014,8 @@ function seed(): TemplateRequest[] {
       requestType: "Template Approval",
       templateId: "APOLLO-2B8410",
       templateName: "Near-Expiry PO Reminder",
-      email: "priya.n@zomato.com",
+      primaryEmail: "priya.n@zomato.com",
+      ccEmails: [],
       team: ["Supply Chain"],
       slackPoc: "@arjun.k",
       purpose: "Remind vendors of POs approaching expiry within 48 hours.",
@@ -799,7 +1025,8 @@ function seed(): TemplateRequest[] {
       manufacturerListName: "mfrs_all.csv",
       subject: "Reminder: PO expiring soon",
       formulaFlags: ["None"],
-      losesMoneyOrTime: "No",
+      subCategory: "Announcements",
+      domain: "Operations & Appointments",
       commType: "Pre emptive",
       categoryId: "reminders",
       priority: "P2",
@@ -807,6 +1034,7 @@ function seed(): TemplateRequest[] {
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/po",
       frequency: ["Daily"],
+      sequenceTier: "Standard",
       status: "Rejected",
       submittedBy: "Priya Nair",
       submittedAt: iso(2880),
@@ -820,7 +1048,8 @@ function seed(): TemplateRequest[] {
       requestType: "Template Approval",
       templateId: "APOLLO-6F30C7",
       templateName: "OTP for Vendor Portal Login",
-      email: "security@zomato.com",
+      primaryEmail: "security@zomato.com",
+      ccEmails: [],
       team: ["Security"],
       slackPoc: "@kavya.m",
       purpose: "Send login OTP to vendor portal users.",
@@ -830,13 +1059,13 @@ function seed(): TemplateRequest[] {
       manufacturerListName: "-",
       subject: "Your Blinkit Vendor Portal OTP",
       formulaFlags: ["None"],
-      losesMoneyOrTime: "No",
       commType: "Security",
       categoryId: "account_access",
       priority: "P1",
       attachment: "None",
       cta: "None",
       frequency: ["Once"],
+      sequenceTier: "Critical",
       whatsapp: {
         message: "Your Blinkit Vendor Portal OTP is {{otp}}. Do not share with anyone.",
         frequency: ["Once"],
@@ -851,7 +1080,8 @@ function seed(): TemplateRequest[] {
       requestType: "Template Approval",
       templateId: "APOLLO-8410F2",
       templateName: "Fill Rate Weekly Digest — North",
-      email: "rahul.d@zomato.com",
+      primaryEmail: "rahul.d@zomato.com",
+      ccEmails: [],
       team: ["Analytics"],
       slackPoc: "@rahul.d",
       purpose: "Weekly fill rate digest for North region vendors.",
@@ -861,7 +1091,8 @@ function seed(): TemplateRequest[] {
       manufacturerListName: "-",
       subject: "Your weekly fill rate digest",
       formulaFlags: ["Formula Attachment"],
-      losesMoneyOrTime: "No",
+      subCategory: "Reports",
+      domain: "Operations & Appointments",
       commType: "Periodic",
       categoryId: "reports_analytics",
       priority: "P3",
@@ -869,6 +1100,7 @@ function seed(): TemplateRequest[] {
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/reports/fill-rate",
       frequency: ["Weekly"],
+      sequenceTier: "Standard",
       status: "Approved",
       submittedBy: "Rahul Deshmukh",
       submittedAt: iso(4320),
@@ -879,7 +1111,8 @@ function seed(): TemplateRequest[] {
       requestType: "Template Approval",
       templateId: "APOLLO-77BC09",
       templateName: "Weekend PO Reminder — Bulk",
-      email: "priya.n@zomato.com",
+      primaryEmail: "priya.n@zomato.com",
+      ccEmails: [],
       team: ["Supply Chain"],
       slackPoc: "@priya.n",
       purpose: "Weekend bulk reminder for open POs across all vendors.",
@@ -889,7 +1122,8 @@ function seed(): TemplateRequest[] {
       manufacturerListName: "-",
       subject: "Weekend PO Reminder",
       formulaFlags: ["None"],
-      losesMoneyOrTime: "No",
+      subCategory: "Announcements",
+      domain: "Operations & Appointments",
       commType: "Pre emptive",
       categoryId: "reminders",
       priority: "P2",
@@ -897,6 +1131,7 @@ function seed(): TemplateRequest[] {
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/po",
       frequency: ["Once"],
+      sequenceTier: "Standard",
       status: "Rejected Post Publish",
       submittedBy: "Priya Nair",
       submittedAt: iso(5760),

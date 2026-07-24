@@ -637,7 +637,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       requestType: "Template Approval",
       templateId,
       templateName,
-      email,
+      primaryEmail: email,
       team,
       slackPoc,
       purpose,
@@ -647,7 +647,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       manufacturerListName: mfrListName || "-",
       subject,
       formulaFlags,
-      losesMoneyOrTime: losesMoneyOrTime as "Yes" | "No",
       commType: commType || undefined,
       categoryId: resolved.category,
       priority: resolved.priority,
@@ -655,11 +654,12 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       cta,
       ctaDestination: cta === "Direct Link" ? ctaDest : undefined,
       frequency,
-      ccEmail: cc || undefined,
+      ccEmails: cc ? [cc] : [],
       analystPoc: analyst || undefined,
       whatsapp: showWhatsApp
         ? { message: waMessage, frequency: waFreq, cta: waCta }
         : undefined,
+
       status: "Pending",
       submittedBy: "You",
       submittedAt: new Date().toISOString(),
@@ -1183,7 +1183,7 @@ function RequestDetail({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <DetailField label="Email" value={request.email} />
+          <DetailField label="Email" value={request.primaryEmail} />
           <DetailField label="Slack POC" value={request.slackPoc || "—"} />
           <DetailField label="Team" value={request.team.join(", ") || "—"} />
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
@@ -1193,10 +1193,6 @@ function RequestDetail({
           <DetailField label="Vendor ID list" value={request.vendorListName} />
           <DetailField label="Manufacturer ID list" value={request.manufacturerListName} />
           <DetailField label="Formula / Table flags" value={request.formulaFlags.join(", ") || "—"} />
-          <DetailField
-            label="Vendor loses money/time?"
-            value={request.losesMoneyOrTime}
-          />
           {request.commType && (
             <DetailField label="Comm type" value={request.commType} />
           )}
@@ -1210,7 +1206,8 @@ function RequestDetail({
             }
           />
           <DetailField label="Frequency" value={request.frequency.join(", ") || "—"} />
-          <DetailField label="CC email" value={request.ccEmail || "—"} />
+          <DetailField label="CC email" value={request.ccEmails.join(", ") || "—"} />
+
           <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
         </div>
 
@@ -1693,7 +1690,7 @@ function PublishedDetailDialog({
                   <DetailRow label="CTA" value={request.cta} />
                   <DetailRow
                     label="Submitted by"
-                    value={`${request.submittedBy} (${request.email})`}
+                    value={`${request.submittedBy} (${request.primaryEmail})`}
                   />
                   <DetailRow label="Team" value={request.team.join(", ")} />
                 </div>
