@@ -326,6 +326,12 @@ function CampaignsPage() {
         campaign={selected}
         onClose={() => setSelected(null)}
       />
+
+      <NewCampaignWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+      />
+
     </AppShell>
   );
 }
