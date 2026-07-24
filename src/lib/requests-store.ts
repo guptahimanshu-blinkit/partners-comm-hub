@@ -19,10 +19,10 @@ export type CommTypeOption =
   | "Security";
 export type RejectionCategory =
   | "Content Issue"
-  | "Wrong Category or Config"
+  | "Wrong Config"
   | "Clubbing Conflict"
-  | "Missing Info"
-  | "Compliance Concern";
+  | "Compliance Concern"
+  | "Missing Info";
 
 // -------- New category / rule inference types --------
 
