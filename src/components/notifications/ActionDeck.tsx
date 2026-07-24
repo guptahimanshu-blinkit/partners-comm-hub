@@ -55,7 +55,7 @@ function CountdownChip({ dueHours, urgent }: { dueHours: number; urgent?: boolea
 /** Pinned red P1 banners for the most critical pending actions. */
 export function PinnedP1Banners() {
   const items = useActionItems();
-  const p1 = items.filter((i) => i.status === "pending" && i.dueHours <= 12).slice(0, 2);
+  const p1 = items.filter((i) => i.status === "pending" && i.dueHours <= 12).slice(0, 6);
   if (p1.length === 0) return null;
 
   return (
