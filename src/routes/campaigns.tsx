@@ -68,6 +68,7 @@ import {
   type CampaignChannel,
   type CampaignStatus,
   type TemplateRequest,
+  useVendorActionEvents,
 } from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -1092,7 +1093,8 @@ function LiveActionBtn({
 function RecipientAudit({ seed }: { seed: string }) {
   const r = hashSeed(seed);
   const emId = 9900 + Math.floor(r * 99);
-  const events: {
+  const vendorEvents = useVendorActionEvents();
+  const baseEvents: {
     when: string;
     text: string;
     tone: "info" | "ok" | "goal";
@@ -1107,6 +1109,17 @@ function RecipientAudit({ seed }: { seed: string }) {
     },
     { when: "15 Jul 09:15", text: "Goal status: Completed ✓", tone: "goal" },
   ];
+  const liveEvents = vendorEvents.slice(0, 4).map((e) => ({
+    when: new Date(e.when).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    text: e.text,
+    tone: "goal" as const,
+  }));
+  const events = [...liveEvents, ...baseEvents];
   return (
     <div className="rounded-lg border border-border bg-background">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
@@ -1996,6 +2009,17 @@ function TemplateLibraryDialog({
   onPick: (t: TemplateRequest) => void;
   onClose: () => void;
 }) {
+  const campaigns = useCampaigns();
+  const usageByTemplate = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of campaigns) {
+      if (c.status === "Running" || c.status === "Failing") {
+        map.set(c.templateId, (map.get(c.templateId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [campaigns]);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="workdesk max-h-[70vh] w-full max-w-lg overflow-y-auto sm:max-w-lg">
@@ -2009,31 +2033,51 @@ function TemplateLibraryDialog({
           </p>
         ) : (
           <ul className="divide-y divide-border rounded-lg border border-border">
-            {templates.map((t) => (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => onPick(t)}
-                  className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground">
-                      {t.templateName}
+            {templates.map((t) => {
+              const usage = usageByTemplate.get(t.templateId) ?? 0;
+              const locked = usage > 0;
+              return (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (locked) {
+                        alert(
+                          `${t.templateId} is bound to ${usage} live campaign${usage === 1 ? "" : "s"}. Create a new version (v2) to edit — the original stays immutable.`,
+                        );
+                        return;
+                      }
+                      onPick(t);
+                    }}
+                    className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-sm font-medium text-foreground">
+                          {t.templateName}
+                        </span>
+                        {usage > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-cat-amber/40 bg-cat-amber/10 px-1.5 py-0 text-[10px] font-semibold text-cat-amber">
+                            Used in {usage} live campaign{usage === 1 ? "" : "s"} · locked
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                        {t.templateId}
+                      </div>
                     </div>
-                    <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                      {t.templateId}
-                    </div>
-                  </div>
-                  <Plus className="h-4 w-4 text-primary" />
-                </button>
-              </li>
-            ))}
+                    <Plus className="h-4 w-4 text-primary" />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </DialogContent>
     </Dialog>
   );
 }
+
 
 function StepSchedule({
   state,

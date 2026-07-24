@@ -11,7 +11,7 @@ import { AlertOctagon, LifeBuoy, PackageX, Check } from "lucide-react";
 import { toast } from "sonner";
 import type { AppNotification } from "@/lib/mock-data";
 import type { ActionItem } from "@/lib/requests-store";
-import { resolveActionItem, getActionItems } from "@/lib/requests-store";
+import { resolveActionItem, getActionItems, logVendorAction } from "@/lib/requests-store";
 
 export interface POCancellationPayload {
   poNumber: string;
@@ -46,6 +46,12 @@ export function POCancellationDialog({
 
   const acknowledge = () => {
     if (actionItemId) resolveActionItem(actionItemId, "accept");
+    logVendorAction({
+      vendorName,
+      poNumber,
+      kind: "acknowledge",
+      text: `Vendor ${vendorName} acknowledged cancellation for PO #${poNumber}`,
+    });
     toast.success("Cancellation acknowledged", {
       description: "Dispatch halted. Workdesk telemetry updated.",
     });

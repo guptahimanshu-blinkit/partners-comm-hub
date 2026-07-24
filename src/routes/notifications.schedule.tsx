@@ -156,7 +156,9 @@ function ScheduleNotificationPage() {
     });
 
 
-    toast.success(`${selected.templateName} scheduled — Approver notified`);
+    toast.success(`Approver notified`, {
+      description: `Sparsh J. scheduled campaign "${selected.templateName}" targeting ${segment.label} (${segment.recipients.toLocaleString()} vendors).`,
+    });
     setTemplateId("");
     setScheduleAt("");
     setSegmentKey("all");
@@ -259,6 +261,38 @@ function ScheduleNotificationPage() {
               </p>
             </div>
           </div>
+
+          {selected && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                <Info className="h-3.5 w-3.5" /> Auto-populated from {selected.templateId}
+              </div>
+              <dl className="grid gap-1.5 text-[12px] sm:grid-cols-2">
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Subject</dt>
+                  <dd className="font-medium text-foreground">{selected.templateName}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Attachment</dt>
+                  <dd className="font-medium text-foreground">{selected.attachment ?? "None"}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Liquid variables</dt>
+                  <dd className="font-mono text-[11px] text-foreground">
+                    {"{{vendor_name}} · {{po_number}} · {{due_date}}"}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Body preview</dt>
+                  <dd className="mt-0.5 rounded-md border border-border bg-background/60 p-2 text-[11px] leading-relaxed text-muted-foreground">
+                    {"Hi {{vendor_name}}, this is a notification regarding {{po_number}}. Please action by {{due_date}}."}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+
 
           {/* 2 + 3. Target Level and Segment */}
           <div className="grid gap-4 sm:grid-cols-2">
