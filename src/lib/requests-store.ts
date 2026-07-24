@@ -437,6 +437,25 @@ export interface VendorActionEvent {
   kind: "acknowledge" | "dispute" | "snooze" | "reconcile";
 }
 
+export interface VendorActionTelemetry {
+  id: string;
+  timestamp: string; // e.g. "24 Jul 2026, 05:54 PM IST"
+  vendorName: string;
+  vendorId: string;
+  templateId: string;
+  templateName: string;
+  campaignId: string;
+  poInvoiceNo: string;
+  actionType:
+    | "Acknowledged & Stopped"
+    | "Reconciled Statement"
+    | "Disputed"
+    | "Snoozed";
+  statusTransition: string;
+  clearedRiskFlag: string;
+  channel: "PartnersBiz Portal" | "Email" | "WhatsApp";
+}
+
 const VENDOR_EVENTS: VendorActionEvent[] = [
   {
     id: "VE-SEED-1",
@@ -463,10 +482,15 @@ const VENDOR_EVENTS: VendorActionEvent[] = [
     kind: "dispute",
   },
 ];
+const VENDOR_TELEMETRY: VendorActionTelemetry[] = [];
 const vendorEventListeners: Set<() => void> = new Set();
+const vendorTelemetryListeners: Set<() => void> = new Set();
 
 function notifyVendorEvents() {
   vendorEventListeners.forEach((l) => l());
+}
+function notifyVendorTelemetry() {
+  vendorTelemetryListeners.forEach((l) => l());
 }
 
 export function logVendorAction(evt: Omit<VendorActionEvent, "id" | "when"> & { when?: string }) {
@@ -493,6 +517,78 @@ export function useVendorActionEvents(): VendorActionEvent[] {
   }, []);
   return VENDOR_EVENTS;
 }
+
+function formatIstStamp(d: Date): string {
+  const date = d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+  return `${date}, ${time} IST`;
+}
+
+const ACTION_KIND: Record<VendorActionTelemetry["actionType"], VendorActionEvent["kind"]> = {
+  "Acknowledged & Stopped": "acknowledge",
+  "Reconciled Statement": "reconcile",
+  Disputed: "dispute",
+  Snoozed: "snooze",
+};
+
+/** Central vendor-action recorder. Writes to telemetry + the vendor event feed. */
+export function recordVendorAction(
+  input: Omit<VendorActionTelemetry, "id" | "timestamp"> & { timestamp?: string },
+): VendorActionTelemetry {
+  const entry: VendorActionTelemetry = {
+    id: `VT-${Date.now().toString(36).toUpperCase()}`,
+    timestamp: input.timestamp ?? formatIstStamp(new Date()),
+    vendorName: input.vendorName,
+    vendorId: input.vendorId,
+    templateId: input.templateId,
+    templateName: input.templateName,
+    campaignId: input.campaignId,
+    poInvoiceNo: input.poInvoiceNo,
+    actionType: input.actionType,
+    statusTransition: input.statusTransition,
+    clearedRiskFlag: input.clearedRiskFlag,
+    channel: input.channel,
+  };
+  VENDOR_TELEMETRY.unshift(entry);
+  notifyVendorTelemetry();
+
+  logVendorAction({
+    vendorName: input.vendorName,
+    poNumber: input.poInvoiceNo.replace(/^\D+/, ""),
+    kind: ACTION_KIND[input.actionType],
+    text: `Vendor ${input.vendorName} — ${input.actionType} on ${input.poInvoiceNo} (${input.channel})`,
+  });
+
+  return entry;
+}
+
+export function getVendorTelemetry(): VendorActionTelemetry[] {
+  return VENDOR_TELEMETRY;
+}
+
+export function useVendorTelemetry(): VendorActionTelemetry[] {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const l = () => setTick((t) => t + 1);
+    vendorTelemetryListeners.add(l);
+    return () => {
+      vendorTelemetryListeners.delete(l);
+    };
+  }, []);
+  return VENDOR_TELEMETRY;
+}
+
+
 
 
 function seedPublishLogs(): PublishLog[] {
