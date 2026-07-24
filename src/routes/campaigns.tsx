@@ -118,6 +118,8 @@ function CampaignsPage() {
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | "All">("All");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Campaign | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
+
 
   const canSee =
     role === "internal_ops" &&
