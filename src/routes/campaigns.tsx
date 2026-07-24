@@ -11,7 +11,16 @@ import {
   AlertTriangle,
   CalendarClock,
   Circle,
+  Zap,
+  Bell,
+  Shield,
+  Pause,
+  Save,
+  Download,
+  ArrowDown,
+  Ticket,
 } from "lucide-react";
+
 
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -441,6 +450,22 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
         </div>
       )}
 
+      {(c.status === "Running" || c.status === "Failing") && <LiveEditBanner />}
+
+      <Section title="Preset sensitivity strategy">
+        <SensitivityStrategies active={strategyForCampaign(c)} />
+      </Section>
+
+      <Section title="Sequence timeline">
+        <SequenceTimeline campaign={c} />
+      </Section>
+
+      <Section title="Recipient audit & telemetry">
+        <RecipientAudit seed={c.id} />
+      </Section>
+
+
+
       {/* Configuration snapshot */}
       <Section title="Configuration snapshot">
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
@@ -751,3 +776,336 @@ function fmtISO(iso: string): string {
     return iso;
   }
 }
+
+// ---------------- New: Strategy, Timeline, Live Edit, Audit ----------------
+
+type StrategyTier = "FYI" | "Standard" | "Critical";
+
+function strategyForCampaign(c: Campaign): StrategyTier {
+  if (c.priority === "P1") return "Critical";
+  if (c.priority === "P2") return "Standard";
+  return "FYI";
+}
+
+const STRATEGIES: {
+  tier: StrategyTier;
+  Icon: typeof Zap;
+  tag: string;
+  tagClass: string;
+  summary: string;
+  bullets: string[];
+}[] = [
+  {
+    tier: "FYI",
+    Icon: Bell,
+    tag: "Low touch",
+    tagClass: "bg-muted text-muted-foreground border-border",
+    summary: "Max 1 reminder, same channel, fixed 5-day interval.",
+    bullets: [
+      "T+0d: Initial send",
+      "T+5d: Single reminder, same channel",
+      "No escalation, no ticket auto-log",
+    ],
+  },
+  {
+    tier: "Standard",
+    Icon: Zap,
+    tag: "Backoff · escalate",
+    tagClass: "bg-cat-blue/10 text-cat-blue border-cat-blue/20",
+    summary: "Exponential backoff (2d → 4d → 8d), channel escalation Email → WhatsApp → Dashboard.",
+    bullets: [
+      "T+0d: Email",
+      "T+2d: WhatsApp nudge",
+      "T+4d + T+8d: Dashboard banner",
+    ],
+  },
+  {
+    tier: "Critical",
+    Icon: Shield,
+    tag: "SLA enforced",
+    tagClass: "bg-cat-red/10 text-cat-red border-cat-red/20",
+    summary: "Every 2 days ×5, multi-channel, broadens to secondary POCs, auto-tickets on SLA breach.",
+    bullets: [
+      "T+0d → T+8d: Every 2d, all channels in parallel",
+      "T+4d: Loop in secondary vendor POCs",
+      "T+6d: Auto-ticket to Warehouse / Supply Chain Ops (SLA 4h)",
+    ],
+  },
+];
+
+function SensitivityStrategies({ active }: { active: StrategyTier }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-3">
+      {STRATEGIES.map((s) => {
+        const isActive = s.tier === active;
+        return (
+          <div
+            key={s.tier}
+            className={cn(
+              "rounded-lg border p-3 text-xs transition",
+              isActive
+                ? "border-primary/40 bg-primary/10 shadow-sm"
+                : "border-border bg-background",
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "grid h-7 w-7 place-items-center rounded-md border",
+                  isActive
+                    ? "border-primary/40 bg-primary/20 text-foreground"
+                    : "border-border bg-muted/50 text-muted-foreground",
+                )}
+              >
+                <s.Icon className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground">
+                  {s.tier}
+                </div>
+                <span
+                  className={cn(
+                    "mt-0.5 inline-flex rounded-full border px-1.5 py-0 text-[10px] font-medium",
+                    s.tagClass,
+                  )}
+                >
+                  {s.tag}
+                </span>
+              </div>
+              {isActive && (
+                <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary-foreground">
+                  Applied
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+              {s.summary}
+            </p>
+            <ul className="mt-2 space-y-1 text-[11px]">
+              {s.bullets.map((b) => (
+                <li key={b} className="flex gap-1.5">
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-foreground/90">{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SequenceTimeline({ campaign }: { campaign: Campaign }) {
+  const steps: {
+    t: string;
+    title: string;
+    detail: string;
+    Icon: typeof Mail;
+    tone: "done" | "next" | "pending";
+    meta?: string;
+  }[] = [
+    {
+      t: "T+0d",
+      title: "Email dispatched",
+      detail: "With dynamic SQL attachment (rebate_trend_by_vendor.sql)",
+      Icon: Mail,
+      tone: "done",
+      meta: "Delivered",
+    },
+    {
+      t: "T+2d",
+      title: "WhatsApp nudge",
+      detail: "Fires if goal 'Reconcile' is unfulfilled",
+      Icon: MessageCircle,
+      tone: campaign.status === "Running" || campaign.status === "Failing" ? "next" : "pending",
+      meta: "Conditional",
+    },
+    {
+      t: "T+4d",
+      title: "PartnersBiz dashboard banner",
+      detail: "Pinned to Action Deck for target segment",
+      Icon: LayoutDashboard,
+      tone: "pending",
+    },
+    {
+      t: "T+6d",
+      title: "Auto-ticket to Warehouse / Supply Chain Ops",
+      detail: "SLA: 4 business hours",
+      Icon: Ticket,
+      tone: "pending",
+      meta: "SLA 4h",
+    },
+  ];
+  return (
+    <div className="rounded-lg border border-border bg-background p-3">
+      <ol className="space-y-0">
+        {steps.map((s, i) => {
+          const isLast = i === steps.length - 1;
+          return (
+            <li key={s.title} className="relative flex gap-3">
+              <div className="flex flex-col items-center">
+                <div
+                  className={cn(
+                    "grid h-8 w-8 place-items-center rounded-full border-2",
+                    s.tone === "done"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : s.tone === "next"
+                        ? "border-cat-amber bg-cat-amber/10 text-cat-amber"
+                        : "border-border bg-muted text-muted-foreground",
+                  )}
+                >
+                  <s.Icon className="h-4 w-4" />
+                </div>
+                {!isLast && (
+                  <div className="my-1 w-0.5 flex-1 bg-border" style={{ minHeight: 22 }} />
+                )}
+              </div>
+              <div className={cn("min-w-0 flex-1", isLast ? "pb-0" : "pb-4")}>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-[10px] font-semibold text-muted-foreground">
+                    {s.t}
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {s.title}
+                  </span>
+                  {s.meta && (
+                    <span className="ml-auto rounded-full border border-border bg-muted/50 px-1.5 py-0 text-[10px] text-muted-foreground">
+                      {s.meta}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {s.detail}
+                </p>
+                {!isLast && (
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                    <ArrowDown className="h-3 w-3" />
+                    <span>if goal not met</span>
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function LiveEditBanner() {
+  return (
+    <div className="mt-4 space-y-2">
+      <div className="flex items-start gap-2 rounded-lg border border-cat-amber/40 bg-cat-amber/10 p-3 text-xs">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-cat-amber" />
+        <div className="min-w-0">
+          <div className="font-semibold text-foreground">
+            Editing live campaign
+          </div>
+          <p className="mt-0.5 text-muted-foreground">
+            Changes apply to future reminder steps only. Delivered steps remain
+            locked.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <LiveActionBtn Icon={Pause} label="Pause campaign" />
+        <LiveActionBtn Icon={Save} label="Apply live changes" primary />
+        <LiveActionBtn Icon={Download} label="Export recipient drop logs" />
+      </div>
+    </div>
+  );
+}
+
+function LiveActionBtn({
+  Icon,
+  label,
+  primary,
+}: {
+  Icon: typeof Pause;
+  label: string;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => alert(`${label} — prototype action (no-op).`)}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition",
+        primary
+          ? "border-primary/40 bg-primary text-primary-foreground hover:bg-primary/90"
+          : "border-border bg-background hover:bg-muted",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
+}
+
+function RecipientAudit({ seed }: { seed: string }) {
+  const r = hashSeed(seed);
+  const emId = 9900 + Math.floor(r * 99);
+  const events: {
+    when: string;
+    text: string;
+    tone: "info" | "ok" | "goal";
+  }[] = [
+    { when: "14 Jul 10:00", text: `Email dispatched (#EM-${emId})`, tone: "info" },
+    { when: "14 Jul 10:02", text: "Email delivered & opened", tone: "ok" },
+    { when: "14 Jul 10:03", text: "Clicked → PartnersBiz Action Deck", tone: "info" },
+    {
+      when: "15 Jul 09:15",
+      text: "Swiped right on PartnersBiz Action Deck (Action Resolved)",
+      tone: "ok",
+    },
+    { when: "15 Jul 09:15", text: "Goal status: Completed ✓", tone: "goal" },
+  ];
+  return (
+    <div className="rounded-lg border border-border bg-background">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <div className="text-[11px] font-medium text-muted-foreground">
+          Sample recipient · Kwality Foods Pvt Ltd
+        </div>
+        <button
+          type="button"
+          onClick={() => alert("Export telemetry — prototype action.")}
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted"
+        >
+          <Download className="h-3 w-3" />
+          Export
+        </button>
+      </div>
+      <ol className="divide-y divide-border">
+        {events.map((e, i) => (
+          <li key={i} className="flex items-start gap-3 px-3 py-2 text-xs">
+            <span className="w-20 shrink-0 font-mono text-[10px] text-muted-foreground">
+              {e.when}
+            </span>
+            <span
+              className={cn(
+                "mt-1 h-1.5 w-1.5 shrink-0 rounded-full",
+                e.tone === "goal"
+                  ? "bg-cat-green"
+                  : e.tone === "ok"
+                    ? "bg-primary"
+                    : "bg-muted-foreground/60",
+              )}
+            />
+            <span
+              className={cn(
+                "flex-1",
+                e.tone === "goal"
+                  ? "font-semibold text-cat-green"
+                  : "text-foreground",
+              )}
+            >
+              {e.text}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
