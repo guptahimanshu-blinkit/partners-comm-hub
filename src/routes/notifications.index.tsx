@@ -436,6 +436,22 @@ function NotificationCard({
                   primaryLabel = "Acknowledge & Stop Dispatch →";
                 } else if (cat === "finance_payments") {
                   primaryLabel = "Reconcile Statement →";
+                  primaryAction = () => {
+                    recordVendorAction({
+                      vendorName: "ITC Limited",
+                      vendorId: "M-4412",
+                      templateId: "APOLLO-2291",
+                      templateName: "Rebate Reconciliation Notice",
+                      campaignId: "c-002",
+                      poInvoiceNo: "INV-BB-55921",
+                      actionType: "Reconciled Statement",
+                      statusTransition: "Pending Reconciliation ──► Reconciled",
+                      clearedRiskFlag: "Financial discrepancy cleared",
+                      channel: "PartnersBiz Portal",
+                    });
+                    toast.success("Statement reconciled — Workdesk telemetry updated ✓");
+                  };
+
                 } else if (suppressTicket) {
                   primaryLabel = n.attachment ? "Download Report" : "View Details";
                 } else if (kind !== "generic") {
