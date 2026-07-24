@@ -70,6 +70,8 @@ import {
   type CampaignStatus,
   type TemplateRequest,
   useVendorActionEvents,
+  useVendorTelemetry,
+  type VendorActionTelemetry,
 } from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
 import { toast } from "sonner";
