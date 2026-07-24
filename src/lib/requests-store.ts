@@ -576,6 +576,9 @@ export interface Campaign {
   requestApprovedAt?: string;
   publishedAt: string;
   failureNote?: string;
+  sensitivity?: "FYI" | "Standard" | "Critical";
+  extraVendorIds?: string[];
+  lastEditedAt?: string;
 }
 
 const AUDIENCE_BY_SEGMENT: Record<string, number> = {
