@@ -417,25 +417,42 @@ function NotificationCard({
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {n.cta === "view_details" ? (
-                <Button size="sm" onClick={onViewDetails} className="gap-1.5">
-                  <ExternalLink className="h-4 w-4" /> View Details
-                </Button>
-              ) : (
-                <Button size="sm" onClick={onRaiseTicket} className="gap-1.5">
-                  <LifeBuoy className="h-4 w-4" /> Raise Ticket
-                </Button>
-              )}
-              {n.cta === "view_details" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onRaiseTicket}
-                  className="gap-1.5"
-                >
-                  <LifeBuoy className="h-4 w-4" /> Raise Ticket
-                </Button>
-              )}
+              {(() => {
+                const kind = getNotificationCtaKind(n);
+                const isActionable = kind !== "generic" || n.cta === "view_details";
+                const primaryLabel =
+                  kind === "generic"
+                    ? n.cta === "view_details"
+                      ? "View Details"
+                      : "Raise Ticket"
+                    : `${CTA_LABEL[kind]} →`;
+                return (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={isActionable ? onViewDetails : onRaiseTicket}
+                      className="gap-1.5"
+                    >
+                      {kind === "generic" && n.cta !== "view_details" ? (
+                        <LifeBuoy className="h-4 w-4" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4" />
+                      )}
+                      {primaryLabel}
+                    </Button>
+                    {isActionable && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onRaiseTicket}
+                        className="gap-1.5"
+                      >
+                        <LifeBuoy className="h-4 w-4" /> Raise Ticket
+                      </Button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             {n.category === "reports_analytics" &&
               (n.attachment?.type === "PDF" ||
