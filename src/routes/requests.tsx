@@ -168,10 +168,10 @@ const COMM_TYPES: CommTypeOption[] = [
 ];
 const REJECTION_CATEGORIES: RejectionCategory[] = [
   "Content Issue",
-  "Wrong Category or Config",
+  "Wrong Config",
   "Clubbing Conflict",
-  "Missing Info",
   "Compliance Concern",
+  "Missing Info",
 ];
 
 // ------- Page -------
