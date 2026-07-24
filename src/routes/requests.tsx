@@ -637,7 +637,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       requestType: "Template Approval",
       templateId,
       templateName,
-      email,
+      primaryEmail: email,
       team,
       slackPoc,
       purpose,
@@ -647,7 +647,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       manufacturerListName: mfrListName || "-",
       subject,
       formulaFlags,
-      losesMoneyOrTime: losesMoneyOrTime as "Yes" | "No",
       commType: commType || undefined,
       categoryId: resolved.category,
       priority: resolved.priority,
@@ -655,11 +654,12 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       cta,
       ctaDestination: cta === "Direct Link" ? ctaDest : undefined,
       frequency,
-      ccEmail: cc || undefined,
+      ccEmails: cc ? [cc] : [],
       analystPoc: analyst || undefined,
       whatsapp: showWhatsApp
         ? { message: waMessage, frequency: waFreq, cta: waCta }
         : undefined,
+
       status: "Pending",
       submittedBy: "You",
       submittedAt: new Date().toISOString(),
