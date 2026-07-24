@@ -81,6 +81,7 @@ function NotificationCentreInner({
   const [detailFor, setDetailFor] = useState<AppNotification | null>(null);
   const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
   const [flagFor, setFlagFor] = useState<AppNotification | null>(null);
+  const [viewMode, setViewMode] = useState<"deck" | "list">("list");
 
 
   const visible = useMemo(
