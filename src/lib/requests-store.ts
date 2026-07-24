@@ -674,6 +674,14 @@ export function addCampaign(c: Campaign) {
   setCampaigns([c, ...CAMPAIGNS]);
 }
 
+export function updateCampaign(id: string, patch: Partial<Campaign>) {
+  hydrateStoreFromStorage();
+  const next = CAMPAIGNS.map((c) =>
+    c.id === id ? { ...c, ...patch, lastEditedAt: new Date().toISOString() } : c,
+  );
+  setCampaigns(next);
+}
+
 
 export function useCampaigns(): Campaign[] {
   const [, setTick] = useState(0);
