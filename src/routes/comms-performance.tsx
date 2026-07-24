@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -41,6 +42,12 @@ import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
 import { COMM_CATALOG } from "@/lib/comm-catalog";
 import type { CategoryId } from "@/lib/mock-data";
+import {
+  useCampaigns,
+  useVendorTelemetry,
+  type Campaign,
+  type VendorActionTelemetry,
+} from "@/lib/requests-store";
 
 
 export const Route = createFileRoute("/comms-performance")({
