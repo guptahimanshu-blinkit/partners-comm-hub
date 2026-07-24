@@ -19,6 +19,15 @@ import {
   Download,
   ArrowDown,
   Ticket,
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  X,
+  ArrowUp,
+  Pencil,
+  Users,
+  Info,
+  FileText,
 } from "lucide-react";
 
 
@@ -34,15 +43,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { useCampaigns, type Campaign, type CampaignChannel, type CampaignStatus } from "@/lib/requests-store";
+import {
+  useCampaigns,
+  useRequests,
+  addCampaign,
+  nowStamp,
+  type Campaign,
+  type CampaignChannel,
+  type CampaignStatus,
+  type TemplateRequest,
+} from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
+import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/campaigns")({
   head: () => ({
