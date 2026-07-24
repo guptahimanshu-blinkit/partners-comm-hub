@@ -46,6 +46,7 @@ import {
   LOCKED_ROLES,
   type RoleOption,
 } from "@/lib/role-assignments";
+import { VendorUtilitiesSection } from "@/components/notifications/VendorUtilities";
 
 export const Route = createFileRoute("/notifications/settings")({
   head: () => ({
