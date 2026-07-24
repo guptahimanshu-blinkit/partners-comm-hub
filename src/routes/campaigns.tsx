@@ -1092,7 +1092,8 @@ function LiveActionBtn({
 function RecipientAudit({ seed }: { seed: string }) {
   const r = hashSeed(seed);
   const emId = 9900 + Math.floor(r * 99);
-  const events: {
+  const vendorEvents = useVendorActionEvents();
+  const baseEvents: {
     when: string;
     text: string;
     tone: "info" | "ok" | "goal";
@@ -1107,6 +1108,17 @@ function RecipientAudit({ seed }: { seed: string }) {
     },
     { when: "15 Jul 09:15", text: "Goal status: Completed ✓", tone: "goal" },
   ];
+  const liveEvents = vendorEvents.slice(0, 4).map((e) => ({
+    when: new Date(e.when).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    text: e.text,
+    tone: "goal" as const,
+  }));
+  const events = [...liveEvents, ...baseEvents];
   return (
     <div className="rounded-lg border border-border bg-background">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
