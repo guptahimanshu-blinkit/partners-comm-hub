@@ -419,35 +419,50 @@ function NotificationCard({
             <div className="mt-4 flex flex-wrap gap-2">
               {(() => {
                 const kind = getNotificationCtaKind(n);
-                const isActionable = kind !== "generic" || n.cta === "view_details";
-                const primaryLabel =
-                  kind === "generic"
-                    ? n.cta === "view_details"
-                      ? "View Details"
-                      : "Raise Ticket"
-                    : `${CTA_LABEL[kind]} →`;
+                const cat = n.category;
+                const suppressTicket =
+                  cat === "daily_ops" ||
+                  cat === "reports_analytics" ||
+                  n.subCategory === "announcement" ||
+                  n.subCategory === "announcements";
+
+                let primaryLabel: string;
+                let primaryIcon = <ExternalLink className="h-4 w-4" />;
+                let primaryAction: () => void = onViewDetails;
+
+                if (cat === "action_required") {
+                  primaryLabel = "Acknowledge & Stop Dispatch →";
+                } else if (cat === "finance_payments") {
+                  primaryLabel = "Reconcile Statement →";
+                } else if (suppressTicket) {
+                  primaryLabel = n.attachment ? "Download Report" : "View Details";
+                } else if (kind !== "generic") {
+                  primaryLabel = `${CTA_LABEL[kind]} →`;
+                } else if (n.cta === "view_details") {
+                  primaryLabel = "View Details";
+                } else {
+                  primaryLabel = "Raise Ticket";
+                  primaryIcon = <LifeBuoy className="h-4 w-4" />;
+                  primaryAction = onRaiseTicket;
+                }
+
+                const showSecondary =
+                  !suppressTicket && primaryAction !== onRaiseTicket;
+
                 return (
                   <>
-                    <Button
-                      size="sm"
-                      onClick={isActionable ? onViewDetails : onRaiseTicket}
-                      className="gap-1.5"
-                    >
-                      {kind === "generic" && n.cta !== "view_details" ? (
-                        <LifeBuoy className="h-4 w-4" />
-                      ) : (
-                        <ExternalLink className="h-4 w-4" />
-                      )}
+                    <Button size="sm" onClick={primaryAction} className="gap-1.5">
+                      {primaryIcon}
                       {primaryLabel}
                     </Button>
-                    {isActionable && (
+                    {showSecondary && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={onRaiseTicket}
                         className="gap-1.5"
                       >
-                        <LifeBuoy className="h-4 w-4" /> Raise Ticket
+                        <LifeBuoy className="h-4 w-4" /> Raise Dispute / Ticket
                       </Button>
                     )}
                   </>
