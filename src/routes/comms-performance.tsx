@@ -1001,9 +1001,7 @@ function RunningTemplatesTable() {
             {running.map((c) => {
               const goal = goalCompletionFor(c);
               const sent = sentCountFor(c);
-              const catLabel = COMM_CATALOG.find(
-                (x) => x.categoryId === (c.categoryId as CategoryId),
-              )?.category ?? c.categoryId;
+              const catLabel = String(c.categoryId).replace(/_/g, " ");
               const failing = c.status === "Failing";
               return (
                 <TableRow key={c.id}>
