@@ -446,6 +446,22 @@ const VENDOR_EVENTS: VendorActionEvent[] = [
     poNumber: "KF-77120",
     kind: "acknowledge",
   },
+  {
+    id: "VE-SEED-2",
+    when: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    text: "Vendor Haldiram's reconciled GST credit note CN-88214",
+    vendorName: "Haldiram's",
+    poNumber: "CN-88214",
+    kind: "reconcile",
+  },
+  {
+    id: "VE-SEED-3",
+    when: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
+    text: "Vendor Britannia disputed price mismatch on PO #BR-55901",
+    vendorName: "Britannia",
+    poNumber: "BR-55901",
+    kind: "dispute",
+  },
 ];
 const vendorEventListeners: Set<() => void> = new Set();
 
@@ -560,6 +576,9 @@ export interface Campaign {
   requestApprovedAt?: string;
   publishedAt: string;
   failureNote?: string;
+  sensitivity?: "FYI" | "Standard" | "Critical";
+  extraVendorIds?: string[];
+  lastEditedAt?: string;
 }
 
 const AUDIENCE_BY_SEGMENT: Record<string, number> = {
@@ -653,6 +672,14 @@ export function addCampaign(c: Campaign) {
   hydrateStoreFromStorage();
   if (CAMPAIGNS.some((existing) => existing.id === c.id)) return;
   setCampaigns([c, ...CAMPAIGNS]);
+}
+
+export function updateCampaign(id: string, patch: Partial<Campaign>) {
+  hydrateStoreFromStorage();
+  const next = CAMPAIGNS.map((c) =>
+    c.id === id ? { ...c, ...patch, lastEditedAt: new Date().toISOString() } : c,
+  );
+  setCampaigns(next);
 }
 
 

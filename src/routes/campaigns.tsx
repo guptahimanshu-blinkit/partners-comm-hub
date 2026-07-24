@@ -63,6 +63,7 @@ import {
   useCampaigns,
   useRequests,
   addCampaign,
+  updateCampaign,
   nowStamp,
   type Campaign,
   type CampaignChannel,
@@ -428,6 +429,46 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
     c.status === "Failing" ||
     c.status === "Completed";
   const canEdit = c.status !== "Completed";
+  const isLive = c.status === "Running" || c.status === "Failing";
+  const [editMode, setEditMode] = useState(false);
+  const [draft, setDraft] = useState<{
+    sensitivity: "FYI" | "Standard" | "Critical";
+    reminders: number;
+    frequency: Campaign["frequency"];
+    extraVendorIds: string[];
+    newVendorId: string;
+  }>({
+    sensitivity: c.sensitivity ?? strategyForCampaign(c),
+    reminders: c.reminders,
+    frequency: c.frequency,
+    extraVendorIds: c.extraVendorIds ?? [],
+    newVendorId: "",
+  });
+
+  const startEdit = () => {
+    setDraft({
+      sensitivity: c.sensitivity ?? strategyForCampaign(c),
+      reminders: c.reminders,
+      frequency: c.frequency,
+      extraVendorIds: c.extraVendorIds ?? [],
+      newVendorId: "",
+    });
+    setEditMode(true);
+  };
+
+  const applyChanges = () => {
+    updateCampaign(c.id, {
+      sensitivity: draft.sensitivity,
+      reminders: draft.reminders,
+      frequency: draft.frequency,
+      extraVendorIds: draft.extraVendorIds,
+    });
+    toast.success("Live changes applied", {
+      description: "Future reminder steps updated. Delivered steps remain locked.",
+    });
+    setEditMode(false);
+  };
+
 
   return (
     <>
@@ -474,17 +515,22 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
               </span>
             </div>
           </div>
-          {canEdit && (
+          {canEdit && !editMode && (
             <button
               type="button"
-              onClick={() =>
-                alert(
-                  "Edit flow is a prototype stub — edits happen on the source request in Workdesk / Requests.",
-                )
-              }
+              onClick={startEdit}
               className="rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
             >
               Edit
+            </button>
+          )}
+          {editMode && (
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+            >
+              Cancel
             </button>
           )}
         </div>
@@ -497,15 +543,32 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
         </div>
       )}
 
-      {(c.status === "Running" || c.status === "Failing") && <LiveEditBanner />}
+      {isLive && (
+        <LiveEditBanner
+          editMode={editMode}
+          onApply={applyChanges}
+          canApply={editMode}
+        />
+      )}
+
+      {editMode && isLive && (
+        <Section title="Edit live campaign">
+          <EditLivePanel
+            draft={draft}
+            setDraft={setDraft}
+            currentStrategy={strategyForCampaign(c)}
+          />
+        </Section>
+      )}
 
       <Section title="Preset sensitivity strategy">
-        <SensitivityStrategies active={strategyForCampaign(c)} />
+        <SensitivityStrategies active={draft.sensitivity && editMode ? draft.sensitivity : (c.sensitivity ?? strategyForCampaign(c))} />
       </Section>
 
       <Section title="Sequence timeline">
         <SequenceTimeline campaign={c} />
       </Section>
+
 
       <Section title="Recipient audit & telemetry">
         <RecipientAudit seed={c.id} />
@@ -1040,25 +1103,47 @@ function SequenceTimeline({ campaign }: { campaign: Campaign }) {
   );
 }
 
-function LiveEditBanner() {
+function LiveEditBanner({
+  editMode,
+  onApply,
+  canApply,
+}: {
+  editMode: boolean;
+  onApply: () => void;
+  canApply: boolean;
+}) {
   return (
     <div className="mt-4 space-y-2">
       <div className="flex items-start gap-2 rounded-lg border border-cat-amber/40 bg-cat-amber/10 p-3 text-xs">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-cat-amber" />
         <div className="min-w-0">
           <div className="font-semibold text-foreground">
-            Editing live campaign
+            {editMode ? "Editing live campaign" : "Live campaign"}
           </div>
           <p className="mt-0.5 text-muted-foreground">
-            Changes apply to future reminder steps only. Delivered steps remain
-            locked.
+            Changes apply to future reminder steps only. Delivered steps (T+0)
+            remain locked.
           </p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <LiveActionBtn Icon={Pause} label="Pause campaign" />
-        <LiveActionBtn Icon={Save} label="Apply live changes" primary />
-        <LiveActionBtn Icon={Download} label="Export recipient drop logs" />
+        <LiveActionBtn
+          Icon={Pause}
+          label="Pause campaign"
+          onClick={() => toast("Campaign paused", { description: "Future sends held. Resume from Campaigns list." })}
+        />
+        <LiveActionBtn
+          Icon={Save}
+          label="Apply live changes"
+          primary
+          disabled={!canApply}
+          onClick={onApply}
+        />
+        <LiveActionBtn
+          Icon={Download}
+          label="Export recipient drop logs"
+          onClick={() => toast.success("Drop log export queued", { description: "You'll receive an email when it's ready." })}
+        />
       </div>
     </div>
   );
@@ -1068,17 +1153,22 @@ function LiveActionBtn({
   Icon,
   label,
   primary,
+  disabled,
+  onClick,
 }: {
   Icon: typeof Pause;
   label: string;
   primary?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      onClick={() => alert(`${label} — prototype action (no-op).`)}
+      onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition",
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
         primary
           ? "border-primary/40 bg-primary text-primary-foreground hover:bg-primary/90"
           : "border-border bg-background hover:bg-muted",
@@ -1089,6 +1179,156 @@ function LiveActionBtn({
     </button>
   );
 }
+
+type EditDraft = {
+  sensitivity: "FYI" | "Standard" | "Critical";
+  reminders: number;
+  frequency: Campaign["frequency"];
+  extraVendorIds: string[];
+  newVendorId: string;
+};
+
+function EditLivePanel({
+  draft,
+  setDraft,
+  currentStrategy,
+}: {
+  draft: EditDraft;
+  setDraft: React.Dispatch<React.SetStateAction<EditDraft>>;
+  currentStrategy: "FYI" | "Standard" | "Critical";
+}) {
+  const addVendor = () => {
+    const v = draft.newVendorId.trim();
+    if (!v) return;
+    if (draft.extraVendorIds.includes(v)) return;
+    setDraft((d) => ({ ...d, extraVendorIds: [...d.extraVendorIds, v], newVendorId: "" }));
+  };
+  const removeVendor = (v: string) =>
+    setDraft((d) => ({ ...d, extraVendorIds: d.extraVendorIds.filter((x) => x !== v) }));
+
+  return (
+    <div className="space-y-4 rounded-lg border border-primary/30 bg-primary/5 p-3">
+      <div className="rounded-md border border-border bg-background px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground">Locked: </span>
+        T+0 initial send and all delivered steps are immutable. Edits below only
+        affect future reminder steps.
+      </div>
+
+      <div>
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Sensitivity strategy
+        </Label>
+        <div className="mt-1.5 grid grid-cols-3 gap-2">
+          {(["FYI", "Standard", "Critical"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setDraft((d) => ({ ...d, sensitivity: s }))}
+              className={cn(
+                "rounded-md border px-2 py-1.5 text-xs font-medium transition",
+                draft.sensitivity === s
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background hover:bg-muted",
+              )}
+            >
+              {s}
+              {s === currentStrategy && draft.sensitivity !== s && (
+                <span className="ml-1 text-[9px] text-muted-foreground">(current)</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Future reminders
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            max={5}
+            value={draft.reminders}
+            onChange={(e) =>
+              setDraft((d) => ({ ...d, reminders: Math.max(0, Math.min(5, Number(e.target.value) || 0)) }))
+            }
+            className="mt-1.5 h-8 text-xs"
+          />
+        </div>
+        <div>
+          <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Frequency
+          </Label>
+          <select
+            value={draft.frequency}
+            onChange={(e) =>
+              setDraft((d) => ({ ...d, frequency: e.target.value as Campaign["frequency"] }))
+            }
+            className="mt-1.5 h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+          >
+            {["Once", "Daily", "Weekly", "Monthly", "Quarterly"].map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Add vendor IDs to audience
+        </Label>
+        <div className="mt-1.5 flex gap-2">
+          <Input
+            value={draft.newVendorId}
+            onChange={(e) => setDraft((d) => ({ ...d, newVendorId: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addVendor();
+              }
+            }}
+            placeholder="e.g. VND-77120"
+            className="h-8 text-xs"
+          />
+          <button
+            type="button"
+            onClick={addVendor}
+            className="rounded-md border border-primary/40 bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            Add
+          </button>
+        </div>
+        {draft.extraVendorIds.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {draft.extraVendorIds.map((v) => (
+              <span
+                key={v}
+                className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] font-medium"
+              >
+                {v}
+                <button
+                  type="button"
+                  onClick={() => removeVendor(v)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={`Remove ${v}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          New vendor IDs join from the next reminder step onward.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 
 function RecipientAudit({ seed }: { seed: string }) {
   const r = hashSeed(seed);
