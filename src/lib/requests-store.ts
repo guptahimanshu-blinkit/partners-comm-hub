@@ -594,6 +594,13 @@ export function getCampaigns(): Campaign[] {
   return CAMPAIGNS;
 }
 
+export function addCampaign(c: Campaign) {
+  hydrateStoreFromStorage();
+  if (CAMPAIGNS.some((existing) => existing.id === c.id)) return;
+  setCampaigns([c, ...CAMPAIGNS]);
+}
+
+
 export function useCampaigns(): Campaign[] {
   const [, setTick] = useState(0);
   useEffect(() => {
