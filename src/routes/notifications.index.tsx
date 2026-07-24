@@ -35,6 +35,10 @@ import {
 } from "@/components/ui/collapsible";
 import { DetailDialog } from "@/components/notifications/DetailDialog";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
+import {
+  PinnedP1Banners,
+  ActionCardDeck,
+} from "@/components/notifications/ActionDeck";
 import { useRole } from "@/lib/role-context";
 import { useRoleAssignments, isCategoryAssignedTo } from "@/lib/role-assignments";
 import {
