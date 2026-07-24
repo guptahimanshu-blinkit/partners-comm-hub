@@ -543,15 +543,32 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
         </div>
       )}
 
-      {(c.status === "Running" || c.status === "Failing") && <LiveEditBanner />}
+      {isLive && (
+        <LiveEditBanner
+          editMode={editMode}
+          onApply={applyChanges}
+          canApply={editMode}
+        />
+      )}
+
+      {editMode && isLive && (
+        <Section title="Edit live campaign">
+          <EditLivePanel
+            draft={draft}
+            setDraft={setDraft}
+            currentStrategy={strategyForCampaign(c)}
+          />
+        </Section>
+      )}
 
       <Section title="Preset sensitivity strategy">
-        <SensitivityStrategies active={strategyForCampaign(c)} />
+        <SensitivityStrategies active={draft.sensitivity && editMode ? draft.sensitivity : (c.sensitivity ?? strategyForCampaign(c))} />
       </Section>
 
       <Section title="Sequence timeline">
         <SequenceTimeline campaign={c} />
       </Section>
+
 
       <Section title="Recipient audit & telemetry">
         <RecipientAudit seed={c.id} />
