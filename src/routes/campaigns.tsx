@@ -149,13 +149,22 @@ function CampaignsPage() {
           <div className="mt-0.5 rounded-lg bg-primary/15 p-2 text-primary">
             <Megaphone className="h-5 w-5" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
             <p className="text-sm text-muted-foreground">
               Simulating: Workdesk · live once an Approver acknowledges a published template
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setWizardOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Campaign
+          </button>
         </header>
+
 
         {/* Toolbar */}
         <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
