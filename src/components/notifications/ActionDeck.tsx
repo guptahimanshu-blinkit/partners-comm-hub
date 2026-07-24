@@ -204,8 +204,21 @@ export function ActionCardDeck() {
       return;
     }
     resolveActionItem(a.id, "accept");
-    toast.success("Confirmed & Reconciled ✓");
+    recordVendorAction({
+      vendorName: a.vendorName ?? "ITC Limited",
+      vendorId: "M-4412",
+      templateId: "APOLLO-2291",
+      templateName: "Rebate Reconciliation Notice",
+      campaignId: "c-002",
+      poInvoiceNo: a.poInvoiceNo,
+      actionType: "Reconciled Statement",
+      statusTransition: "Pending Reconciliation ──► Reconciled",
+      clearedRiskFlag: "Financial discrepancy cleared",
+      channel: "PartnersBiz Portal",
+    });
+    toast.success("Statement reconciled — Workdesk telemetry updated ✓");
   };
+
   const doDispute = (a: ActionItem) => {
     setDisputeFor(actionToNotification(a));
     resolveActionItem(a.id, "dispute");
