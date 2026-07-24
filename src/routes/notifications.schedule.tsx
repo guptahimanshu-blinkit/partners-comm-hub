@@ -157,7 +157,7 @@ function ScheduleNotificationPage() {
 
 
     toast.success(`Approver notified`, {
-      description: `Sparsh J. scheduled campaign "${selected.templateName}" targeting ${segment.label} (${segment.count?.toLocaleString?.() ?? "1,212"} vendors).`,
+      description: `Sparsh J. scheduled campaign "${selected.templateName}" targeting ${segment.label} (${segment.recipients.toLocaleString()} vendors).`,
     });
     setTemplateId("");
     setScheduleAt("");
