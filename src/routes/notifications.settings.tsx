@@ -46,6 +46,7 @@ import {
   LOCKED_ROLES,
   type RoleOption,
 } from "@/lib/role-assignments";
+import { VendorUtilitiesSection } from "@/components/notifications/VendorUtilities";
 
 export const Route = createFileRoute("/notifications/settings")({
   head: () => ({
@@ -103,6 +104,8 @@ function SettingsInner({ isAdmin }: { isAdmin: boolean }) {
         />
 
         {isAdmin ? <RoleAssignmentSection /> : null}
+
+        <VendorUtilitiesSection />
 
 
         {isAdmin ? (
@@ -617,6 +620,8 @@ function EmployeePreferences({ employeeRole }: { employeeRole: string }) {
           footerNote="Mandatory comms are always delivered on Mail. You can add WhatsApp on top."
           emptyState="No categories are assigned to your role yet."
         />
+
+        <VendorUtilitiesSection />
 
         <PageDisclaimer />
       </div>

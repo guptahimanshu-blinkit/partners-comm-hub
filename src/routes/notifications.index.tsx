@@ -35,6 +35,10 @@ import {
 } from "@/components/ui/collapsible";
 import { DetailDialog } from "@/components/notifications/DetailDialog";
 import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
+import {
+  PinnedP1Banners,
+  ActionCardDeck,
+} from "@/components/notifications/ActionDeck";
 import { useRole } from "@/lib/role-context";
 import { useRoleAssignments, isCategoryAssignedTo } from "@/lib/role-assignments";
 import {
@@ -77,6 +81,7 @@ function NotificationCentreInner({
   const [detailFor, setDetailFor] = useState<AppNotification | null>(null);
   const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
   const [flagFor, setFlagFor] = useState<AppNotification | null>(null);
+  const [viewMode, setViewMode] = useState<"deck" | "list">("list");
 
 
   const visible = useMemo(
@@ -216,7 +221,38 @@ function NotificationCentreInner({
             </p>
           </div>
 
-          {list.length === 0 ? (
+          <PinnedP1Banners />
+
+          <div className="mb-4 inline-flex rounded-lg border border-border bg-muted/40 p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode("deck")}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors",
+                viewMode === "deck"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Card Deck View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors",
+                viewMode === "list"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Standard List View
+            </button>
+          </div>
+
+          {viewMode === "deck" ? (
+            <ActionCardDeck />
+          ) : list.length === 0 ? (
             <div className="grid place-items-center rounded-xl border border-dashed border-border py-16 text-center">
               <Inbox className="mb-3 h-8 w-8 text-muted-foreground" />
               <p className="font-medium">You're all caught up</p>
@@ -235,7 +271,6 @@ function NotificationCentreInner({
                   onViewDetails={() => setDetailFor(n)}
                   onRaiseTicket={() => setTicketFor(n)}
                   onFlag={() => setFlagFor(n)}
-
                 />
               ))}
             </div>
