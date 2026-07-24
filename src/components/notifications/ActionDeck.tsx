@@ -121,7 +121,7 @@ function actionToNotification(a: ActionItem): AppNotification {
     audience: "Account Owner",
     detail: [{ label: "Reference", value: a.poInvoiceNo }],
     attachment: a.attachmentName
-      ? { type: "PDF", name: a.attachmentName, size: "—" }
+      ? { type: "PDF", label: a.attachmentName }
       : undefined,
   };
 }
