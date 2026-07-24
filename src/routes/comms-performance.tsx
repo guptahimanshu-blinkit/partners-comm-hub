@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -41,6 +42,12 @@ import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
 import { COMM_CATALOG } from "@/lib/comm-catalog";
 import type { CategoryId } from "@/lib/mock-data";
+import {
+  useCampaigns,
+  useVendorTelemetry,
+  type Campaign,
+  type VendorActionTelemetry,
+} from "@/lib/requests-store";
 
 
 export const Route = createFileRoute("/comms-performance")({
@@ -146,14 +153,28 @@ function CommsPerformancePage() {
           </p>
         </header>
 
-        <KpiRow />
-        <TemplateCtrCard />
-        <HourlyCtrCard />
-        <ChannelPreferenceSection />
-        <BounceCard />
-        <NonOpenerCard />
-        <FinanceGroupCard />
+        <Tabs defaultValue="running" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="running">Running Templates & Live Logs</TabsTrigger>
+            <TabsTrigger value="metrics">Performance metrics</TabsTrigger>
+          </TabsList>
 
+          <TabsContent value="running" className="space-y-6">
+            <OperationsRiskClearanceCard />
+            <RunningTemplatesTable />
+            <TelemetryStreamCard />
+          </TabsContent>
+
+          <TabsContent value="metrics" className="space-y-6">
+            <KpiRow />
+            <TemplateCtrCard />
+            <HourlyCtrCard />
+            <ChannelPreferenceSection />
+            <BounceCard />
+            <NonOpenerCard />
+            <FinanceGroupCard />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
   );
@@ -866,5 +887,262 @@ function ChannelPreferenceSection() {
     </SectionCard>
   );
 }
+
+// ------------------ Running Templates & Live Logs tab ------------------
+
+function OperationsRiskClearanceCard() {
+  const telemetry = useVendorTelemetry();
+  const ackToday = telemetry.filter(
+    (t) => t.actionType === "Acknowledged & Stopped",
+  ).length;
+  const pending = Math.max(0, 14 - ackToday);
+  const clearedToday = 37 + ackToday;
+
+  const tiles = [
+    {
+      label: "Pending Vendor Acknowledgments",
+      value: `${pending} POs`,
+      sub: "Awaiting vendor response",
+      tone: "warn" as const,
+    },
+    {
+      label: "Acknowledged & Dispatch Stopped Today",
+      value: `${clearedToday} POs`,
+      sub: "Cleared via PartnersBiz / WhatsApp",
+      tone: "good" as const,
+    },
+    {
+      label: "In-Transit Dispatch Risk",
+      value: "0 High-Risk",
+      sub: "Auto-cleared upon vendor acknowledgment",
+      tone: "good" as const,
+    },
+  ];
+
+  return (
+    <SectionCard
+      title="Operations Risk Clearance"
+      description="Live control board — pending vs cleared vendor acknowledgments across running templates."
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <div
+            key={t.label}
+            className={cn(
+              "rounded-xl border p-4",
+              t.tone === "warn"
+                ? "border-amber-300 bg-amber-50"
+                : "border-emerald-300 bg-emerald-50",
+            )}
+          >
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {t.label}
+            </div>
+            <div
+              className={cn(
+                "mt-2 text-2xl font-semibold tabular-nums",
+                t.tone === "warn" ? "text-amber-800" : "text-emerald-800",
+              )}
+            >
+              {t.value}
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {t.sub}
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+// Deterministic goal-completion mock derived from audience count.
+function goalCompletionFor(c: Campaign): { completed: number; total: number; pct: number } {
+  const total = Math.max(1, Math.round(c.audienceCount));
+  const seed = (c.id.charCodeAt(c.id.length - 1) % 40) + 35; // 35–74%
+  const pct = c.status === "Failing" ? Math.min(seed, 55) : seed;
+  const completed = Math.round((pct / 100) * total);
+  return { completed, total, pct };
+}
+
+function sentCountFor(c: Campaign): number {
+  // Deterministic ~92–100% sent
+  const jitter = (c.id.charCodeAt(0) % 8) / 100;
+  return Math.round(c.audienceCount * (0.92 + jitter));
+}
+
+function RunningTemplatesTable() {
+  const campaigns = useCampaigns();
+  const running = campaigns.filter(
+    (c) => c.status === "Running" || c.status === "Failing",
+  );
+
+  return (
+    <SectionCard
+      title="Running Templates"
+      description="Every template currently bound to an active campaign, with live goal-completion progress."
+    >
+      {running.length === 0 ? (
+        <EmptyState label="No running templates." />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Template ID</TableHead>
+              <TableHead>Template · Category</TableHead>
+              <TableHead>Bound Campaign</TableHead>
+              <TableHead className="text-right">Audience</TableHead>
+              <TableHead className="text-right">Sent</TableHead>
+              <TableHead>Goal Completion</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {running.map((c) => {
+              const goal = goalCompletionFor(c);
+              const sent = sentCountFor(c);
+              const catLabel = String(c.categoryId).replace(/_/g, " ");
+              const failing = c.status === "Failing";
+              return (
+                <TableRow key={c.id}>
+                  <TableCell className="font-mono text-xs">
+                    {c.templateId}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{c.name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {catLabel}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {c.id}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {c.audienceCount.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {sent.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={cn(
+                        "font-medium",
+                        goal.pct >= 60
+                          ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                          : goal.pct >= 40
+                            ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
+                            : "bg-rose-100 text-rose-800 hover:bg-rose-100",
+                      )}
+                    >
+                      {goal.completed.toLocaleString()} /{" "}
+                      {goal.total.toLocaleString()} Actions ({goal.pct}%)
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={cn(
+                        "font-medium",
+                        failing
+                          ? "bg-rose-100 text-rose-800 hover:bg-rose-100"
+                          : "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+                      )}
+                    >
+                      {c.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
+    </SectionCard>
+  );
+}
+
+function actionBadgeClass(action: VendorActionTelemetry["actionType"]): string {
+  switch (action) {
+    case "Acknowledged & Stopped":
+      return "bg-emerald-100 text-emerald-800 hover:bg-emerald-100";
+    case "Reconciled Statement":
+      return "bg-sky-100 text-sky-800 hover:bg-sky-100";
+    case "Disputed":
+      return "bg-rose-100 text-rose-800 hover:bg-rose-100";
+    case "Snoozed":
+      return "bg-amber-100 text-amber-800 hover:bg-amber-100";
+  }
+}
+
+function channelIcon(channel: VendorActionTelemetry["channel"]) {
+  if (channel === "Email") return <Mail className="h-3.5 w-3.5" />;
+  if (channel === "WhatsApp") return <MessageCircle className="h-3.5 w-3.5" />;
+  return <CheckCircle2 className="h-3.5 w-3.5" />;
+}
+
+function TelemetryStreamCard() {
+  const telemetry = useVendorTelemetry();
+
+  return (
+    <SectionCard
+      title="Real-Time Vendor Action Telemetry Stream"
+      description="Live feed of vendor acknowledgments, reconciliations, disputes and snoozes as they land."
+    >
+      {telemetry.length === 0 ? (
+        <EmptyState label="No vendor actions logged yet." />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Timestamp</TableHead>
+              <TableHead>Vendor</TableHead>
+              <TableHead>PO / Invoice</TableHead>
+              <TableHead>Channel</TableHead>
+              <TableHead>Action</TableHead>
+              <TableHead>Status Transition</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {telemetry.map((t) => (
+              <TableRow key={t.id}>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                  {t.timestamp}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{t.vendorName}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {t.vendorId} · {t.templateName}
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {t.poInvoiceNo}
+                </TableCell>
+                <TableCell>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    {channelIcon(t.channel)}
+                    {t.channel}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge className={cn("font-medium", actionBadgeClass(t.actionType))}>
+                    {t.actionType}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="text-xs text-foreground">
+                    {t.statusTransition}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {t.clearedRiskFlag}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </SectionCard>
+  );
+}
+
 
 
