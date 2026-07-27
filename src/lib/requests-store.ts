@@ -1470,7 +1470,7 @@ function seed(): TemplateRequest[] {
 // the campaign via incrementCampaignGoal + recordVendorAction.
 // ============================================================================
 
-import type { AppNotification } from "./mock-data";
+import type { AppNotification, NotificationAttachment, AttachmentType } from "./mock-data";
 
 type SyncGlobal = { __PB_SYNC_NOTIFS?: AppNotification[]; __PB_SYNC_LISTENERS?: Set<() => void> };
 const sg = globalThis as unknown as SyncGlobal;
