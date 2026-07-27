@@ -694,6 +694,7 @@ function seedPublishLogs(): PublishLog[] {
 
 export type CampaignStatus =
   | "Running"
+  | "Paused"
   | "Scheduled"
   | "Pending approval"
   | "Failing"
@@ -833,6 +834,10 @@ export function updateCampaign(id: string, patch: Partial<Campaign>) {
     c.id === id ? { ...c, ...patch, lastEditedAt: new Date().toISOString() } : c,
   );
   setCampaigns(next);
+}
+
+export function updateCampaignStatus(id: string, status: CampaignStatus) {
+  updateCampaign(id, { status });
 }
 
 

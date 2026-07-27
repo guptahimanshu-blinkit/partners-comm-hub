@@ -64,6 +64,7 @@ import {
   useRequests,
   addCampaign,
   updateCampaign,
+  updateCampaignStatus,
   nowStamp,
   type Campaign,
   type CampaignChannel,
@@ -95,6 +96,7 @@ const CAT_DOT: Record<string, string> = {
 
 const STATUS_STYLE: Record<CampaignStatus, string> = {
   Running: "bg-cat-green/10 text-cat-green border-cat-green/20",
+  Paused: "bg-cat-amber/10 text-cat-amber border-cat-amber/20",
   Scheduled: "bg-cat-blue/10 text-cat-blue border-cat-blue/20",
   "Pending approval": "bg-cat-amber/10 text-cat-amber border-cat-amber/20",
   Failing: "bg-cat-red/10 text-cat-red border-cat-red/20",
@@ -103,6 +105,7 @@ const STATUS_STYLE: Record<CampaignStatus, string> = {
 
 const STATUS_ICON: Record<CampaignStatus, typeof Circle> = {
   Running: CheckCircle2,
+  Paused: Pause,
   Scheduled: CalendarClock,
   "Pending approval": Clock,
   Failing: AlertTriangle,
@@ -129,11 +132,23 @@ function CampaignsPage() {
     role === "internal_ops" &&
     (internalRole === "Template Submitter" || internalRole === "Approver");
 
+  const tabCounts = useMemo(
+    () => ({
+      All: campaigns.length,
+      Running: campaigns.filter((c) => c.status === "Running").length,
+      Scheduled: campaigns.filter((c) => c.status === "Scheduled").length,
+      "Pending approval": campaigns.filter((c) => c.status === "Pending approval").length,
+      Failing: campaigns.filter((c) => c.status === "Failing").length,
+      Completed: campaigns.filter((c) => c.status === "Completed").length,
+    }),
+    [campaigns],
+  );
+
   const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
     return campaigns.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false;
-      if (query) {
-        const q = query.toLowerCase();
+      if (q) {
         if (
           !c.name.toLowerCase().includes(q) &&
           !c.templateId.toLowerCase().includes(q)
@@ -174,10 +189,7 @@ function CampaignsPage() {
         <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
           <div className="flex flex-wrap items-center gap-1.5">
             {(["All", "Running", "Scheduled", "Pending approval", "Failing", "Completed"] as const).map((s) => {
-              const count =
-                s === "All"
-                  ? campaigns.length
-                  : campaigns.filter((c) => c.status === s).length;
+              const count = tabCounts[s];
               const active = statusFilter === s;
               const label = s === "Pending approval" ? "Pending" : s;
               return (
@@ -431,7 +443,8 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
     c.status === "Failing" ||
     c.status === "Completed";
   const canEdit = c.status !== "Completed";
-  const isLive = c.status === "Running" || c.status === "Failing";
+  const isLive =
+    c.status === "Running" || c.status === "Failing" || c.status === "Paused";
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<{
     sensitivity: "FYI" | "Standard" | "Critical";
@@ -465,9 +478,7 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
       frequency: draft.frequency,
       extraVendorIds: draft.extraVendorIds,
     });
-    toast.success("Live changes applied", {
-      description: "Future reminder steps updated. Delivered steps remain locked.",
-    });
+    toast.success("Live changes applied — future reminder steps updated");
     setEditMode(false);
   };
 
@@ -547,6 +558,7 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
 
       {isLive && (
         <LiveEditBanner
+          campaign={c}
           editMode={editMode}
           onApply={applyChanges}
           canApply={editMode}
@@ -1110,21 +1122,71 @@ function SequenceTimeline({ campaign }: { campaign: Campaign }) {
 }
 
 function LiveEditBanner({
+  campaign,
   editMode,
   onApply,
   canApply,
 }: {
+  campaign: Campaign;
   editMode: boolean;
   onApply: () => void;
   canApply: boolean;
 }) {
+  const isPaused = campaign.status === "Paused";
+
+  const handlePauseResume = () => {
+    if (isPaused) {
+      updateCampaignStatus(campaign.id, "Running");
+      toast.success("Campaign resumed", {
+        description: "Future sends will proceed as scheduled.",
+      });
+    } else {
+      updateCampaignStatus(campaign.id, "Paused");
+      toast.success("Campaign paused — future schedule held");
+    }
+  };
+
+  const handleExport = () => {
+    const rows: string[][] = [
+      ["Recipient ID", "Vendor Name", "Channel", "Delivery Status", "Timestamp"],
+    ];
+    const channels = campaign.channels;
+    const statuses = ["Delivered", "Dropped", "Bounced", "Pending"] as const;
+    const count = Math.min(50, Math.max(10, Math.floor(campaign.audienceCount / 20)));
+    for (let i = 0; i < count; i++) {
+      const rid = `RCP-${campaign.id.replace(/[^A-Z0-9]/gi, "")}-${String(i + 1).padStart(4, "0")}`;
+      const vendor = `Vendor ${String.fromCharCode(65 + (i % 26))}${i}`;
+      const channel = channels[i % channels.length] ?? "Email";
+      const status = statuses[i % statuses.length];
+      const ts = new Date(Date.now() - i * 3600_000).toISOString();
+      rows.push([rid, vendor, channel, status, ts]);
+    }
+    const csv = rows
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `drop_logs_${campaign.id}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Recipient drop logs exported successfully");
+  };
+
   return (
     <div className="mt-4 space-y-2">
       <div className="flex items-start gap-2 rounded-lg border border-cat-amber/40 bg-cat-amber/10 p-3 text-xs">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-cat-amber" />
         <div className="min-w-0">
           <div className="font-semibold text-foreground">
-            {editMode ? "Editing live campaign" : "Live campaign"}
+            {isPaused
+              ? "Paused campaign"
+              : editMode
+                ? "Editing live campaign"
+                : "Live campaign"}
           </div>
           <p className="mt-0.5 text-muted-foreground">
             Changes apply to future reminder steps only. Delivered steps (T+0)
@@ -1135,8 +1197,8 @@ function LiveEditBanner({
       <div className="flex flex-wrap gap-2">
         <LiveActionBtn
           Icon={Pause}
-          label="Pause campaign"
-          onClick={() => toast("Campaign paused", { description: "Future sends held. Resume from Campaigns list." })}
+          label={isPaused ? "Resume campaign" : "Pause campaign"}
+          onClick={handlePauseResume}
         />
         <LiveActionBtn
           Icon={Save}
@@ -1148,7 +1210,7 @@ function LiveEditBanner({
         <LiveActionBtn
           Icon={Download}
           label="Export recipient drop logs"
-          onClick={() => toast.success("Drop log export queued", { description: "You'll receive an email when it's ready." })}
+          onClick={handleExport}
         />
       </div>
     </div>
@@ -1662,17 +1724,8 @@ function NewCampaignWizard({
   };
 
   const launch = () => {
-    const status: CampaignStatus = requiresApproval
-      ? "Pending approval"
-      : s.trigger === "Recurring"
-        ? "Running"
-        : "Scheduled";
-    addCampaign(buildCampaign(status));
-    toast.success(
-      requiresApproval
-        ? "Approval requested from Comms Admin."
-        : "Campaign launched.",
-    );
+    addCampaign(buildCampaign("Running"));
+    toast.success("Campaign launched — now running at the top of the list.");
     handleClose();
   };
 
@@ -1766,15 +1819,10 @@ function NewCampaignWizard({
               <button
                 type="button"
                 onClick={launch}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-semibold",
-                  requiresApproval
-                    ? "border-cat-amber/40 bg-cat-amber text-white hover:bg-cat-amber/90"
-                    : "border-primary/40 bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
+                className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 <Zap className="h-3.5 w-3.5" />
-                {requiresApproval ? "Request Admin Approval" : "Launch Campaign"}
+                Launch Campaign
               </button>
             )}
           </div>
@@ -2281,20 +2329,11 @@ function TemplateLibraryDialog({
           <ul className="divide-y divide-border rounded-lg border border-border">
             {templates.map((t) => {
               const usage = usageByTemplate.get(t.templateId) ?? 0;
-              const locked = usage > 0;
               return (
                 <li key={t.id}>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (locked) {
-                        alert(
-                          `${t.templateId} is bound to ${usage} live campaign${usage === 1 ? "" : "s"}. Create a new version (v2) to edit — the original stays immutable.`,
-                        );
-                        return;
-                      }
-                      onPick(t);
-                    }}
+                    onClick={() => onPick(t)}
                     className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
                   >
                     <div className="min-w-0">
