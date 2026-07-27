@@ -189,10 +189,7 @@ function CampaignsPage() {
         <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
           <div className="flex flex-wrap items-center gap-1.5">
             {(["All", "Running", "Scheduled", "Pending approval", "Failing", "Completed"] as const).map((s) => {
-              const count =
-                s === "All"
-                  ? campaigns.length
-                  : campaigns.filter((c) => c.status === s).length;
+              const count = tabCounts[s];
               const active = statusFilter === s;
               const label = s === "Pending approval" ? "Pending" : s;
               return (
