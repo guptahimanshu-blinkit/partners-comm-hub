@@ -854,7 +854,13 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           <MultiSelect
             options={SENT_TO_OPTIONS}
             values={sentTo}
-            onChange={setSentTo}
+            onChange={(next) => {
+              const hasVendor = next.some((v) => /vendor/i.test(v));
+              const hasMfr = next.some((v) => /manufactur/i.test(v));
+              if (!hasVendor && vendorListName) setVendorListName("");
+              if (!hasMfr && mfrListName) setMfrListName("");
+              setSentTo(next);
+            }}
             max={2}
             placeholder="Pick vendor segment"
           />
@@ -868,12 +874,32 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             }
           />
         </FormRow>
-        <FormRow label="Vendor ID list">
-          <FileField value={vendorListName} onChange={setVendorListName} />
-        </FormRow>
-        <FormRow label="Manufacturer ID list">
-          <FileField value={mfrListName} onChange={setMfrListName} />
-        </FormRow>
+        {(() => {
+          const hasVendor = sentTo.some((v) => /vendor/i.test(v));
+          const hasMfr = sentTo.some((v) => /manufactur/i.test(v));
+          if (!hasVendor && !hasMfr) {
+            return (
+              <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                Please select target audience above to attach ID lists.
+              </div>
+            );
+          }
+          return (
+            <>
+              {hasVendor && (
+                <FormRow label="Vendor ID list">
+                  <FileField value={vendorListName} onChange={setVendorListName} />
+                </FormRow>
+              )}
+              {hasMfr && (
+                <FormRow label="Manufacturer ID list">
+                  <FileField value={mfrListName} onChange={setMfrListName} />
+                </FormRow>
+              )}
+            </>
+          );
+        })()}
+
         <FormRow label="Does this include any formula generated attachment or table in mail body (max 2)">
           <MultiSelect
             options={FORMULA_OPTIONS}
