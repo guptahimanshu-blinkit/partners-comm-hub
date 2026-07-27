@@ -613,8 +613,8 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
 function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [templateId, setTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
-  const [email, setEmail] = useState("");
-  const [emailTouched, setEmailTouched] = useState(false);
+  const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
+  const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
   const [team, setTeam] = useState<string[]>([]);
   const [slackPoc, setSlackPoc] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -680,8 +680,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   }, [subCategory, domain]);
 
   const showWhatsApp = sentTo.includes("Vendor");
-  const emailValid = isValidEmail(email);
-  const emailError = emailTouched && email.length > 0 && !emailValid;
 
   const preflight: PreflightChecks = {
     audienceCount,
@@ -709,11 +707,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       toast.error("Please fill required fields");
       return;
     }
-    if (!email || !emailValid) {
-      setEmailTouched(true);
-      toast.error("Please enter a valid primary email");
-      return;
-    }
     if (!inferred || !subCategory || !domain) {
       toast.error("Please select Sub-Category and Domain");
       return;
@@ -723,7 +716,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       requestType: "Template Approval",
       templateId,
       templateName,
-      primaryEmail: email,
+      primaryEmail: AUTH_SUBMITTER_EMAIL,
       team,
       slackPoc,
       purpose,
@@ -751,11 +744,15 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         : undefined,
       preflightChecks: preflight,
       status: "Pending",
-      submittedBy: "You",
+      submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
     };
     addRequest(req);
-    toast.success(`Request submitted, status: Pending — ${nowStamp()}`);
+    const ccPart =
+      ccEmails.length > 0 ? ` and CC'd ${ccEmails.length} reviewer${ccEmails.length === 1 ? "" : "s"}` : " (no CCs)";
+    toast.success(
+      `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
+    );
     onDone();
   };
 
@@ -794,24 +791,34 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setTemplateName(e.target.value)}
           />
         </FormRow>
-        <FormRow label="Primary Email" required>
-          <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => setEmailTouched(true)}
-            placeholder="ops@vendor.com"
-            className={cn(emailError && "border-cat-red focus-visible:ring-cat-red/40")}
-            aria-invalid={emailError}
-          />
-          {emailError && (
-            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-cat-red">
-              <AlertTriangle className="h-3 w-3" />
-              Please enter a valid email address (e.g. ops@vendor.com)
-            </p>
-          )}
+        <FormRow label="Submitted By">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span className="font-medium text-foreground">
+                {AUTH_SUBMITTER_NAME}
+              </span>
+              <span className="text-muted-foreground">
+                ({AUTH_SUBMITTER_EMAIL})
+              </span>
+            </div>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+              Authenticated
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Auto-detected from your Blinkit SSO session. Approval notifications route here.
+          </p>
         </FormRow>
-        <FormRow label="CC Emails">
-          <EmailPillInput values={ccEmails} onChange={setCcEmails} />
+        <FormRow label="Send Approval Request Copy To (CC Emails)">
+          <EmailPillInput
+            values={ccEmails}
+            onChange={setCcEmails}
+            allowedDomains={["grofers.com", "zomato.com"]}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Approval notifications, status updates, and sign-off requests will be routed to these internal reviewers.
+          </p>
         </FormRow>
         <FormRow label="Team (max 2)">
           <MultiSelect
@@ -1116,13 +1123,24 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 function EmailPillInput({
   values,
   onChange,
+  allowedDomains,
 }: {
   values: string[];
   onChange: (v: string[]) => void;
+  allowedDomains?: string[];
 }) {
   const [draft, setDraft] = useState("");
   const [errorIdx, setErrorIdx] = useState<number | null>(null);
+  const [domainError, setDomainError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const domainOk = (email: string) => {
+    if (!allowedDomains || allowedDomains.length === 0) return true;
+    const at = email.lastIndexOf("@");
+    if (at < 0) return false;
+    const d = email.slice(at + 1).toLowerCase();
+    return allowedDomains.some((allowed) => d === allowed.toLowerCase());
+  };
 
   const commit = (raw: string) => {
     const parts = raw
@@ -1131,8 +1149,20 @@ function EmailPillInput({
       .filter(Boolean);
     if (parts.length === 0) return;
     const next = [...values];
+    const rejected: string[] = [];
     for (const p of parts) {
+      if (!domainOk(p)) {
+        rejected.push(p);
+        continue;
+      }
       if (!next.includes(p)) next.push(p);
+    }
+    if (rejected.length > 0 && allowedDomains) {
+      setDomainError(
+        `⚠️ Internal approval CCs must end in ${allowedDomains.map((d) => "@" + d).join(" or ")}.`,
+      );
+    } else {
+      setDomainError(null);
     }
     onChange(next);
     setDraft("");
@@ -1201,6 +1231,11 @@ function EmailPillInput({
         <p className="mt-1 flex items-center gap-1 text-[11px] text-cat-red">
           <AlertTriangle className="h-3 w-3" />
           Invalid email — hover the red pill to remove it
+        </p>
+      )}
+      {domainError && (
+        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-cat-red">
+          {domainError}
         </p>
       )}
       <p className="mt-1 text-[11px] text-muted-foreground">
@@ -1758,7 +1793,13 @@ function ApproverView() {
               >
                 <TableCell className="font-medium">{r.templateName}</TableCell>
                 <TableCell className="text-sm">{r.requestType}</TableCell>
-                <TableCell className="text-sm">{r.submittedBy}</TableCell>
+                <TableCell className="text-sm">
+                  <div className="font-medium text-foreground">{r.submittedBy}</div>
+                  <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    CCs: {r.ccEmails.length > 0 ? r.ccEmails.join(", ") : "None"}
+                  </div>
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {r.team.join(", ") || "—"}
                 </TableCell>
@@ -1982,7 +2023,7 @@ function RequestDetail({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <DetailField label="Email" value={request.primaryEmail} />
+          <DetailField label="Submitted By" value={`${request.submittedBy} (${request.primaryEmail})`} full />
           <DetailField label="Slack POC" value={request.slackPoc || "—"} />
           <DetailField label="Team" value={request.team.join(", ") || "—"} />
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
@@ -2005,7 +2046,7 @@ function RequestDetail({
             }
           />
           <DetailField label="Frequency" value={request.frequency.join(", ") || "—"} />
-          <DetailField label="CC email" value={request.ccEmails.join(", ") || "—"} />
+          <DetailField label="Approval CCs" value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"} full />
 
           <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
         </div>
@@ -2492,8 +2533,12 @@ function PublishedDetailDialog({
                   <DetailRow label="Attachment" value={request.attachment} />
                   <DetailRow label="CTA" value={request.cta} />
                   <DetailRow
-                    label="Submitted by"
+                    label="Submitted By"
                     value={`${request.submittedBy} (${request.primaryEmail})`}
+                  />
+                  <DetailRow
+                    label="Approval CCs"
+                    value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"}
                   />
                   <DetailRow label="Team" value={request.team.join(", ")} />
                 </div>
