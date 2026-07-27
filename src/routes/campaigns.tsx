@@ -1124,21 +1124,71 @@ function SequenceTimeline({ campaign }: { campaign: Campaign }) {
 }
 
 function LiveEditBanner({
+  campaign,
   editMode,
   onApply,
   canApply,
 }: {
+  campaign: Campaign;
   editMode: boolean;
   onApply: () => void;
   canApply: boolean;
 }) {
+  const isPaused = campaign.status === "Paused";
+
+  const handlePauseResume = () => {
+    if (isPaused) {
+      updateCampaignStatus(campaign.id, "Running");
+      toast.success("Campaign resumed", {
+        description: "Future sends will proceed as scheduled.",
+      });
+    } else {
+      updateCampaignStatus(campaign.id, "Paused");
+      toast.success("Campaign paused — future schedule held");
+    }
+  };
+
+  const handleExport = () => {
+    const rows: string[][] = [
+      ["Recipient ID", "Vendor Name", "Channel", "Delivery Status", "Timestamp"],
+    ];
+    const channels = campaign.channels;
+    const statuses = ["Delivered", "Dropped", "Bounced", "Pending"] as const;
+    const count = Math.min(50, Math.max(10, Math.floor(campaign.audienceCount / 20)));
+    for (let i = 0; i < count; i++) {
+      const rid = `RCP-${campaign.id.replace(/[^A-Z0-9]/gi, "")}-${String(i + 1).padStart(4, "0")}`;
+      const vendor = `Vendor ${String.fromCharCode(65 + (i % 26))}${i}`;
+      const channel = channels[i % channels.length] ?? "Email";
+      const status = statuses[i % statuses.length];
+      const ts = new Date(Date.now() - i * 3600_000).toISOString();
+      rows.push([rid, vendor, channel, status, ts]);
+    }
+    const csv = rows
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `drop_logs_${campaign.id}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Recipient drop logs exported successfully");
+  };
+
   return (
     <div className="mt-4 space-y-2">
       <div className="flex items-start gap-2 rounded-lg border border-cat-amber/40 bg-cat-amber/10 p-3 text-xs">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-cat-amber" />
         <div className="min-w-0">
           <div className="font-semibold text-foreground">
-            {editMode ? "Editing live campaign" : "Live campaign"}
+            {isPaused
+              ? "Paused campaign"
+              : editMode
+                ? "Editing live campaign"
+                : "Live campaign"}
           </div>
           <p className="mt-0.5 text-muted-foreground">
             Changes apply to future reminder steps only. Delivered steps (T+0)
@@ -1149,8 +1199,8 @@ function LiveEditBanner({
       <div className="flex flex-wrap gap-2">
         <LiveActionBtn
           Icon={Pause}
-          label="Pause campaign"
-          onClick={() => toast("Campaign paused", { description: "Future sends held. Resume from Campaigns list." })}
+          label={isPaused ? "Resume campaign" : "Pause campaign"}
+          onClick={handlePauseResume}
         />
         <LiveActionBtn
           Icon={Save}
@@ -1162,7 +1212,7 @@ function LiveEditBanner({
         <LiveActionBtn
           Icon={Download}
           label="Export recipient drop logs"
-          onClick={() => toast.success("Drop log export queued", { description: "You'll receive an email when it's ready." })}
+          onClick={handleExport}
         />
       </div>
     </div>
