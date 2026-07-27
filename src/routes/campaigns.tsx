@@ -1487,6 +1487,185 @@ function RecipientAudit({ seed }: { seed: string }) {
 }
 
 
+// ============= Delivery & bounce exceptions (per-campaign) =============
+
+const BOUNCE_POOL: {
+  vendor: string;
+  vendorId: string;
+  channel: "Email" | "WhatsApp";
+  reason: string;
+  contact: string;
+}[] = [
+  { vendor: "Aashirvaad Foods", vendorId: "V-8821", channel: "Email", reason: "550 Mailbox Full", contact: "scm-lead@aashirvaad.co" },
+  { vendor: "Sunfeast Retail", vendorId: "V-4410", channel: "Email", reason: "550 Mailbox Not Found", contact: "ops@sunfeast-retail.in" },
+  { vendor: "Bingo Snacks Co.", vendorId: "V-6612", channel: "Email", reason: "Domain Firewall Block", contact: "finance@bingosnacks.in" },
+  { vendor: "Mangaldeep Traders", vendorId: "V-3320", channel: "WhatsApp", reason: "Recipient not on WhatsApp", contact: "+91 98200 44119" },
+  { vendor: "Classmate Stationers", vendorId: "V-7712", channel: "Email", reason: "550 Mailbox Full", contact: "accounts@classmate-st.in" },
+];
+
+function DeliveryExceptionsPanel({ campaignId }: { campaignId: string }) {
+  const seed = hashSeed(campaignId);
+  // 2–4 bounces per campaign, deterministic slice from the pool
+  const count = 2 + Math.floor(seed * 3);
+  const start = Math.floor(seed * BOUNCE_POOL.length);
+  const initial = useMemo(
+    () =>
+      Array.from({ length: count }, (_, i) => {
+        const src = BOUNCE_POOL[(start + i) % BOUNCE_POOL.length];
+        // Stable timestamp within the last 48h
+        const minutes = Math.floor(((seed * 1000 + i * 137) % 2880));
+        const d = new Date(Date.now() - minutes * 60_000);
+        return {
+          ...src,
+          id: `bx-${campaignId}-${i}`,
+          timestamp: d.toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }),
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [campaignId],
+  );
+
+  const [rows, setRows] = useState(initial);
+
+  const onUpdate = (id: string, vendorId: string, next: string) => {
+    setRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, contact: next } : r)),
+    );
+    toast.success(`Contact updated for Vendor ${vendorId} — re-queued for delivery`);
+  };
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-background p-4 text-xs text-muted-foreground">
+        No delivery exceptions logged for this campaign run.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-background">
+      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-2">
+        <div className="text-[11px] font-medium text-muted-foreground">
+          {rows.length} vendor{rows.length === 1 ? "" : "s"} bouncing on this campaign run
+        </div>
+        <span className="rounded-md bg-cat-red-soft px-2 py-0.5 text-[10px] font-semibold text-cat-red">
+          Requires contact refresh
+        </span>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Vendor</TableHead>
+            <TableHead>Channel</TableHead>
+            <TableHead>Failure reason</TableHead>
+            <TableHead>Timestamp</TableHead>
+            <TableHead className="text-right">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <BounceRow key={r.id} r={r} onUpdate={onUpdate} />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function BounceRow({
+  r,
+  onUpdate,
+}: {
+  r: {
+    id: string;
+    vendor: string;
+    vendorId: string;
+    channel: "Email" | "WhatsApp";
+    reason: string;
+    contact: string;
+    timestamp: string;
+  };
+  onUpdate: (id: string, vendorId: string, next: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(r.contact);
+
+  const save = () => {
+    if (!draft.trim()) return;
+    onUpdate(r.id, r.vendorId, draft.trim());
+    setOpen(false);
+  };
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="flex flex-col">
+          <span className="font-medium text-foreground">{r.vendor}</span>
+          <span className="text-[10px] text-muted-foreground">{r.vendorId}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium">
+          {r.channel}
+        </span>
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground">{r.reason}</TableCell>
+      <TableCell className="font-mono text-[11px] text-muted-foreground">
+        {r.timestamp}
+      </TableCell>
+      <TableCell>
+        <div className="flex justify-end">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                Update Contact
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 space-y-2">
+              <div className="text-xs font-semibold text-foreground">
+                Update {r.channel === "Email" ? "email" : "phone"} for {r.vendor}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Current: <span className="font-mono">{r.contact}</span>
+              </div>
+              <Input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={
+                  r.channel === "Email" ? "new-lead@vendor.com" : "+91 98000 00000"
+                }
+                className="h-8 text-xs"
+              />
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={save}>
+                  Save & re-queue
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+
+
+
+
 // ============= New Campaign Wizard (6 steps) =============
 
 type Owner =
