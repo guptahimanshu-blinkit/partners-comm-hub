@@ -1,6 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { CalendarPlus, Info, Upload, CheckCircle2 } from "lucide-react";
+import {
+  CalendarPlus,
+  Info,
+  CheckCircle2,
+  ShieldCheck,
+  Paperclip,
+  BarChart3,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -16,8 +23,13 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
-import { useRequests, addPublishLog } from "@/lib/requests-store";
-import { CATEGORIES, type CategoryId } from "@/lib/mock-data";
+import {
+  useRequests,
+  addPublishLog,
+  syncPublishToNotifications,
+  type TemplateRequest,
+} from "@/lib/requests-store";
+import type { CategoryId } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/notifications/schedule")({
   head: () => ({
@@ -26,82 +38,67 @@ export const Route = createFileRoute("/notifications/schedule")({
   component: ScheduleNotificationPage,
 });
 
-// -------- Category color helpers (reuse existing cat-* tokens) --------
-
 const CATEGORY_META: Record<
   CategoryId,
   { label: string; dot: string; border: string; soft: string; text: string }
 > = {
-  action_required: {
-    label: "Action Required",
-    dot: "bg-cat-red",
-    border: "border-l-cat-red",
-    soft: "bg-cat-red-soft",
-    text: "text-cat-red",
-  },
-  finance_payments: {
-    label: "Finance & Payments",
-    dot: "bg-cat-amber",
-    border: "border-l-cat-amber",
-    soft: "bg-cat-amber-soft",
-    text: "text-cat-amber",
-  },
-  reports_analytics: {
-    label: "Reports & Analytics",
-    dot: "bg-cat-green",
-    border: "border-l-cat-green",
-    soft: "bg-cat-green-soft",
-    text: "text-cat-green",
-  },
-  daily_ops: {
-    label: "Daily Ops Updates",
-    dot: "bg-cat-blue",
-    border: "border-l-cat-blue",
-    soft: "bg-cat-blue-soft",
-    text: "text-cat-blue",
-  },
-  reminders: {
-    label: "Reminders",
-    dot: "bg-cat-purple",
-    border: "border-l-cat-purple",
-    soft: "bg-cat-purple-soft",
-    text: "text-cat-purple",
-  },
-  account_access: {
-    label: "Account & Access",
-    dot: "bg-muted-foreground/60",
-    border: "border-l-muted-foreground/40",
-    soft: "bg-muted",
-    text: "text-muted-foreground",
-  },
+  action_required: { label: "Action Required", dot: "bg-cat-red", border: "border-l-cat-red", soft: "bg-cat-red-soft", text: "text-cat-red" },
+  finance_payments: { label: "Finance & Payments", dot: "bg-cat-amber", border: "border-l-cat-amber", soft: "bg-cat-amber-soft", text: "text-cat-amber" },
+  reports_analytics: { label: "Reports & Analytics", dot: "bg-cat-green", border: "border-l-cat-green", soft: "bg-cat-green-soft", text: "text-cat-green" },
+  daily_ops: { label: "Daily Ops Updates", dot: "bg-cat-blue", border: "border-l-cat-blue", soft: "bg-cat-blue-soft", text: "text-cat-blue" },
+  reminders: { label: "Reminders", dot: "bg-cat-purple", border: "border-l-cat-purple", soft: "bg-cat-purple-soft", text: "text-cat-purple" },
+  account_access: { label: "Account & Access", dot: "bg-muted-foreground/60", border: "border-l-muted-foreground/40", soft: "bg-muted", text: "text-muted-foreground" },
 };
-
-// -------- Sample data --------
-
-type SegmentKey = "all" | "pending_dues" | "custom";
-
-const SEGMENTS: { key: SegmentKey; label: string; recipients: number }[] = [
-  { key: "all", label: "All vendors", recipients: 4812 },
-  { key: "pending_dues", label: "Vendors with pending dues", recipients: 612 },
-  { key: "custom", label: "Custom segment (query)", recipients: 187 },
-];
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-type TargetLevel = "Vendor" | "Manufacturer";
-type RecipientMethod = "role_based" | "ad_hoc";
 type ScheduleType = "one_time" | "recurring";
+
+// Detect Liquid variables in a body string.
+const LIQUID_RE = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
+function detectLiquidVars(s: string): string[] {
+  const out = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = LIQUID_RE.exec(s)) !== null) out.add(m[1]);
+  return Array.from(out);
+}
+
+function targetLevelFromSentTo(sentTo: string[]): "Vendor" | "Manufacturer" {
+  return sentTo.some((s) => /manufact/i.test(s)) ? "Manufacturer" : "Vendor";
+}
+
+function scheduleTypeFromFrequency(freq: string[]): ScheduleType {
+  return freq.some((f) => /weekly|daily|monthly/i.test(f))
+    ? "recurring"
+    : "one_time";
+}
+
+function estimatedRecipients(req: TemplateRequest): number {
+  return req.preflightChecks?.audienceCount ?? 450;
+}
+
+function attachmentDescriptor(req: TemplateRequest): {
+  type: string;
+  name: string;
+} | null {
+  const cfg = req.attachmentConfig;
+  if (!cfg || cfg.type === "none") {
+    if (req.emailAttachmentsName && req.emailAttachmentsName !== "-") {
+      return { type: "static", name: req.emailAttachmentsName };
+    }
+    return null;
+  }
+  return {
+    type: cfg.type,
+    name: cfg.fileName || cfg.queryKey || cfg.s3Path || "attachment",
+  };
+}
 
 function ScheduleNotificationPage() {
   const { role } = useRole();
   const requests = useRequests();
 
   const [templateId, setTemplateId] = useState<string>("");
-  const [targetLevel, setTargetLevel] = useState<TargetLevel>("Vendor");
-  const [segmentKey, setSegmentKey] = useState<SegmentKey>("all");
-  const [recipientMethod, setRecipientMethod] =
-    useState<RecipientMethod>("role_based");
-  const [uploadName, setUploadName] = useState<string>("");
   const [scheduleType, setScheduleType] = useState<ScheduleType>("one_time");
   const [scheduleAt, setScheduleAt] = useState("");
   const [weekdays, setWeekdays] = useState<string[]>(["Mon"]);
@@ -112,7 +109,20 @@ function ScheduleNotificationPage() {
   const approved = requests.filter((r) => r.status === "Approved");
   const selected = approved.find((r) => r.templateId === templateId);
   const selectedMeta = selected ? CATEGORY_META[selected.categoryId] : null;
-  const segment = SEGMENTS.find((s) => s.key === segmentKey)!;
+
+  // Auto-hydrate schedule type from template frequency.
+  useEffect(() => {
+    if (!selected) return;
+    setScheduleType(scheduleTypeFromFrequency(selected.frequency));
+  }, [selected]);
+
+  const targetLevel = selected ? targetLevelFromSentTo(selected.sentTo) : "Vendor";
+  const audience = selected ? estimatedRecipients(selected) : 0;
+  const segmentLabel = selected
+    ? `${selected.vendorListName} — ${audience.toLocaleString("en-IN")} estimated recipients`
+    : "";
+  const attachment = selected ? attachmentDescriptor(selected) : null;
+  const liquidVars = selected ? detectLiquidVars(selected.body ?? "") : [];
 
   const canSubmit = useMemo(() => {
     if (!selected) return false;
@@ -135,36 +145,30 @@ function ScheduleNotificationPage() {
           : "Immediately"
         : `Recurring · ${weekdays.join(", ")} · ${recurringTime}`;
 
-    const methodLabel =
-      recipientMethod === "role_based" ? "Role based" : "Ad-hoc upload";
-    const segmentString = `${targetLevel} · ${segment.label} · ${methodLabel}`;
+    const segmentString = `${targetLevel} · ${selected.vendorListName} · ${audience.toLocaleString("en-IN")} recipients`;
 
     const rand = (n: number) =>
       Math.random().toString(16).slice(2, 2 + n).toUpperCase();
-    const apolloId = `APOLLO-${rand(6)}`;
     const pubId = `PUB-${Date.now().toString(36).toUpperCase()}-${rand(3)}`;
-    addPublishLog({
+    const log = {
       id: pubId,
       requestId: selected.id,
-      templateId: apolloId,
+      templateId: selected.templateId,
       templateName: selected.templateName,
       segment: segmentString,
       scheduledFor: scheduledDisplay,
       submitterName: "Himanshu Gupta",
       publishedAt: new Date().toISOString(),
-      status: "Pending Review",
-    });
+      status: "Pending Review" as const,
+    };
+    addPublishLog(log);
+    syncPublishToNotifications(log, selected);
 
-
-    toast.success(`Approver notified`, {
-      description: `Sparsh J. scheduled campaign "${selected.templateName}" targeting ${segment.label} (${segment.recipients.toLocaleString()} vendors).`,
+    toast.success(`Scheduled & minted to PartnersBiz`, {
+      description: `"${selected.subject}" queued for ${audience.toLocaleString("en-IN")} recipients — vendor card is live.`,
     });
     setTemplateId("");
     setScheduleAt("");
-    setSegmentKey("all");
-    setTargetLevel("Vendor");
-    setRecipientMethod("role_based");
-    setUploadName("");
     setScheduleType("one_time");
     setWeekdays(["Mon"]);
     setRecurringTime("09:30");
@@ -185,7 +189,8 @@ function ScheduleNotificationPage() {
           </h1>
         </div>
         <p className="mb-6 text-sm text-muted-foreground">
-          Workdesk — schedule an approved template to a vendor segment.
+          Workdesk — schedule an approved template. All fields below auto-hydrate
+          from the linked request.
         </p>
 
         <div
@@ -195,7 +200,6 @@ function ScheduleNotificationPage() {
             selectedMeta ? selectedMeta.border : "border-l-border",
           )}
         >
-          {/* Header strip showing selected category */}
           <div
             className={cn(
               "-mx-5 -mt-5 flex items-center justify-between rounded-t-xl px-5 py-2.5 sm:-mx-6 sm:-mt-6 sm:px-6",
@@ -216,7 +220,7 @@ function ScheduleNotificationPage() {
                 )}
               >
                 {selectedMeta
-                  ? `Category: ${selectedMeta.label}`
+                  ? `Category: ${selectedMeta.label} · Priority ${selected!.priority}`
                   : "Category: select a template"}
               </span>
             </div>
@@ -240,9 +244,7 @@ function ScheduleNotificationPage() {
                     return (
                       <SelectItem key={r.templateId} value={r.templateId}>
                         <span className="flex items-center gap-2">
-                          <span
-                            className={cn("h-2 w-2 rounded-full", meta.dot)}
-                          />
+                          <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
                           <span>{r.templateName}</span>
                           <span className="text-[11px] text-muted-foreground">
                             · {meta.label}
@@ -263,173 +265,159 @@ function ScheduleNotificationPage() {
           </div>
 
           {selected && (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
-                <Info className="h-3.5 w-3.5" /> Auto-populated from {selected.templateId}
+            <>
+              {/* Auto-populated block */}
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                  <Info className="h-3.5 w-3.5" /> Auto-populated from {selected.templateId}
+                </div>
+                <dl className="grid gap-2.5 text-[12px] sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Subject
+                    </dt>
+                    <dd className="font-medium text-foreground">
+                      {selected.subject}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Body preview
+                    </dt>
+                    <dd className="mt-0.5 rounded-md border border-border bg-background/60 p-2 text-[11px] leading-relaxed text-muted-foreground">
+                      {selected.body ??
+                        "Hi {{vendor_name}}, this is a notification regarding {{po_number}}."}
+                    </dd>
+                    {liquidVars.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {liquidVars.map((v) => (
+                          <span
+                            key={v}
+                            className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary"
+                          >
+                            {`{{${v}}}`}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {selected.inlineSqlChart && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Inline chart
+                      </dt>
+                      <dd className="mt-0.5">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-cat-green/40 bg-cat-green-soft px-2 py-1 text-[11px] font-medium text-cat-green">
+                          <BarChart3 className="h-3.5 w-3.5" />
+                          Inline SQL Chart: {selected.inlineSqlChart}
+                        </span>
+                      </dd>
+                    </div>
+                  )}
+
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Attachment
+                    </dt>
+                    <dd className="mt-0.5">
+                      {attachment ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] font-medium text-foreground">
+                          <Paperclip className="h-3.5 w-3.5" />
+                          <span className="rounded bg-muted px-1 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+                            {attachment.type}
+                          </span>
+                          {attachment.name}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">
+                          None
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      CTA
+                    </dt>
+                    <dd className="text-[11px] font-medium text-foreground">
+                      {selected.cta}
+                      {selected.ctaDestination && (
+                        <span className="ml-1 text-muted-foreground">
+                          → {selected.ctaDestination}
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Target Level (locked)
+                    </dt>
+                    <dd className="text-[11px] font-medium text-foreground">
+                      {targetLevel}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Frequency
+                    </dt>
+                    <dd className="text-[11px] font-medium text-foreground">
+                      {selected.frequency.join(", ")}
+                    </dd>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Segment
+                    </dt>
+                    <dd className="text-[11px] font-medium text-foreground">
+                      {segmentLabel}
+                    </dd>
+                  </div>
+                </dl>
               </div>
-              <dl className="grid gap-1.5 text-[12px] sm:grid-cols-2">
-                <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Subject</dt>
-                  <dd className="font-medium text-foreground">{selected.templateName}</dd>
+
+              {/* Pre-flight checks */}
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Pre-flight checks
                 </div>
-                <div>
-                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Attachment</dt>
-                  <dd className="font-medium text-foreground">{selected.attachment ?? "None"}</dd>
+                <div className="flex flex-wrap gap-1.5">
+                  <PreflightBadge
+                    ok={audience <= 5000}
+                    label={`Audience threshold gate · ${audience.toLocaleString("en-IN")}`}
+                  />
+                  <PreflightBadge
+                    ok={!(selected.preflightChecks?.isAtFrequencyCap)}
+                    label="Weekly frequency cap"
+                  />
+                  <PreflightBadge
+                    ok={selected.preflightChecks?.waValidated !== false}
+                    label="WhatsApp Meta ID registry"
+                  />
                 </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Liquid variables</dt>
-                  <dd className="font-mono text-[11px] text-foreground">
-                    {"{{vendor_name}} · {{po_number}} · {{due_date}}"}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Body preview</dt>
-                  <dd className="mt-0.5 rounded-md border border-border bg-background/60 p-2 text-[11px] leading-relaxed text-muted-foreground">
-                    {"Hi {{vendor_name}}, this is a notification regarding {{po_number}}. Please action by {{due_date}}."}
-                  </dd>
-                </div>
-              </dl>
-            </div>
+              </div>
+            </>
           )}
 
-
-
-          {/* 2 + 3. Target Level and Segment */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="target-level">Target Level</Label>
-              <Select
-                value={targetLevel}
-                onValueChange={(v) => setTargetLevel(v as TargetLevel)}
-              >
-                <SelectTrigger id="target-level">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Vendor">Vendor</SelectItem>
-                  <SelectItem value="Manufacturer">Manufacturer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="segment">Segment</Label>
-              <Select
-                value={segmentKey}
-                onValueChange={(v) => setSegmentKey(v as SegmentKey)}
-              >
-                <SelectTrigger id="segment">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SEGMENTS.map((s) => (
-                    <SelectItem key={s.key} value={s.key}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">
-                Estimated recipients:{" "}
-                <span className="font-semibold text-foreground">
-                  {segment.recipients.toLocaleString("en-IN")}
+          {/* Schedule Type */}
+          <div className="grid gap-2">
+            <Label>
+              Schedule Type
+              {selected && (
+                <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                  (auto-set from frequency: {selected.frequency.join(", ")})
                 </span>
-              </p>
-            </div>
-          </div>
-
-          {/* 4. Recipient Method */}
-          <div className="grid gap-2">
-            <Label>Recipient Method</Label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(
-                [
-                  {
-                    key: "role_based" as const,
-                    title: "Role based",
-                    sub: "Finance POC + Owner roles from directory.",
-                  },
-                  {
-                    key: "ad_hoc" as const,
-                    title: "Ad-hoc upload",
-                    sub: "Upload extra recipients via file.",
-                  },
-                ]
-              ).map((opt) => {
-                const active = recipientMethod === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => setRecipientMethod(opt.key)}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-                      active
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted/40",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                        active
-                          ? "border-primary bg-primary"
-                          : "border-muted-foreground/40",
-                      )}
-                    >
-                      {active && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">
-                        {opt.title}
-                      </span>
-                      <span className="block text-[11px] leading-snug text-muted-foreground">
-                        {opt.sub}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {recipientMethod === "ad_hoc" && (
-              <div className="mt-1 rounded-lg border border-dashed border-border p-3">
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>{uploadName ? "Change file" : "Choose file to upload"}</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) setUploadName(f.name);
-                    }}
-                  />
-                </label>
-                {uploadName && (
-                  <div className="mt-2 flex items-center gap-2 rounded-md bg-cat-green-soft px-2.5 py-1.5 text-[11px] text-cat-green">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>
-                      <span className="font-semibold">{uploadName}</span> parsed
-                      · 884 rows valid · 6 rejected
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 5. Schedule Type */}
-          <div className="grid gap-2">
-            <Label>Schedule Type</Label>
+              )}
+            </Label>
             <div className="inline-flex rounded-lg border border-border p-0.5 text-xs">
-              {(
-                [
-                  { key: "one_time" as const, label: "One time" },
-                  { key: "recurring" as const, label: "Recurring" },
-                ]
-              ).map((opt) => (
+              {[
+                { key: "one_time" as const, label: "One time" },
+                { key: "recurring" as const, label: "Recurring" },
+              ].map((opt) => (
                 <button
                   key={opt.key}
                   type="button"
@@ -496,5 +484,21 @@ function ScheduleNotificationPage() {
         </p>
       </div>
     </AppShell>
+  );
+}
+
+function PreflightBadge({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+        ok
+          ? "border-cat-green/40 bg-cat-green-soft text-cat-green"
+          : "border-cat-red/40 bg-cat-red-soft text-cat-red",
+      )}
+    >
+      <CheckCircle2 className="h-3 w-3" />
+      {label}
+    </span>
   );
 }

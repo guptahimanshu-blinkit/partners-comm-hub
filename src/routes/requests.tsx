@@ -702,6 +702,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       vendorListName: vendorListName || "-",
       manufacturerListName: mfrListName || "-",
       subject,
+      body,
+      inlineSqlChart: chartQuery || undefined,
       formulaFlags,
       subCategory,
       domain,
