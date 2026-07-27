@@ -171,10 +171,8 @@ const TEAM_OPTIONS = [
   "Category",
 ];
 const SENT_TO_OPTIONS = [
-  "Tech Enabled Vendors",
-  "Low Tech Vendors",
-  "Manufacturers",
-  "Warehouse Leads",
+  "Manufacture",
+  "Vendor",
 ];
 const SLACK_USERS = [
   "@arjun.k",
@@ -681,7 +679,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     return inferCategoryRules(subCategory, domain);
   }, [subCategory, domain]);
 
-  const showWhatsApp = sentTo.includes("Low Tech Vendors");
+  const showWhatsApp = sentTo.includes("Vendor");
   const emailValid = isValidEmail(email);
   const emailError = emailTouched && email.length > 0 && !emailValid;
 
