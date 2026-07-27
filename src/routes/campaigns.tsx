@@ -1724,17 +1724,8 @@ function NewCampaignWizard({
   };
 
   const launch = () => {
-    const status: CampaignStatus = requiresApproval
-      ? "Pending approval"
-      : s.trigger === "Recurring"
-        ? "Running"
-        : "Scheduled";
-    addCampaign(buildCampaign(status));
-    toast.success(
-      requiresApproval
-        ? "Approval requested from Comms Admin."
-        : "Campaign launched.",
-    );
+    addCampaign(buildCampaign("Running"));
+    toast.success("Campaign launched — now running at the top of the list.");
     handleClose();
   };
 
