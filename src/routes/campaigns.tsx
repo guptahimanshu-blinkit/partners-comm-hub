@@ -443,7 +443,8 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
     c.status === "Failing" ||
     c.status === "Completed";
   const canEdit = c.status !== "Completed";
-  const isLive = c.status === "Running" || c.status === "Failing";
+  const isLive =
+    c.status === "Running" || c.status === "Failing" || c.status === "Paused";
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft] = useState<{
     sensitivity: "FYI" | "Standard" | "Critical";
