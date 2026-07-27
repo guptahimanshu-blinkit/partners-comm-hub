@@ -1446,73 +1446,55 @@ function TriplePreviewPane({
   );
 }
 
-// ---------- Preflight governance panel ----------
-function PreflightPanel({
-  checks,
+// ---------- Real-time active governance interception ----------
+function GovernanceInterception({
+  audienceCount,
+  priority,
+  atFrequencyCap,
   whatsappRequired,
+  waMetaId,
 }: {
-  checks: PreflightChecks;
+  audienceCount: number;
+  priority?: string;
+  atFrequencyCap: boolean;
   whatsappRequired: boolean;
+  waMetaId: string;
 }) {
-  const items: Array<{ ok: boolean; label: string; detail: string }> = [
-    {
-      ok: !checks.requiresApproval,
-      label: "Audience Threshold Gate",
-      detail: checks.requiresApproval
-        ? `${checks.audienceCount} recipients — Requires Comms-Admin Approval before launch`
-        : `${checks.audienceCount} recipients — within safe threshold`,
-    },
-    {
-      ok: !checks.isAtFrequencyCap,
-      label: "Weekly Frequency Cap (Max 3/week)",
-      detail: checks.isAtFrequencyCap
-        ? "Audience is at frequency cap — send may be throttled"
-        : "Audience under weekly cap",
-    },
-    {
-      ok: whatsappRequired ? checks.waValidated : true,
-      label: "WhatsApp Meta ID Registry",
-      detail: whatsappRequired
-        ? checks.waValidated
-          ? "Template body present — Meta ID will be registered on approve"
-          : "Missing WhatsApp variant — cannot pass Meta registry"
-        : "Not required for this segment",
-    },
-  ];
+  const overAudience = audienceCount > 1000;
+  const nonP1 = priority && priority !== "P1";
+  const freqOverflow = !!nonP1 && atFrequencyCap;
+  const waInvalid =
+    whatsappRequired && (!waMetaId.trim() || !/^[a-z0-9_]{6,}$/i.test(waMetaId.trim()));
+
+  if (!overAudience && !freqOverflow && !waInvalid) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <ShieldCheck className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">Pre-flight Governance Checks</h3>
-      </div>
-      <ul className="space-y-2">
-        {items.map((it) => (
-          <li
-            key={it.label}
-            className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3"
-          >
-            <div className="min-w-0">
-              <div className="text-sm font-medium">{it.label}</div>
-              <div className="text-[11px] text-muted-foreground">
-                {it.detail}
-              </div>
-            </div>
-            {it.ok ? (
-              <Badge className="bg-cat-green-soft text-cat-green hover:bg-cat-green-soft">
-                <CheckCircle2 className="mr-1 h-3 w-3" /> Pass
-              </Badge>
-            ) : (
-              <Badge className="bg-cat-amber-soft text-cat-amber hover:bg-cat-amber-soft">
-                <AlertTriangle className="mr-1 h-3 w-3" />
-                {it.label.includes("Audience")
-                  ? "Requires Comms-Admin Approval"
-                  : "Attention"}
-              </Badge>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-2">
+      {overAudience && (
+        <div className="rounded-lg border border-cat-amber/50 bg-cat-amber-soft p-3 text-[12px] leading-relaxed text-cat-amber">
+          <span className="mr-1">🚨</span>
+          <span className="font-semibold uppercase tracking-wider">Governance Interception:</span>{" "}
+          Target audience ({audienceCount.toLocaleString("en-IN")}) exceeds the
+          1,000 recipient threshold. Direct dispatch is locked. Submission will
+          route to Comms-Admin for approval.
+        </div>
+      )}
+      {freqOverflow && (
+        <div className="rounded-lg border border-yellow-400/60 bg-yellow-100/70 p-3 text-[12px] leading-relaxed text-yellow-900 dark:bg-yellow-500/10 dark:text-yellow-200">
+          <span className="mr-1">⚠️</span>
+          <span className="font-semibold uppercase tracking-wider">Frequency Cap Notice:</span>{" "}
+          Target segment has reached max weekly frequency limit (3 non-P1
+          comms/week). This broadcast will be queued for next week's window.
+        </div>
+      )}
+      {waInvalid && (
+        <div className="rounded-lg border border-cat-red/50 bg-cat-red-soft p-3 text-[12px] leading-relaxed text-cat-red">
+          <span className="mr-1">🛑</span>
+          <span className="font-semibold uppercase tracking-wider">WhatsApp Registry Block:</span>{" "}
+          Template not registered on Meta WhatsApp API. WhatsApp channel
+          disabled for this drop.
+        </div>
+      )}
     </div>
   );
 }
