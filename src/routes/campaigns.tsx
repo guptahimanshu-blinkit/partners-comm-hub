@@ -593,6 +593,11 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
         <RecipientAudit seed={c.id} />
       </Section>
 
+      <Section title="Delivery & bounce exceptions">
+        <DeliveryExceptionsPanel campaignId={c.id} />
+      </Section>
+
+
 
 
       {/* Configuration snapshot */}
