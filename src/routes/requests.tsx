@@ -680,8 +680,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   }, [subCategory, domain]);
 
   const showWhatsApp = sentTo.includes("Vendor");
-  const emailValid = isValidEmail(email);
-  const emailError = emailTouched && email.length > 0 && !emailValid;
 
   const preflight: PreflightChecks = {
     audienceCount,
