@@ -1697,6 +1697,134 @@ function ApproverView() {
   );
 }
 
+// -------- Template deliverability health (per-template) --------
+
+const TEMPLATE_BOUNCERS: {
+  vendor: string;
+  vendorId: string;
+  contact: string;
+  reason: string;
+}[] = [
+  { vendor: "Aashirvaad Foods", vendorId: "V-8821", contact: "scm-lead@aashirvaad.co", reason: "550 Mailbox Full" },
+  { vendor: "Sunfeast Retail", vendorId: "V-4410", contact: "ops@sunfeast-retail.in", reason: "550 Mailbox Not Found" },
+  { vendor: "Bingo Snacks Co.", vendorId: "V-6612", contact: "finance@bingosnacks.in", reason: "Domain Firewall Block" },
+  { vendor: "Mangaldeep Traders", vendorId: "V-3320", contact: "accounts@mangaldeep.in", reason: "550 Mailbox Full" },
+];
+
+function tplHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return (h % 1000) / 1000;
+}
+
+function TemplateDeliverabilityCard({ templateId }: { templateId: string }) {
+  const seed = tplHash(templateId);
+  // Derived, stable per template
+  const deliveredPct = (95 + seed * 4.9).toFixed(1); // 95.0 – 99.9
+  const bounceRate = (0.4 + seed * 3.2).toFixed(2); // 0.40 – 3.60
+  const unsubRate = (0.05 + seed * 0.9).toFixed(2); // 0.05 – 0.95
+  const bouncingCount = Math.max(0, Math.round(seed * 4)); // 0–4
+  const bouncers = TEMPLATE_BOUNCERS.slice(0, bouncingCount);
+
+  const [showList, setShowList] = useState(false);
+
+  const stats = [
+    { label: "Delivered %", value: `${deliveredPct}%`, tone: "ok" as const },
+    {
+      label: "Bounce Rate %",
+      value: `${bounceRate}%`,
+      tone: parseFloat(bounceRate) >= 2 ? ("warn" as const) : ("ok" as const),
+    },
+    {
+      label: "Unsubscribe Rate %",
+      value: `${unsubRate}%`,
+      tone: parseFloat(unsubRate) >= 0.5 ? ("warn" as const) : ("ok" as const),
+    },
+  ];
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Template deliverability
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            Last 30 days · sample telemetry for {templateId}
+          </div>
+        </div>
+        {bouncingCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowList((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-cat-red-soft px-2.5 py-1 text-[11px] font-semibold text-cat-red hover:brightness-95"
+          >
+            <AlertTriangle className="h-3 w-3" />
+            {bouncingCount} vendor{bouncingCount === 1 ? "" : "s"} currently bouncing this template
+            <span className="text-[10px] font-normal opacity-70">
+              {showList ? "· hide" : "· view"}
+            </span>
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-md border border-border bg-background p-3"
+          >
+            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {s.label}
+            </div>
+            <div
+              className={
+                "mt-1 text-lg font-semibold tabular-nums " +
+                (s.tone === "warn" ? "text-cat-red" : "text-foreground")
+              }
+            >
+              {s.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showList && bouncingCount > 0 && (
+        <div className="mt-3 overflow-hidden rounded-md border border-border bg-background">
+          <div className="border-b border-border bg-muted/40 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+            Affected vendors
+          </div>
+          <ul className="divide-y divide-border">
+            {bouncers.map((b) => (
+              <li
+                key={b.vendorId}
+                className="flex items-center justify-between px-3 py-2 text-xs"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium text-foreground">
+                    {b.vendor}
+                    <span className="ml-2 text-[10px] text-muted-foreground">
+                      {b.vendorId}
+                    </span>
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {b.contact}
+                  </span>
+                </div>
+                <span className="rounded-md bg-cat-red-soft px-2 py-0.5 text-[10px] font-semibold text-cat-red">
+                  {b.reason}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
 function RequestDetail({
   request,
   onBack,
