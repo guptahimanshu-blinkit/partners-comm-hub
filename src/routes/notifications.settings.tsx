@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -556,26 +557,89 @@ function RolePicker({
             <ChevronDown className="h-3.5 w-3.5 opacity-60" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-56 p-2">
-          <div className="space-y-1">
-            {ROLE_OPTIONS.map((r) => {
-              const checked = selected.includes(r);
-              return (
-                <label
-                  key={r}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => onToggle(r)}
-                  />
-                  <span>{r}</span>
-                </label>
-              );
-            })}
-          </div>
+        <PopoverContent align="end" className="w-64 p-2">
+          <RolePickerBody
+            selected={selected}
+            onToggle={onToggle}
+          />
         </PopoverContent>
       </Popover>
+    </div>
+  );
+}
+
+function RolePickerBody({
+  selected,
+  onToggle,
+}: {
+  selected: RoleOption[];
+  onToggle: (r: RoleOption) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const trimmed = query.trim();
+  const merged = Array.from(new Set([...ROLE_OPTIONS, ...selected]));
+  const filtered = trimmed
+    ? merged.filter((r) => r.toLowerCase().includes(trimmed.toLowerCase()))
+    : merged;
+  const canAddCustom =
+    trimmed.length > 0 &&
+    !merged.some((r) => r.toLowerCase() === trimmed.toLowerCase());
+
+  const commitAdd = () => {
+    if (!canAddCustom) return;
+    onToggle(trimmed);
+    setQuery("");
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitAdd();
+            }
+          }}
+          placeholder="Search or type new role..."
+          className="h-8 text-xs"
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 shrink-0 gap-1 px-2 text-xs"
+          disabled={!canAddCustom}
+          onClick={commitAdd}
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </Button>
+      </div>
+      <div className="max-h-56 space-y-1 overflow-y-auto">
+        {filtered.length === 0 && !canAddCustom && (
+          <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+            No matches
+          </div>
+        )}
+        {filtered.map((r) => {
+          const checked = selected.includes(r);
+          return (
+            <label
+              key={r}
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+            >
+              <Checkbox
+                checked={checked}
+                onCheckedChange={() => onToggle(r)}
+              />
+              <span>{r}</span>
+            </label>
+          );
+        })}
+      </div>
     </div>
   );
 }
