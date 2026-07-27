@@ -2527,8 +2527,12 @@ function PublishedDetailDialog({
                   <DetailRow label="Attachment" value={request.attachment} />
                   <DetailRow label="CTA" value={request.cta} />
                   <DetailRow
-                    label="Submitted by"
+                    label="Submitted By"
                     value={`${request.submittedBy} (${request.primaryEmail})`}
+                  />
+                  <DetailRow
+                    label="Approval CCs"
+                    value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"}
                   />
                   <DetailRow label="Team" value={request.team.join(", ")} />
                 </div>
