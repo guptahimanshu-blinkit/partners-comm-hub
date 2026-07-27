@@ -2329,7 +2329,6 @@ function TemplateLibraryDialog({
           <ul className="divide-y divide-border rounded-lg border border-border">
             {templates.map((t) => {
               const usage = usageByTemplate.get(t.templateId) ?? 0;
-              const locked = usage > 0;
               return (
                 <li key={t.id}>
                   <button
