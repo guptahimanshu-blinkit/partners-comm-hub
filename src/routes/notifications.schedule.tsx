@@ -380,26 +380,6 @@ function ScheduleNotificationPage() {
                 </dl>
               </div>
 
-              {/* Pre-flight checks */}
-              <div className="rounded-lg border border-border bg-background p-3">
-                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Pre-flight checks
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <PreflightBadge
-                    ok={audience <= 5000}
-                    label={`Audience threshold gate · ${audience.toLocaleString("en-IN")}`}
-                  />
-                  <PreflightBadge
-                    ok={!(selected.preflightChecks?.isAtFrequencyCap)}
-                    label="Weekly frequency cap"
-                  />
-                  <PreflightBadge
-                    ok={selected.preflightChecks?.waValidated !== false}
-                    label="WhatsApp Meta ID registry"
-                  />
-                </div>
-              </div>
             </>
           )}
 
