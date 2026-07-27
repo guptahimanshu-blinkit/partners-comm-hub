@@ -744,11 +744,15 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         : undefined,
       preflightChecks: preflight,
       status: "Pending",
-      submittedBy: "You",
+      submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
     };
     addRequest(req);
-    toast.success(`Request submitted, status: Pending — ${nowStamp()}`);
+    const ccPart =
+      ccEmails.length > 0 ? ` and CC'd ${ccEmails.length} reviewer${ccEmails.length === 1 ? "" : "s"}` : " (no CCs)";
+    toast.success(
+      `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
+    );
     onDone();
   };
 
