@@ -64,6 +64,7 @@ import {
   useRequests,
   addCampaign,
   updateCampaign,
+  updateCampaignStatus,
   nowStamp,
   type Campaign,
   type CampaignChannel,
