@@ -478,9 +478,7 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
       frequency: draft.frequency,
       extraVendorIds: draft.extraVendorIds,
     });
-    toast.success("Live changes applied", {
-      description: "Future reminder steps updated. Delivered steps remain locked.",
-    });
+    toast.success("Live changes applied — future reminder steps updated");
     setEditMode(false);
   };
 
