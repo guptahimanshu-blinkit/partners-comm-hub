@@ -454,8 +454,49 @@ function ScheduleNotificationPage() {
             )}
           </div>
 
-          <Button className="w-full" disabled={!canSubmit} onClick={submit}>
-            Schedule Notification
+          {selected && (() => {
+            const overAudience = audience > 1000;
+            const nonP1 = selected.priority && selected.priority !== "P1";
+            const freqOverflow = !!nonP1 && !!selected.preflightChecks?.isAtFrequencyCap;
+            const waRequired = /manufact/i.test("") || selected.sentTo.some((s) => /low tech/i.test(s));
+            const waInvalid = waRequired && selected.preflightChecks?.waValidated === false;
+            if (!overAudience && !freqOverflow && !waInvalid) return null;
+            return (
+              <div className="space-y-2">
+                {overAudience && (
+                  <div className="rounded-lg border border-cat-amber/50 bg-cat-amber-soft p-3 text-[12px] leading-relaxed text-cat-amber">
+                    <span className="mr-1">🚨</span>
+                    <span className="font-semibold uppercase tracking-wider">Governance Interception:</span>{" "}
+                    Target audience ({audience.toLocaleString("en-IN")}) exceeds the 1,000 recipient threshold. Direct dispatch is locked. Submission will route to Comms-Admin for approval.
+                  </div>
+                )}
+                {freqOverflow && (
+                  <div className="rounded-lg border border-yellow-400/60 bg-yellow-100/70 p-3 text-[12px] leading-relaxed text-yellow-900 dark:bg-yellow-500/10 dark:text-yellow-200">
+                    <span className="mr-1">⚠️</span>
+                    <span className="font-semibold uppercase tracking-wider">Frequency Cap Notice:</span>{" "}
+                    Target segment has reached max weekly frequency limit (3 non-P1 comms/week). This broadcast will be queued for next week's window.
+                  </div>
+                )}
+                {waInvalid && (
+                  <div className="rounded-lg border border-cat-red/50 bg-cat-red-soft p-3 text-[12px] leading-relaxed text-cat-red">
+                    <span className="mr-1">🛑</span>
+                    <span className="font-semibold uppercase tracking-wider">WhatsApp Registry Block:</span>{" "}
+                    Template not registered on Meta WhatsApp API. WhatsApp channel disabled for this drop.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <Button
+            className={cn(
+              "w-full",
+              audience > 1000 && "bg-cat-amber text-white hover:bg-cat-amber/90",
+            )}
+            disabled={!canSubmit}
+            onClick={submit}
+          >
+            {audience > 1000 ? "Request Admin Approval" : "Schedule Notification"}
           </Button>
         </div>
 
