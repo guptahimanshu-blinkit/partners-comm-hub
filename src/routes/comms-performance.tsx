@@ -5,11 +5,8 @@ import {
   TrendingUp,
   TrendingDown,
   MousePointerClick,
-  MailWarning,
-  EyeOff,
-  Gauge,
-  UserCog,
-  LifeBuoy,
+  Send,
+  MailOpen,
   CheckCircle2,
   Mail,
   MessageCircle,
@@ -24,7 +21,6 @@ import {
   Tooltip as RTooltip,
   ResponsiveContainer,
 } from "recharts";
-import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
