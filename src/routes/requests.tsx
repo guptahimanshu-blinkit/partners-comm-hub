@@ -1306,9 +1306,19 @@ function fillSample(text: string): string {
     due_date: "18 Aug 2026",
     po_number: "PO-88213",
   };
-  return text.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g, (_, k) =>
-    samples[k] ? samples[k] : `{{${k}}}`,
-  );
+  return text.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g, (_, k: string) => {
+    if (samples[k]) return samples[k];
+    const key = k.toLowerCase();
+    if (key.includes("grn_date") || key.includes("date")) return "27 Jul 2026";
+    if (key.includes("vehicle") || key.includes("truck")) return "DL-01-EV-4412";
+    if (key.includes("dock") || key.includes("bay")) return "Dock Bay 04";
+    const title = k
+      .split("_")
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+    return `[${title}]`;
+  });
 }
 
 // ---------- Inline SQL chart preview ----------
