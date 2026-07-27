@@ -1123,13 +1123,24 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 function EmailPillInput({
   values,
   onChange,
+  allowedDomains,
 }: {
   values: string[];
   onChange: (v: string[]) => void;
+  allowedDomains?: string[];
 }) {
   const [draft, setDraft] = useState("");
   const [errorIdx, setErrorIdx] = useState<number | null>(null);
+  const [domainError, setDomainError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const domainOk = (email: string) => {
+    if (!allowedDomains || allowedDomains.length === 0) return true;
+    const at = email.lastIndexOf("@");
+    if (at < 0) return false;
+    const d = email.slice(at + 1).toLowerCase();
+    return allowedDomains.some((allowed) => d === allowed.toLowerCase());
+  };
 
   const commit = (raw: string) => {
     const parts = raw
@@ -1138,8 +1149,20 @@ function EmailPillInput({
       .filter(Boolean);
     if (parts.length === 0) return;
     const next = [...values];
+    const rejected: string[] = [];
     for (const p of parts) {
+      if (!domainOk(p)) {
+        rejected.push(p);
+        continue;
+      }
       if (!next.includes(p)) next.push(p);
+    }
+    if (rejected.length > 0 && allowedDomains) {
+      setDomainError(
+        `⚠️ Internal approval CCs must end in ${allowedDomains.map((d) => "@" + d).join(" or ")}.`,
+      );
+    } else {
+      setDomainError(null);
     }
     onChange(next);
     setDraft("");
