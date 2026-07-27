@@ -613,8 +613,8 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
 function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [templateId, setTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
-  const [email, setEmail] = useState("");
-  const [emailTouched, setEmailTouched] = useState(false);
+  const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
+  const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
   const [team, setTeam] = useState<string[]>([]);
   const [slackPoc, setSlackPoc] = useState("");
   const [purpose, setPurpose] = useState("");
