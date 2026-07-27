@@ -560,6 +560,7 @@ function CampaignDetailBody({ c }: { c: Campaign }) {
 
       {isLive && (
         <LiveEditBanner
+          campaign={c}
           editMode={editMode}
           onApply={applyChanges}
           canApply={editMode}
