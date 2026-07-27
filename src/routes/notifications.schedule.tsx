@@ -3,8 +3,6 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   CalendarPlus,
   Info,
-  CheckCircle2,
-  ShieldCheck,
   Paperclip,
   BarChart3,
 } from "lucide-react";
