@@ -1233,6 +1233,11 @@ function EmailPillInput({
           Invalid email — hover the red pill to remove it
         </p>
       )}
+      {domainError && (
+        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-cat-red">
+          {domainError}
+        </p>
+      )}
       <p className="mt-1 text-[11px] text-muted-foreground">
         Add multiple with Enter or comma. Backspace removes the last tag.
       </p>
