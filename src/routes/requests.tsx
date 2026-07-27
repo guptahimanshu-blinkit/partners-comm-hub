@@ -171,10 +171,8 @@ const TEAM_OPTIONS = [
   "Category",
 ];
 const SENT_TO_OPTIONS = [
-  "Tech Enabled Vendors",
-  "Low Tech Vendors",
-  "Manufacturers",
-  "Warehouse Leads",
+  "Manufacture",
+  "Vendor",
 ];
 const SLACK_USERS = [
   "@arjun.k",
