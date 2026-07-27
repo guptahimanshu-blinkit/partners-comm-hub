@@ -1406,7 +1406,10 @@ function seed(): TemplateRequest[] {
       emailAttachmentsName: "fillrate_north.xlsx",
       vendorListName: "vendors_north.csv",
       manufacturerListName: "-",
-      subject: "Your weekly fill rate digest",
+      subject: "Your weekly fill rate digest — {{vendor_name}}",
+      body:
+        "Hi {{vendor_name}}, your weekly fill rate scorecard is attached. Trend chart below highlights top defect SKUs. Review by {{due_date}}.",
+      inlineSqlChart: "fill_rate_trend_by_vendor.sql",
       formulaFlags: ["Formula Attachment"],
       subCategory: "Reports",
       domain: "Operations & Appointments",
