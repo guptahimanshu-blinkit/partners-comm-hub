@@ -1650,18 +1650,39 @@ function FileField({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      onChange("");
+      return;
+    }
+    const ok = /\.(csv|xlsx|xls)$/i.test(file.name);
+    if (!ok) {
+      toast.error(
+        "🛑 Invalid file format. Only structured recipient lists (.csv, .xlsx, .xls) are allowed.",
+      );
+      if (inputRef.current) inputRef.current.value = "";
+      onChange("");
+      return;
+    }
+    onChange(file.name);
+  };
   return (
     <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
       <Paperclip className="h-4 w-4" />
-      <span className="truncate">{value || "Choose file"}</span>
+      <span className="truncate">{value || "Choose .csv, .xlsx, or .xls"}</span>
       <input
+        ref={inputRef}
         type="file"
+        accept=".csv,.xlsx,.xls"
         className="hidden"
-        onChange={(e) => onChange(e.target.files?.[0]?.name ?? "")}
+        onChange={handle}
       />
     </label>
   );
 }
+
 
 function FrequencyPickerLight({
   values,
