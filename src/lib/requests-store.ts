@@ -1671,3 +1671,95 @@ export function acknowledgeVendorNotification(
 
   return entry;
 }
+
+// ---------------------------------------------------------------------------
+// Workdesk "Schedule Notification" → PartnersBiz card minting.
+// Bridges the Add-New-Notification flow (which creates a PublishLog) directly
+// into the vendor Notification Centre using the full TemplateRequest payload.
+// ---------------------------------------------------------------------------
+
+function hydrateBody(body: string): string {
+  return body
+    .replace(/{{\s*vendor_name\s*}}/g, "ITC Limited")
+    .replace(/{{\s*po_number\s*}}/g, "PO #KF-77120")
+    .replace(/{{\s*amount_due\s*}}/g, "₹2,11,340")
+    .replace(/{{\s*due_date\s*}}/g, "31 Jul 2026");
+}
+
+function attachmentFromConfig(
+  cfg?: AttachmentConfig,
+  fallbackName?: string,
+): NotificationAttachment | undefined {
+  if (!cfg || cfg.type === "none") return undefined;
+  const name =
+    cfg.fileName ||
+    cfg.queryKey ||
+    cfg.s3Path ||
+    fallbackName ||
+    "attachment.pdf";
+  const lower = name.toLowerCase();
+  const type: AttachmentType =
+    lower.endsWith(".xlsx") || lower.endsWith(".xls") || lower.endsWith(".csv")
+      ? "Excel Export"
+      : lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+        ? "Image"
+        : "PDF";
+  return { label: name, type };
+}
+
+export function syncPublishToNotifications(
+  log: PublishLog,
+  req: TemplateRequest,
+): AppNotification | null {
+  hydrateSyncOnce();
+  const id = `PUB-SYNC-${log.id}`;
+  if (SYNCED_NOTIFS.some((n) => n.id === id)) return null;
+
+  const audience = categoryToAudience(req.categoryId);
+  const attachment = attachmentFromConfig(
+    req.attachmentConfig,
+    req.emailAttachmentsName,
+  );
+
+  const notif: AppNotification = {
+    id,
+    category: req.categoryId,
+    subCategory:
+      req.categoryId === "action_required"
+        ? "po_cancellation"
+        : req.categoryId === "finance_payments"
+          ? "rebate_reconciliation"
+          : "general",
+    subject: req.subject,
+    message: hydrateBody(req.body ?? req.purpose ?? ""),
+    timestamp: nowShortStamp(),
+    relativeTime: nowRelative(),
+    priority: req.priority,
+    cta:
+      req.cta === "Autofilled Help & Support Ticket"
+        ? "raise_ticket"
+        : "view_details",
+    read: false,
+    expired: false,
+    audience,
+    detail: [
+      { label: "Template", value: req.templateId },
+      { label: "Segment", value: log.segment },
+      { label: "Scheduled for", value: log.scheduledFor },
+      { label: "Submitter", value: log.submitterName },
+      ...(req.inlineSqlChart
+        ? [{ label: "Inline chart", value: req.inlineSqlChart }]
+        : []),
+    ],
+    attachment,
+    linkedTemplateId: req.templateId,
+    poInvoiceNo: req.templateId,
+  };
+
+  SYNCED_NOTIFS = [notif, ...SYNCED_NOTIFS];
+  sg.__PB_SYNC_NOTIFS = SYNCED_NOTIFS;
+  persistSync();
+  emitSync();
+  return notif;
+}
+
