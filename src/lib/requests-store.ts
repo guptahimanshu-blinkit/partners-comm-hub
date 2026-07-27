@@ -136,6 +136,8 @@ export interface TemplateRequest {
   vendorListName: string;
   manufacturerListName: string;
   subject: string;
+  body?: string;
+  inlineSqlChart?: string;
   formulaFlags: string[];
   subCategory?: SubCategoryPurpose;
   domain?: DomainType;
