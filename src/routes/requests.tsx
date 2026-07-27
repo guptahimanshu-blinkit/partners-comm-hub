@@ -707,11 +707,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       toast.error("Please fill required fields");
       return;
     }
-    if (!email || !emailValid) {
-      setEmailTouched(true);
-      toast.error("Please enter a valid primary email");
-      return;
-    }
     if (!inferred || !subCategory || !domain) {
       toast.error("Please select Sub-Category and Domain");
       return;
@@ -721,7 +716,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       requestType: "Template Approval",
       templateId,
       templateName,
-      primaryEmail: email,
+      primaryEmail: AUTH_SUBMITTER_EMAIL,
       team,
       slackPoc,
       purpose,
