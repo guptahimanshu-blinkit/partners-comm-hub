@@ -1791,6 +1791,10 @@ function RequestDetail({
           <InheritedPanel categoryId={request.categoryId} priority={request.priority} />
         </div>
 
+        <div className="mt-5">
+          <TemplateDeliverabilityCard templateId={request.templateId} />
+        </div>
+
         {request.whatsapp && (
           <div className="mt-5">
             <WhatsAppBubble
