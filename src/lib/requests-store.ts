@@ -1454,3 +1454,212 @@ function seed(): TemplateRequest[] {
     },
   ];
 }
+
+// ============================================================================
+// Workdesk ⇄ PartnersBiz synchronized notification feed
+// When a campaign is launched (or a new comm is submitted) we mint a matching
+// vendor-facing notification card. Vendor actions on that card flow back to
+// the campaign via incrementCampaignGoal + recordVendorAction.
+// ============================================================================
+
+import type { AppNotification } from "./mock-data";
+
+type SyncGlobal = { __PB_SYNC_NOTIFS?: AppNotification[]; __PB_SYNC_LISTENERS?: Set<() => void> };
+const sg = globalThis as unknown as SyncGlobal;
+
+const SYNC_STORAGE_KEY = "pbcc_synced_notifs_v1";
+
+let SYNCED_NOTIFS: AppNotification[] =
+  sg.__PB_SYNC_NOTIFS ?? (sg.__PB_SYNC_NOTIFS = []);
+const syncListeners: Set<() => void> =
+  sg.__PB_SYNC_LISTENERS ?? (sg.__PB_SYNC_LISTENERS = new Set());
+
+function emitSync() {
+  syncListeners.forEach((l) => l());
+}
+
+function persistSync() {
+  writeStoredArray(SYNC_STORAGE_KEY, SYNCED_NOTIFS);
+}
+
+function hydrateSyncOnce() {
+  if (typeof window === "undefined") return;
+  const stored = readStoredArray<AppNotification>(SYNC_STORAGE_KEY);
+  if (stored && stored.length && SYNCED_NOTIFS.length === 0) {
+    SYNCED_NOTIFS = stored;
+    sg.__PB_SYNC_NOTIFS = stored;
+  }
+}
+
+function categoryToAudience(cat: CategoryId): AppNotification["audience"] {
+  if (cat === "finance_payments") return "Finance";
+  return "Supply Chain Manager";
+}
+
+function nowRelative(): string {
+  return "Just now";
+}
+
+function nowShortStamp(): string {
+  const d = new Date();
+  return d.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+/** Idempotent: mints one synced notification per campaign id. */
+export function syncCampaignToNotifications(c: Campaign): AppNotification | null {
+  hydrateSyncOnce();
+  if (SYNCED_NOTIFS.some((n) => n.linkedCampaignId === c.id)) return null;
+
+  const audience = categoryToAudience(c.categoryId);
+  const poField = c.categoryId === "finance_payments" ? "Invoice / Ref" : "PO / Ref";
+  const refValue = c.templateId;
+
+  const notif: AppNotification = {
+    id: `SYNC-${c.id}`,
+    category: c.categoryId,
+    subCategory:
+      c.categoryId === "action_required"
+        ? "po_cancellation"
+        : c.categoryId === "finance_payments"
+          ? "rebate_reconciliation"
+          : "general",
+    subject: `${c.name} — ${c.segment}`,
+    message: `${c.purpose} This communication was launched from Workdesk on ${nowShortStamp()} and is awaiting your action.`,
+    timestamp: nowShortStamp(),
+    relativeTime: nowRelative(),
+    priority: c.priority,
+    cta: c.categoryId === "action_required" || c.categoryId === "finance_payments"
+      ? "view_details"
+      : "view_details",
+    read: false,
+    expired: false,
+    audience,
+    detail: [
+      { label: "Campaign", value: c.name },
+      { label: "Template", value: c.templateId },
+      { label: "Segment", value: c.segment },
+      { label: "Audience", value: `${c.audienceCount} vendors` },
+      { label: "Channels", value: c.channels.join(", ") },
+      { label: poField, value: refValue },
+    ],
+    linkedCampaignId: c.id,
+    linkedTemplateId: c.templateId,
+    poInvoiceNo: c.templateId,
+  };
+
+  SYNCED_NOTIFS = [notif, ...SYNCED_NOTIFS];
+  sg.__PB_SYNC_NOTIFS = SYNCED_NOTIFS;
+  persistSync();
+  emitSync();
+  return notif;
+}
+
+export function getSyncedNotifications(): AppNotification[] {
+  hydrateSyncOnce();
+  return SYNCED_NOTIFS;
+}
+
+export function useSyncedNotifications(): AppNotification[] {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    hydrateSyncOnce();
+    const l = () => setTick((t) => t + 1);
+    syncListeners.add(l);
+    return () => {
+      syncListeners.delete(l);
+    };
+  }, []);
+  return SYNCED_NOTIFS;
+}
+
+/**
+ * Closed-loop acknowledgement from PartnersBiz → Workdesk.
+ * - Bumps the linked campaign's goalCompletedCount by +1
+ * - Records a VendorActionTelemetry entry with the exact stamped text
+ * - Marks the synced notification as read
+ */
+export function acknowledgeVendorNotification(
+  notification: AppNotification,
+  opts: {
+    vendorName?: string;
+    vendorId?: string;
+    poInvoiceNo?: string;
+    actionType?: VendorActionTelemetry["actionType"];
+    statusTransition?: string;
+    clearedRiskFlag?: string;
+    channel?: VendorActionTelemetry["channel"];
+    eventText?: string;
+  } = {},
+): VendorActionTelemetry | null {
+  const campaignId = notification.linkedCampaignId;
+  if (!campaignId) return null;
+
+  const campaign = CAMPAIGNS.find((c) => c.id === campaignId);
+  incrementCampaignGoal(campaignId, 1);
+
+  const vendorName = opts.vendorName ?? "ITC Limited";
+  const poInvoice =
+    opts.poInvoiceNo ??
+    notification.poInvoiceNo ??
+    notification.detail.find((d) => /po|invoice|ref/i.test(d.label))?.value ??
+    notification.linkedTemplateId ??
+    "";
+
+  const actionType =
+    opts.actionType ??
+    (notification.category === "finance_payments"
+      ? "Reconciled Statement"
+      : "Acknowledged & Stopped");
+
+  const entry = recordVendorAction({
+    vendorName,
+    vendorId: opts.vendorId ?? "M-4412",
+    templateId: notification.linkedTemplateId ?? campaign?.templateId ?? "APOLLO-SYNC",
+    templateName: campaign?.name ?? notification.subject,
+    campaignId,
+    poInvoiceNo: poInvoice,
+    actionType,
+    statusTransition:
+      opts.statusTransition ??
+      (actionType === "Reconciled Statement"
+        ? "Pending Reconciliation ──► Reconciled"
+        : "Pending Vendor Ack ──► Acknowledged & Stopped"),
+    clearedRiskFlag:
+      opts.clearedRiskFlag ??
+      (actionType === "Reconciled Statement"
+        ? "Financial discrepancy cleared"
+        : "In-transit risk cleared"),
+    channel: opts.channel ?? "PartnersBiz Portal",
+  });
+
+  // Human-readable audit line for the Workdesk telemetry drawer.
+  if (opts.eventText) {
+    logVendorAction({
+      vendorName,
+      poNumber: poInvoice.replace(/^\D+/, ""),
+      kind: actionType === "Reconciled Statement" ? "reconcile" : "acknowledge",
+      text: opts.eventText,
+    });
+  }
+
+  // Mark the synced notification as read (if present in the sync feed).
+  const idx = SYNCED_NOTIFS.findIndex((n) => n.id === notification.id);
+  if (idx >= 0) {
+    SYNCED_NOTIFS = SYNCED_NOTIFS.map((n) =>
+      n.id === notification.id ? { ...n, read: true } : n,
+    );
+    sg.__PB_SYNC_NOTIFS = SYNCED_NOTIFS;
+    persistSync();
+    emitSync();
+  }
+
+  return entry;
+}
