@@ -505,19 +505,3 @@ function ScheduleNotificationPage() {
     </AppShell>
   );
 }
-
-function PreflightBadge({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
-        ok
-          ? "border-cat-green/40 bg-cat-green-soft text-cat-green"
-          : "border-cat-red/40 bg-cat-red-soft text-cat-red",
-      )}
-    >
-      <CheckCircle2 className="h-3 w-3" />
-      {label}
-    </span>
-  );
-}
