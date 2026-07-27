@@ -944,12 +944,61 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           <LiquidVarPills text={subject} />
         </FormRow>
         <FormRow label="Body">
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={5}
-          />
-          <LiquidVarPills text={body} />
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-2">
+              <Input
+                value={customVarInput}
+                onChange={(e) => setCustomVarInput(e.target.value)}
+                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustomVariable();
+                  }
+                }}
+                placeholder="Type variable name..."
+                className="h-8 max-w-[240px] text-xs"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={addCustomVariable}
+                disabled={!sanitizeVarName(customVarInput)}
+                className="h-8"
+              >
+                + Add Variable
+              </Button>
+              {customVarInput && (
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  → <code className="rounded bg-background px-1">{`{{${sanitizeVarName(customVarInput) || "…"}}}`}</code>
+                </span>
+              )}
+              {customVariables.length > 0 && (
+                <div className="flex w-full flex-wrap items-center gap-1 border-t border-border/60 pt-2">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Quick insert
+                  </span>
+                  {customVariables.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => insertAtCursor(`{{${v}}}`)}
+                      className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-700 hover:bg-amber-500/25"
+                    >
+                      {`{{${v}}}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Textarea
+              ref={bodyRef}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={5}
+            />
+            <LiquidVarPills text={body} />
+          </div>
         </FormRow>
         <FormRow label="Inline SQL Chart binding (optional)">
           <Input
