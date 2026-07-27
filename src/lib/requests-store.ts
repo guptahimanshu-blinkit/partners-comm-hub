@@ -1307,7 +1307,10 @@ function seed(): TemplateRequest[] {
       emailAttachmentsName: "invoice_ref.pdf",
       vendorListName: "vendors_finance.csv",
       manufacturerListName: "mfrs_finance.csv",
-      subject: "Action needed: Payment on hold",
+      subject: "Action needed: Payment on hold for {{po_number}}",
+      body:
+        "Hi {{vendor_name}}, invoice against {{po_number}} of {{amount_due}} is on hold pending debit-note reconciliation. Please respond by {{due_date}} to release payment.",
+      inlineSqlChart: "invoice_hold_ageing_by_vendor.sql",
       formulaFlags: ["None"],
       subCategory: "Defect Flow Communications",
       domain: "Finance & Payments",
