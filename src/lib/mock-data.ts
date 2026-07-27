@@ -127,6 +127,9 @@ export interface AppNotification {
   audience: EmployeeRole;
   detail: DetailField[];
   attachment?: NotificationAttachment;
+  linkedCampaignId?: string;
+  linkedTemplateId?: string;
+  poInvoiceNo?: string;
 }
 
 export const NOTIFICATIONS: AppNotification[] = [

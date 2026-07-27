@@ -45,7 +45,11 @@ import {
   type POCancellationPayload,
 } from "@/components/notifications/POCancellationDialog";
 import { getNotificationCtaKind, CTA_LABEL } from "@/lib/action-cta";
-import { recordVendorAction } from "@/lib/requests-store";
+import {
+  recordVendorAction,
+  useSyncedNotifications,
+  acknowledgeVendorNotification,
+} from "@/lib/requests-store";
 import { useRole } from "@/lib/role-context";
 import { useRoleAssignments, isCategoryAssignedTo } from "@/lib/role-assignments";
 
@@ -114,13 +118,13 @@ function NotificationCentreInner({
   };
 
 
-  const visible = useMemo(
-    () =>
-      NOTIFICATIONS.filter(
-        (n) => !isEmployee || isCategoryAssignedTo(n.category, employeeRole, assignments),
-      ),
-    [isEmployee, employeeRole, assignments],
-  );
+  const synced = useSyncedNotifications();
+  const visible = useMemo(() => {
+    const merged = [...synced, ...NOTIFICATIONS];
+    return merged.filter(
+      (n) => !isEmployee || isCategoryAssignedTo(n.category, employeeRole, assignments),
+    );
+  }, [synced, isEmployee, employeeRole, assignments]);
 
   const unreadByCat = (cat: CategoryId) =>
     visible.filter((n) => n.category === cat && !n.read).length;
@@ -432,26 +436,80 @@ function NotificationCard({
                 let primaryIcon = <ExternalLink className="h-4 w-4" />;
                 let primaryAction: () => void = onViewDetails;
 
+                const poRef =
+                  n.detail.find((d) => /po number|po \/|po#|invoice|ref/i.test(d.label))
+                    ?.value ??
+                  n.subject.match(/PO\s*#?(\S+)/i)?.[1] ??
+                  n.poInvoiceNo ??
+                  "";
+                const nowIst = new Date().toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                  timeZone: "Asia/Kolkata",
+                });
+
                 if (cat === "action_required") {
                   primaryLabel = "Acknowledge & Stop Dispatch →";
+                  primaryAction = () => {
+                    if (n.linkedCampaignId) {
+                      acknowledgeVendorNotification(n, {
+                        vendorName: "ITC Limited",
+                        poInvoiceNo: poRef || undefined,
+                        actionType: "Acknowledged & Stopped",
+                        statusTransition:
+                          "Pending Vendor Ack ──► Acknowledged & Stopped",
+                        clearedRiskFlag: "In-transit risk cleared",
+                        eventText: `${nowIst} IST · ITC Limited acknowledged ${poRef ? `PO #${poRef.replace(/^#/, "")}` : n.subject} cancellation via PartnersBiz Portal — In-transit risk cleared.`,
+                      });
+                    } else {
+                      recordVendorAction({
+                        vendorName: "ITC Limited",
+                        vendorId: "M-4412",
+                        templateId: "APOLLO-8410F2",
+                        templateName: "PO Cancellation Notice",
+                        campaignId: "c-001",
+                        poInvoiceNo: poRef || "PO #KF-77120",
+                        actionType: "Acknowledged & Stopped",
+                        statusTransition:
+                          "Pending Vendor Ack ──► Acknowledged & Stopped",
+                        clearedRiskFlag: "In-transit dispatch risk cleared",
+                        channel: "PartnersBiz Portal",
+                      });
+                    }
+                    toast.success("Acknowledged — Workdesk telemetry updated ✓");
+                  };
                 } else if (cat === "finance_payments") {
                   primaryLabel = "Reconcile Statement →";
                   primaryAction = () => {
-                    recordVendorAction({
-                      vendorName: "ITC Limited",
-                      vendorId: "M-4412",
-                      templateId: "APOLLO-2291",
-                      templateName: "Rebate Reconciliation Notice",
-                      campaignId: "c-002",
-                      poInvoiceNo: "INV-BB-55921",
-                      actionType: "Reconciled Statement",
-                      statusTransition: "Pending Reconciliation ──► Reconciled",
-                      clearedRiskFlag: "Financial discrepancy cleared",
-                      channel: "PartnersBiz Portal",
-                    });
+                    if (n.linkedCampaignId) {
+                      acknowledgeVendorNotification(n, {
+                        vendorName: "ITC Limited",
+                        poInvoiceNo: poRef || undefined,
+                        actionType: "Reconciled Statement",
+                        statusTransition:
+                          "Pending Reconciliation ──► Reconciled",
+                        clearedRiskFlag: "Financial discrepancy cleared",
+                        eventText: `${nowIst} IST · ITC Limited reconciled ${poRef || n.subject} via PartnersBiz Portal — Financial discrepancy cleared.`,
+                      });
+                    } else {
+                      recordVendorAction({
+                        vendorName: "ITC Limited",
+                        vendorId: "M-4412",
+                        templateId: "APOLLO-2291",
+                        templateName: "Rebate Reconciliation Notice",
+                        campaignId: "c-002",
+                        poInvoiceNo: poRef || "INV-BB-55921",
+                        actionType: "Reconciled Statement",
+                        statusTransition: "Pending Reconciliation ──► Reconciled",
+                        clearedRiskFlag: "Financial discrepancy cleared",
+                        channel: "PartnersBiz Portal",
+                      });
+                    }
                     toast.success("Statement reconciled — Workdesk telemetry updated ✓");
                   };
-
                 } else if (suppressTicket) {
                   primaryLabel = n.attachment ? "Download Report" : "View Details";
                 } else if (kind !== "generic") {
