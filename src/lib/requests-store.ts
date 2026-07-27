@@ -694,6 +694,7 @@ function seedPublishLogs(): PublishLog[] {
 
 export type CampaignStatus =
   | "Running"
+  | "Paused"
   | "Scheduled"
   | "Pending approval"
   | "Failing"
