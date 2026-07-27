@@ -118,13 +118,13 @@ function NotificationCentreInner({
   };
 
 
-  const visible = useMemo(
-    () =>
-      NOTIFICATIONS.filter(
-        (n) => !isEmployee || isCategoryAssignedTo(n.category, employeeRole, assignments),
-      ),
-    [isEmployee, employeeRole, assignments],
-  );
+  const synced = useSyncedNotifications();
+  const visible = useMemo(() => {
+    const merged = [...synced, ...NOTIFICATIONS];
+    return merged.filter(
+      (n) => !isEmployee || isCategoryAssignedTo(n.category, employeeRole, assignments),
+    );
+  }, [synced, isEmployee, employeeRole, assignments]);
 
   const unreadByCat = (cat: CategoryId) =>
     visible.filter((n) => n.category === cat && !n.read).length;
