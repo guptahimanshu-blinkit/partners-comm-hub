@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CategoryId } from "./mock-data";
 
-export const ROLE_OPTIONS = [
+export const ROLE_OPTIONS: string[] = [
   "Account Owner",
   "Admin",
   "Finance Manager",
   "Supply Chain Manager",
-] as const;
-export type RoleOption = (typeof ROLE_OPTIONS)[number];
+  "Warehouse Ops",
+  "Catalog Lead",
+  "Dispatch Executive",
+  "Quality Lead",
+  "Commercial Manager",
+];
+export type RoleOption = string;
 
 export const LOCKED_CATEGORIES: CategoryId[] = ["action_required", "account_access"];
 export const LOCKED_ROLES: RoleOption[] = ["Account Owner", "Admin"];
