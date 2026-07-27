@@ -9,6 +9,10 @@ import {
   Loader2,
   Lock,
   Info,
+  Mail,
+  MessageCircle,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -116,6 +128,120 @@ function DiagnoseModal({
   );
 }
 
+type StatCardProps = {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  subtext: string;
+  badge: { text: string; tone: "amber" | "green" };
+};
+
+function StatCard({ icon, label, value, subtext, badge }: StatCardProps) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
+      </div>
+      <div className="text-2xl font-semibold tracking-tight">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{subtext}</div>
+      <Badge
+        className={cn(
+          "mt-3 text-[11px] font-medium",
+          badge.tone === "amber"
+            ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
+            : "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+        )}
+      >
+        {badge.text}
+      </Badge>
+    </div>
+  );
+}
+
+type DepartmentRow = {
+  role: string;
+  channel: string;
+  address: string;
+  sent: number;
+  delivered: number;
+  status: "healthy" | "warning";
+};
+
+const DEPARTMENTS: DepartmentRow[] = [
+  {
+    role: "Finance & Payments (FM)",
+    channel: "Email",
+    address: "cfo@itc-limited.com",
+    sent: 48,
+    delivered: 48,
+    status: "healthy",
+  },
+  {
+    role: "Supply Chain Ops (SCM)",
+    channel: "Email",
+    address: "scm-lead@itc-limited.com",
+    sent: 64,
+    delivered: 61,
+    status: "warning",
+  },
+  {
+    role: "Warehouse & Dispatch",
+    channel: "WhatsApp",
+    address: "+91 98200 44112",
+    sent: 33,
+    delivered: 33,
+    status: "healthy",
+  },
+];
+
+function DepartmentBreakdownTable() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead className="text-xs font-medium">Department / Role</TableHead>
+            <TableHead className="text-xs font-medium">Channel</TableHead>
+            <TableHead className="text-xs font-medium">Sent</TableHead>
+            <TableHead className="text-xs font-medium">Delivered</TableHead>
+            <TableHead className="text-xs font-medium">Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {DEPARTMENTS.map((d) => {
+            const pct = ((d.delivered / d.sent) * 100).toFixed(1);
+            return (
+              <TableRow key={d.role}>
+                <TableCell className="font-medium">{d.role}</TableCell>
+                <TableCell>
+                  <div className="text-xs text-muted-foreground">{d.channel}</div>
+                  <div className="text-xs">{d.address}</div>
+                </TableCell>
+                <TableCell className="tabular-nums">{d.sent}</TableCell>
+                <TableCell className="tabular-nums">
+                  {d.delivered} ({pct}%)
+                </TableCell>
+                <TableCell>
+                  {d.status === "healthy" ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                      <CheckCircle2 className="mr-1 h-3 w-3" /> Healthy
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                      <AlertTriangle className="mr-1 h-3 w-3" /> 3 Bounces Logged
+                    </Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export function VendorUtilitiesSection() {
   const [diagOpen, setDiagOpen] = useState(false);
 
@@ -135,10 +261,10 @@ export function VendorUtilitiesSection() {
   return (
     <section className="mb-8 rounded-xl border border-border bg-card">
       <div className="border-b border-border p-4">
-        <h2 className="font-semibold">Vendor utilities</h2>
+        <h2 className="font-semibold">Comms Deliverability &amp; Health Dashboard</h2>
         <p className="text-sm text-muted-foreground">
-          Delivery diagnostics, alert routing, quiet hours, and out-of-office —
-          keep comms actionable without missing critical ones.
+          Real-time delivery rates, bounce logs, and team SLA response metrics for
+          ITC Limited.
         </p>
       </div>
 
@@ -151,10 +277,42 @@ export function VendorUtilitiesSection() {
               Operational &amp; Financial comms (P1/P2)
             </span>{" "}
             are locked ON — mandatory operational notification required by
-            contract. Informational comms (P3) below can be tuned via digest and
-            quiet hours.
+            contract.
           </span>
         </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 gap-4 border-b border-border p-4 sm:grid-cols-3">
+        <StatCard
+          icon={<Mail className="h-4 w-4" />}
+          label="Email Deliverability"
+          value="97.6%"
+          subtext="142 / 145 Delivered"
+          badge={{ text: "⚠️ 3 Bounces Logged", tone: "amber" }}
+        />
+        <StatCard
+          icon={<MessageCircle className="h-4 w-4" />}
+          label="WhatsApp Deliverability"
+          value="100%"
+          subtext="88 / 88 Delivered"
+          badge={{ text: "✓ 0 Failures", tone: "green" }}
+        />
+        <StatCard
+          icon={<Clock className="h-4 w-4" />}
+          label="Team Response SLA"
+          value="1h 42m Avg"
+          subtext="Target: < 4 business hours"
+          badge={{ text: "98.4% P1 Compliance", tone: "green" }}
+        />
+      </div>
+
+      {/* Department breakdown */}
+      <div className="border-b border-border p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <p className="text-sm font-medium">Department &amp; role delivery breakdown</p>
+        </div>
+        <DepartmentBreakdownTable />
       </div>
 
       {/* Diagnose */}
@@ -281,7 +439,7 @@ export function VendorUtilitiesSection() {
           )}
         >
           <Label className="text-xs text-muted-foreground">
-            Backup POC (critical comms auto-route here while you're away)
+            Backup POC (critical comms auto-route here while you&apos;re away)
           </Label>
           <Input
             value={backup}
