@@ -653,10 +653,8 @@ function EmployeePreferences({ employeeRole }: { employeeRole: string }) {
 
   const visible = useMemo(
     () =>
-      CATEGORIES.filter(
-        (cat) =>
-          cat.mandatory ||
-          (assignments[cat.id] ?? []).includes(employeeRole as RoleOption),
+      CATEGORIES.filter((cat) =>
+        isCategoryAssignedTo(cat.id, employeeRole, assignments),
       ),
     [assignments, employeeRole],
   );
