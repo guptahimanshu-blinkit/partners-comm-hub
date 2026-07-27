@@ -2040,7 +2040,7 @@ function RequestDetail({
             }
           />
           <DetailField label="Frequency" value={request.frequency.join(", ") || "—"} />
-          <DetailField label="CC email" value={request.ccEmails.join(", ") || "—"} />
+          <DetailField label="Approval CCs" value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"} full />
 
           <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
         </div>
