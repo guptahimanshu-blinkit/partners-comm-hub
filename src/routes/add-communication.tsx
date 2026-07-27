@@ -20,9 +20,11 @@ import { useRole } from "@/lib/role-context";
 import { colorClasses } from "@/lib/mock-data";
 import {
   inferCategoryRules,
+  addCampaign,
   type SubCategoryPurpose,
   type DomainType,
   type InferredRules,
+  type Campaign,
 } from "@/lib/requests-store";
 
 export const Route = createFileRoute("/add-communication")({
