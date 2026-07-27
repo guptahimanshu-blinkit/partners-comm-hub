@@ -132,11 +132,23 @@ function CampaignsPage() {
     role === "internal_ops" &&
     (internalRole === "Template Submitter" || internalRole === "Approver");
 
+  const tabCounts = useMemo(
+    () => ({
+      All: campaigns.length,
+      Running: campaigns.filter((c) => c.status === "Running").length,
+      Scheduled: campaigns.filter((c) => c.status === "Scheduled").length,
+      "Pending approval": campaigns.filter((c) => c.status === "Pending approval").length,
+      Failing: campaigns.filter((c) => c.status === "Failing").length,
+      Completed: campaigns.filter((c) => c.status === "Completed").length,
+    }),
+    [campaigns],
+  );
+
   const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
     return campaigns.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false;
-      if (query) {
-        const q = query.toLowerCase();
+      if (q) {
         if (
           !c.name.toLowerCase().includes(q) &&
           !c.templateId.toLowerCase().includes(q)
