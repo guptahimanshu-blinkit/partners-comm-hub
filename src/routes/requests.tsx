@@ -642,6 +642,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [waMessage, setWaMessage] = useState("");
   const [waFreq, setWaFreq] = useState<FrequencyOption[]>([]);
   const [waCta, setWaCta] = useState("");
+  const [waMetaId, setWaMetaId] = useState("");
   const [audienceCount, setAudienceCount] = useState(450);
 
   const inferred: InferredRules | null = useMemo(() => {
