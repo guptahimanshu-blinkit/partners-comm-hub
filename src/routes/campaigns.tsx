@@ -95,6 +95,7 @@ const CAT_DOT: Record<string, string> = {
 
 const STATUS_STYLE: Record<CampaignStatus, string> = {
   Running: "bg-cat-green/10 text-cat-green border-cat-green/20",
+  Paused: "bg-cat-amber/10 text-cat-amber border-cat-amber/20",
   Scheduled: "bg-cat-blue/10 text-cat-blue border-cat-blue/20",
   "Pending approval": "bg-cat-amber/10 text-cat-amber border-cat-amber/20",
   Failing: "bg-cat-red/10 text-cat-red border-cat-red/20",
@@ -103,6 +104,7 @@ const STATUS_STYLE: Record<CampaignStatus, string> = {
 
 const STATUS_ICON: Record<CampaignStatus, typeof Circle> = {
   Running: CheckCircle2,
+  Paused: Pause,
   Scheduled: CalendarClock,
   "Pending approval": Clock,
   Failing: AlertTriangle,
