@@ -644,6 +644,37 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [waCta, setWaCta] = useState("");
   const [waMetaId, setWaMetaId] = useState("");
   const [audienceCount, setAudienceCount] = useState(450);
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const [customVarInput, setCustomVarInput] = useState("");
+  const [customVariables, setCustomVariables] = useState<string[]>([]);
+
+  const sanitizeVarName = (raw: string) =>
+    raw.toLowerCase().trim().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+
+  const insertAtCursor = (token: string) => {
+    const el = bodyRef.current;
+    if (!el) {
+      setBody((prev) => prev + token);
+      return;
+    }
+    const start = el.selectionStart ?? body.length;
+    const end = el.selectionEnd ?? body.length;
+    const next = body.slice(0, start) + token + body.slice(end);
+    setBody(next);
+    requestAnimationFrame(() => {
+      const pos = start + token.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const addCustomVariable = () => {
+    const clean = sanitizeVarName(customVarInput);
+    if (!clean) return;
+    insertAtCursor(`{{${clean}}}`);
+    setCustomVariables((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+    setCustomVarInput("");
+  };
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
@@ -913,12 +944,61 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           <LiquidVarPills text={subject} />
         </FormRow>
         <FormRow label="Body">
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={5}
-          />
-          <LiquidVarPills text={body} />
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-2">
+              <Input
+                value={customVarInput}
+                onChange={(e) => setCustomVarInput(e.target.value)}
+                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustomVariable();
+                  }
+                }}
+                placeholder="Type variable name..."
+                className="h-8 max-w-[240px] text-xs"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={addCustomVariable}
+                disabled={!sanitizeVarName(customVarInput)}
+                className="h-8"
+              >
+                + Add Variable
+              </Button>
+              {customVarInput && (
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  → <code className="rounded bg-background px-1">{`{{${sanitizeVarName(customVarInput) || "…"}}}`}</code>
+                </span>
+              )}
+              {customVariables.length > 0 && (
+                <div className="flex w-full flex-wrap items-center gap-1 border-t border-border/60 pt-2">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Quick insert
+                  </span>
+                  {customVariables.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => insertAtCursor(`{{${v}}}`)}
+                      className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-700 hover:bg-amber-500/25"
+                    >
+                      {`{{${v}}}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Textarea
+              ref={bodyRef}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={5}
+            />
+            <LiquidVarPills text={body} />
+          </div>
         </FormRow>
         <FormRow label="Inline SQL Chart binding (optional)">
           <Input
@@ -1306,9 +1386,19 @@ function fillSample(text: string): string {
     due_date: "18 Aug 2026",
     po_number: "PO-88213",
   };
-  return text.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g, (_, k) =>
-    samples[k] ? samples[k] : `{{${k}}}`,
-  );
+  return text.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g, (_, k: string) => {
+    if (samples[k]) return samples[k];
+    const key = k.toLowerCase();
+    if (key.includes("grn_date") || key.includes("date")) return "27 Jul 2026";
+    if (key.includes("vehicle") || key.includes("truck")) return "DL-01-EV-4412";
+    if (key.includes("dock") || key.includes("bay")) return "Dock Bay 04";
+    const title = k
+      .split("_")
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+    return `[${title}]`;
+  });
 }
 
 // ---------- Inline SQL chart preview ----------
