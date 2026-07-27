@@ -143,24 +143,36 @@ function CommsPerformancePage() {
 // ------------------ KPI tiles ------------------
 
 function KpiRow() {
-  const avgCtr = useMemo(() => {
-    const total = TEMPLATES.reduce((a, b) => a + b.ctr, 0);
-    return (total / TEMPLATES.length).toFixed(1);
-  }, []);
-  const belowBar = useMemo(
-    () => TEMPLATES.filter((t) => t.quality < 9).length,
-    [],
-  );
-  const avgQuality = useMemo(() => {
-    const total = TEMPLATES.reduce((a, b) => a + b.quality, 0);
-    return (total / TEMPLATES.length).toFixed(1);
+  const { totalSent, avgOpen, avgCtr } = useMemo(() => {
+    const totalSent = TEMPLATES.reduce((a, b) => a + b.sent, 0);
+    const totalOpened = TEMPLATES.reduce((a, b) => a + b.opened, 0);
+    const totalClicked = TEMPLATES.reduce((a, b) => a + b.clicked, 0);
+    return {
+      totalSent,
+      avgOpen: totalSent ? ((totalOpened / totalSent) * 100).toFixed(1) : "0.0",
+      avgCtr: totalOpened ? ((totalClicked / totalOpened) * 100).toFixed(1) : "0.0",
+    };
   }, []);
 
   const tiles = [
-    { label: "Avg CTR", value: `${avgCtr}%`, icon: MousePointerClick, red: false },
-    { label: "Bounces flagged", value: BOUNCES.length, icon: MailWarning, red: BOUNCES.length > 3 },
-    { label: "Non-openers", value: INITIAL_NON_OPENERS.length, icon: EyeOff, red: INITIAL_NON_OPENERS.length > 5 },
-    { label: "Below quality bar", value: `${belowBar} / ${TEMPLATES.length}`, icon: Gauge, red: belowBar > 0, sub: `Avg ${avgQuality} / 10` },
+    {
+      label: "Total Dispatched",
+      value: totalSent.toLocaleString("en-IN"),
+      icon: Send,
+      sub: `${TEMPLATES.length} live templates`,
+    },
+    {
+      label: "Avg Open Rate",
+      value: `${avgOpen}%`,
+      icon: MailOpen,
+      sub: "Opens ÷ dispatched",
+    },
+    {
+      label: "Avg CTR",
+      value: `${avgCtr}%`,
+      icon: MousePointerClick,
+      sub: "Clicks ÷ opens",
+    },
   ];
 
   return (
