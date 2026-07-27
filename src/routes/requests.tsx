@@ -644,6 +644,37 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [waCta, setWaCta] = useState("");
   const [waMetaId, setWaMetaId] = useState("");
   const [audienceCount, setAudienceCount] = useState(450);
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const [customVarInput, setCustomVarInput] = useState("");
+  const [customVariables, setCustomVariables] = useState<string[]>([]);
+
+  const sanitizeVarName = (raw: string) =>
+    raw.toLowerCase().trim().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+
+  const insertAtCursor = (token: string) => {
+    const el = bodyRef.current;
+    if (!el) {
+      setBody((prev) => prev + token);
+      return;
+    }
+    const start = el.selectionStart ?? body.length;
+    const end = el.selectionEnd ?? body.length;
+    const next = body.slice(0, start) + token + body.slice(end);
+    setBody(next);
+    requestAnimationFrame(() => {
+      const pos = start + token.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const addCustomVariable = () => {
+    const clean = sanitizeVarName(customVarInput);
+    if (!clean) return;
+    insertAtCursor(`{{${clean}}}`);
+    setCustomVariables((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+    setCustomVarInput("");
+  };
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
