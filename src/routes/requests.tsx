@@ -791,24 +791,34 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setTemplateName(e.target.value)}
           />
         </FormRow>
-        <FormRow label="Primary Email" required>
-          <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => setEmailTouched(true)}
-            placeholder="ops@vendor.com"
-            className={cn(emailError && "border-cat-red focus-visible:ring-cat-red/40")}
-            aria-invalid={emailError}
-          />
-          {emailError && (
-            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-cat-red">
-              <AlertTriangle className="h-3 w-3" />
-              Please enter a valid email address (e.g. ops@vendor.com)
-            </p>
-          )}
+        <FormRow label="Submitted By">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span className="font-medium text-foreground">
+                {AUTH_SUBMITTER_NAME}
+              </span>
+              <span className="text-muted-foreground">
+                ({AUTH_SUBMITTER_EMAIL})
+              </span>
+            </div>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+              Authenticated
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Auto-detected from your Blinkit SSO session. Approval notifications route here.
+          </p>
         </FormRow>
-        <FormRow label="CC Emails">
-          <EmailPillInput values={ccEmails} onChange={setCcEmails} />
+        <FormRow label="Send Approval Request Copy To (CC Emails)">
+          <EmailPillInput
+            values={ccEmails}
+            onChange={setCcEmails}
+            allowedDomains={["grofers.com", "zomato.com"]}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Approval notifications, status updates, and sign-off requests will be routed to these internal reviewers.
+          </p>
         </FormRow>
         <FormRow label="Team (max 2)">
           <MultiSelect
