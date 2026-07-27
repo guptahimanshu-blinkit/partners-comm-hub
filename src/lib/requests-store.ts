@@ -836,6 +836,10 @@ export function updateCampaign(id: string, patch: Partial<Campaign>) {
   setCampaigns(next);
 }
 
+export function updateCampaignStatus(id: string, status: CampaignStatus) {
+  updateCampaign(id, { status });
+}
+
 
 export function useCampaigns(): Campaign[] {
   const [, setTick] = useState(0);
