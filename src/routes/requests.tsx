@@ -997,16 +997,38 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             cta={waCta}
             onCta={setWaCta}
           />
+          <FormRow label="Meta WhatsApp Template ID">
+            <Input
+              value={waMetaId}
+              onChange={(e) => setWaMetaId(e.target.value)}
+              placeholder="e.g. blk_po_ack_v3"
+            />
+          </FormRow>
         </section>
       )}
 
-      <PreflightPanel checks={preflight} whatsappRequired={showWhatsApp} />
+      <GovernanceInterception
+        audienceCount={audienceCount}
+        priority={inferred?.priority}
+        atFrequencyCap={frequency.length >= 3}
+        whatsappRequired={showWhatsApp}
+        waMetaId={waMetaId}
+      />
 
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onDone}>
           Cancel
         </Button>
-        <Button onClick={submit}>Submit Request</Button>
+        <Button
+          onClick={submit}
+          className={
+            audienceCount > 1000
+              ? "bg-cat-amber text-white hover:bg-cat-amber/90"
+              : undefined
+          }
+        >
+          {audienceCount > 1000 ? "Request Admin Approval" : "Submit Request"}
+        </Button>
       </div>
     </div>
   );
