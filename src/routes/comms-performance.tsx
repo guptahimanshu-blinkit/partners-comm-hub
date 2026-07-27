@@ -132,8 +132,6 @@ function CommsPerformancePage() {
             <TemplateCtrCard />
             <HourlyCtrCard />
             <ChannelPreferenceSection />
-            <BounceCard />
-            <NonOpenerCard />
             <FinanceGroupCard />
           </TabsContent>
         </Tabs>
