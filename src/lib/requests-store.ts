@@ -827,7 +827,14 @@ export function getCampaigns(): Campaign[] {
 export function addCampaign(c: Campaign) {
   hydrateStoreFromStorage();
   if (CAMPAIGNS.some((existing) => existing.id === c.id)) return;
-  setCampaigns([c, ...CAMPAIGNS]);
+  const withGoal: Campaign = {
+    ...c,
+    goalCompletedCount: c.goalCompletedCount ?? 0,
+    goalTarget: c.goalTarget ?? c.audienceCount,
+  };
+  setCampaigns([withGoal, ...CAMPAIGNS]);
+  // Fan-out: auto-mint a matching vendor notification card on PartnersBiz.
+  syncCampaignToNotifications(withGoal);
 }
 
 export function updateCampaign(id: string, patch: Partial<Campaign>) {
@@ -840,6 +847,19 @@ export function updateCampaign(id: string, patch: Partial<Campaign>) {
 
 export function updateCampaignStatus(id: string, status: CampaignStatus) {
   updateCampaign(id, { status });
+}
+
+export function incrementCampaignGoal(id: string, delta = 1) {
+  hydrateStoreFromStorage();
+  const next = CAMPAIGNS.map((c) =>
+    c.id === id
+      ? {
+          ...c,
+          goalCompletedCount: (c.goalCompletedCount ?? 0) + delta,
+        }
+      : c,
+  );
+  setCampaigns(next);
 }
 
 
