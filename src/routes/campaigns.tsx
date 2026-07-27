@@ -1623,9 +1623,12 @@ function BounceRow({
         <div className="flex justify-end">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
+              <button
+                type="button"
+                className="rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium hover:bg-muted"
+              >
                 Update Contact
-              </Button>
+              </button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-72 space-y-2">
               <div className="text-xs font-semibold text-foreground">
@@ -1643,16 +1646,20 @@ function BounceRow({
                 className="h-8 text-xs"
               />
               <div className="flex justify-end gap-2 pt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => setOpen(false)}
+                  className="rounded-md px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
                 >
                   Cancel
-                </Button>
-                <Button size="sm" onClick={save}>
+                </button>
+                <button
+                  type="button"
+                  onClick={save}
+                  className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
+                >
                   Save & re-queue
-                </Button>
+                </button>
               </div>
             </PopoverContent>
           </Popover>
