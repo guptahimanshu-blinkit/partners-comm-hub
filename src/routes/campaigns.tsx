@@ -1819,15 +1819,10 @@ function NewCampaignWizard({
               <button
                 type="button"
                 onClick={launch}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-semibold",
-                  requiresApproval
-                    ? "border-cat-amber/40 bg-cat-amber text-white hover:bg-cat-amber/90"
-                    : "border-primary/40 bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
+                className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 <Zap className="h-3.5 w-3.5" />
-                {requiresApproval ? "Request Admin Approval" : "Launch Campaign"}
+                Launch Campaign
               </button>
             )}
           </div>
