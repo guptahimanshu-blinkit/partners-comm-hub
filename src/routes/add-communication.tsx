@@ -89,7 +89,49 @@ function AddCommunicationPage() {
 
   const submit = () => {
     const commName = name.trim() || "Untitled communication";
-    toast.success(`${commName} submitted for approval`);
+    if (inferred) {
+      const id = `CMP-AC${Math.floor(Math.random() * 900000 + 100000)}`;
+      const campaign: Campaign = {
+        id,
+        requestId: `REQ-AC-${id}`,
+        templateId: `APOLLO-${id.slice(-6)}`,
+        name: commName,
+        categoryId: inferred.categoryId,
+        priority: inferred.priority,
+        purpose: trigger.trim() || commName,
+        channels: inferred.channels.includes("WhatsApp")
+          ? ["Email", "WhatsApp", "Dashboard"]
+          : ["Email", "Dashboard"],
+        segment: "All vendors",
+        audienceCount: 3880,
+        triggerType: "One time",
+        frequency: "Once",
+        reminders: inferred.priority === "P1" ? 2 : inferred.priority === "P2" ? 1 : 0,
+        status: "Running",
+        attachment: "None",
+        cta: "Direct Link",
+        formulaFlags: ["None"],
+        approvedBy: "Aisha Khan",
+        acknowledgedAt: new Date().toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        }),
+        firstSend: "Now",
+        submitterName: "Himanshu Gupta",
+        publishedAt: new Date().toISOString(),
+      };
+      addCampaign(campaign);
+      toast.success(
+        `${commName} launched — vendor notification synced to PartnersBiz.`,
+      );
+    } else {
+      toast.success(`${commName} submitted for approval`);
+    }
     reset();
   };
 
