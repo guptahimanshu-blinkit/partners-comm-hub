@@ -733,6 +733,8 @@ export interface Campaign {
   sensitivity?: "FYI" | "Standard" | "Critical";
   extraVendorIds?: string[];
   lastEditedAt?: string;
+  goalCompletedCount?: number;
+  goalTarget?: number;
 }
 
 const AUDIENCE_BY_SEGMENT: Record<string, number> = {
