@@ -45,6 +45,7 @@ import {
   ROLE_OPTIONS,
   LOCKED_CATEGORIES,
   LOCKED_ROLES,
+  isCategoryAssignedTo,
   type RoleOption,
 } from "@/lib/role-assignments";
 import { VendorUtilitiesSection } from "@/components/notifications/VendorUtilities";
