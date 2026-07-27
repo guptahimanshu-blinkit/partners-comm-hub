@@ -45,7 +45,11 @@ import {
   type POCancellationPayload,
 } from "@/components/notifications/POCancellationDialog";
 import { getNotificationCtaKind, CTA_LABEL } from "@/lib/action-cta";
-import { recordVendorAction } from "@/lib/requests-store";
+import {
+  recordVendorAction,
+  useSyncedNotifications,
+  acknowledgeVendorNotification,
+} from "@/lib/requests-store";
 import { useRole } from "@/lib/role-context";
 import { useRoleAssignments, isCategoryAssignedTo } from "@/lib/role-assignments";
 
