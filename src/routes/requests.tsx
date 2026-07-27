@@ -1793,7 +1793,13 @@ function ApproverView() {
               >
                 <TableCell className="font-medium">{r.templateName}</TableCell>
                 <TableCell className="text-sm">{r.requestType}</TableCell>
-                <TableCell className="text-sm">{r.submittedBy}</TableCell>
+                <TableCell className="text-sm">
+                  <div className="font-medium text-foreground">{r.submittedBy}</div>
+                  <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    CCs: {r.ccEmails.length > 0 ? r.ccEmails.join(", ") : "None"}
+                  </div>
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {r.team.join(", ") || "—"}
                 </TableCell>
