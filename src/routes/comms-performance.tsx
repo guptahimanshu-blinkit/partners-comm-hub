@@ -176,27 +176,19 @@ function KpiRow() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {tiles.map((t) => {
         const Icon = t.icon;
         return (
           <div
             key={t.label}
-            className={cn(
-              "rounded-xl border bg-card p-4 shadow-sm",
-              t.red ? "border-destructive/40 bg-destructive/5" : "border-border",
-            )}
+            className="rounded-xl border border-border bg-card p-4 shadow-sm"
           >
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">{t.label}</span>
               <Icon className="h-4 w-4" />
             </div>
-            <div
-              className={cn(
-                "mt-2 text-2xl font-semibold",
-                t.red ? "text-destructive" : "text-foreground",
-              )}
-            >
+            <div className="mt-2 text-2xl font-semibold text-foreground">
               {t.value}
             </div>
             {t.sub && (
