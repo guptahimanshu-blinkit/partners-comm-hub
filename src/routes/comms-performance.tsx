@@ -81,40 +81,6 @@ const HOURLY_CTR = [
   4, 3, 4, 5, 6, 9, 14, 22, 33, 41, 46, 44, 38, 30, 32, 36, 39, 34, 27, 21, 16, 12, 8, 6,
 ];
 
-interface BounceRow {
-  id: string;
-  template: string;
-  vendor: string;
-  tenant: string;
-  reason: string;
-  daysSinceDelivery: number;
-}
-
-const BOUNCES: BounceRow[] = [
-  { id: "b1", template: "Weekly Fill Rate Digest", vendor: "Aashirvaad Foods", tenant: "ITC Limited", reason: "Mailbox not found — likely contact left the company", daysSinceDelivery: 47 },
-  { id: "b2", template: "Invoice Rejected", vendor: "Sunfeast Retail", tenant: "ITC Limited", reason: "Mailbox not found — likely contact left the company", daysSinceDelivery: 32 },
-  { id: "b3", template: "PO Extension Approved", vendor: "Bingo Snacks Co.", tenant: "ITC Limited", reason: "Mailbox full", daysSinceDelivery: 18 },
-  { id: "b4", template: "Monthly Spends Summary", vendor: "Classmate Stationers", tenant: "ITC Limited", reason: "Mailbox not found — likely contact left the company", daysSinceDelivery: 61 },
-  { id: "b5", template: "Catalogue Update Required", vendor: "Mangaldeep Traders", tenant: "ITC Limited", reason: "Domain not found", daysSinceDelivery: 12 },
-];
-
-interface NonOpenerRow {
-  id: string;
-  vendor: string;
-  tenant: string;
-  template: string;
-  daysSinceOpen: number;
-  suppressed: boolean;
-}
-
-const INITIAL_NON_OPENERS: NonOpenerRow[] = [
-  { id: "n1", vendor: "Fiama Distributors", tenant: "ITC Limited", template: "Weekly Fill Rate Digest", daysSinceOpen: 54, suppressed: false },
-  { id: "n2", vendor: "Vivel Retail Partners", tenant: "ITC Limited", template: "Monthly Spends Summary", daysSinceOpen: 41, suppressed: false },
-  { id: "n3", vendor: "Yippee Foods Co.", tenant: "ITC Limited", template: "Catalogue Update Required", daysSinceOpen: 38, suppressed: false },
-  { id: "n4", vendor: "Savlon Suppliers", tenant: "ITC Limited", template: "PO Extension Approved", daysSinceOpen: 29, suppressed: false },
-  { id: "n5", vendor: "Nimyle Trading", tenant: "ITC Limited", template: "Diwali Announcement", daysSinceOpen: 22, suppressed: false },
-  { id: "n6", vendor: "Engage Distributors", tenant: "ITC Limited", template: "Invoice Rejected", daysSinceOpen: 17, suppressed: false },
-];
 
 interface FinanceGroup {
   type: "Invoice" | "Payment" | "Statement of Accounts";
