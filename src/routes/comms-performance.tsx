@@ -5,11 +5,8 @@ import {
   TrendingUp,
   TrendingDown,
   MousePointerClick,
-  MailWarning,
-  EyeOff,
-  Gauge,
-  UserCog,
-  LifeBuoy,
+  Send,
+  MailOpen,
   CheckCircle2,
   Mail,
   MessageCircle,
@@ -24,7 +21,6 @@ import {
   Tooltip as RTooltip,
   ResponsiveContainer,
 } from "recharts";
-import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -85,40 +81,6 @@ const HOURLY_CTR = [
   4, 3, 4, 5, 6, 9, 14, 22, 33, 41, 46, 44, 38, 30, 32, 36, 39, 34, 27, 21, 16, 12, 8, 6,
 ];
 
-interface BounceRow {
-  id: string;
-  template: string;
-  vendor: string;
-  tenant: string;
-  reason: string;
-  daysSinceDelivery: number;
-}
-
-const BOUNCES: BounceRow[] = [
-  { id: "b1", template: "Weekly Fill Rate Digest", vendor: "Aashirvaad Foods", tenant: "ITC Limited", reason: "Mailbox not found — likely contact left the company", daysSinceDelivery: 47 },
-  { id: "b2", template: "Invoice Rejected", vendor: "Sunfeast Retail", tenant: "ITC Limited", reason: "Mailbox not found — likely contact left the company", daysSinceDelivery: 32 },
-  { id: "b3", template: "PO Extension Approved", vendor: "Bingo Snacks Co.", tenant: "ITC Limited", reason: "Mailbox full", daysSinceDelivery: 18 },
-  { id: "b4", template: "Monthly Spends Summary", vendor: "Classmate Stationers", tenant: "ITC Limited", reason: "Mailbox not found — likely contact left the company", daysSinceDelivery: 61 },
-  { id: "b5", template: "Catalogue Update Required", vendor: "Mangaldeep Traders", tenant: "ITC Limited", reason: "Domain not found", daysSinceDelivery: 12 },
-];
-
-interface NonOpenerRow {
-  id: string;
-  vendor: string;
-  tenant: string;
-  template: string;
-  daysSinceOpen: number;
-  suppressed: boolean;
-}
-
-const INITIAL_NON_OPENERS: NonOpenerRow[] = [
-  { id: "n1", vendor: "Fiama Distributors", tenant: "ITC Limited", template: "Weekly Fill Rate Digest", daysSinceOpen: 54, suppressed: false },
-  { id: "n2", vendor: "Vivel Retail Partners", tenant: "ITC Limited", template: "Monthly Spends Summary", daysSinceOpen: 41, suppressed: false },
-  { id: "n3", vendor: "Yippee Foods Co.", tenant: "ITC Limited", template: "Catalogue Update Required", daysSinceOpen: 38, suppressed: false },
-  { id: "n4", vendor: "Savlon Suppliers", tenant: "ITC Limited", template: "PO Extension Approved", daysSinceOpen: 29, suppressed: false },
-  { id: "n5", vendor: "Nimyle Trading", tenant: "ITC Limited", template: "Diwali Announcement", daysSinceOpen: 22, suppressed: false },
-  { id: "n6", vendor: "Engage Distributors", tenant: "ITC Limited", template: "Invoice Rejected", daysSinceOpen: 17, suppressed: false },
-];
 
 interface FinanceGroup {
   type: "Invoice" | "Payment" | "Statement of Accounts";
@@ -170,8 +132,6 @@ function CommsPerformancePage() {
             <TemplateCtrCard />
             <HourlyCtrCard />
             <ChannelPreferenceSection />
-            <BounceCard />
-            <NonOpenerCard />
             <FinanceGroupCard />
           </TabsContent>
         </Tabs>
@@ -183,48 +143,52 @@ function CommsPerformancePage() {
 // ------------------ KPI tiles ------------------
 
 function KpiRow() {
-  const avgCtr = useMemo(() => {
-    const total = TEMPLATES.reduce((a, b) => a + b.ctr, 0);
-    return (total / TEMPLATES.length).toFixed(1);
-  }, []);
-  const belowBar = useMemo(
-    () => TEMPLATES.filter((t) => t.quality < 9).length,
-    [],
-  );
-  const avgQuality = useMemo(() => {
-    const total = TEMPLATES.reduce((a, b) => a + b.quality, 0);
-    return (total / TEMPLATES.length).toFixed(1);
+  const { totalSent, avgOpen, avgCtr } = useMemo(() => {
+    const totalSent = TEMPLATES.reduce((a, b) => a + b.sent, 0);
+    const totalOpened = TEMPLATES.reduce((a, b) => a + b.opened, 0);
+    const totalClicked = TEMPLATES.reduce((a, b) => a + b.clicked, 0);
+    return {
+      totalSent,
+      avgOpen: totalSent ? ((totalOpened / totalSent) * 100).toFixed(1) : "0.0",
+      avgCtr: totalOpened ? ((totalClicked / totalOpened) * 100).toFixed(1) : "0.0",
+    };
   }, []);
 
   const tiles = [
-    { label: "Avg CTR", value: `${avgCtr}%`, icon: MousePointerClick, red: false },
-    { label: "Bounces flagged", value: BOUNCES.length, icon: MailWarning, red: BOUNCES.length > 3 },
-    { label: "Non-openers", value: INITIAL_NON_OPENERS.length, icon: EyeOff, red: INITIAL_NON_OPENERS.length > 5 },
-    { label: "Below quality bar", value: `${belowBar} / ${TEMPLATES.length}`, icon: Gauge, red: belowBar > 0, sub: `Avg ${avgQuality} / 10` },
+    {
+      label: "Total Dispatched",
+      value: totalSent.toLocaleString("en-IN"),
+      icon: Send,
+      sub: `${TEMPLATES.length} live templates`,
+    },
+    {
+      label: "Avg Open Rate",
+      value: `${avgOpen}%`,
+      icon: MailOpen,
+      sub: "Opens ÷ dispatched",
+    },
+    {
+      label: "Avg CTR",
+      value: `${avgCtr}%`,
+      icon: MousePointerClick,
+      sub: "Clicks ÷ opens",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {tiles.map((t) => {
         const Icon = t.icon;
         return (
           <div
             key={t.label}
-            className={cn(
-              "rounded-xl border bg-card p-4 shadow-sm",
-              t.red ? "border-destructive/40 bg-destructive/5" : "border-border",
-            )}
+            className="rounded-xl border border-border bg-card p-4 shadow-sm"
           >
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">{t.label}</span>
               <Icon className="h-4 w-4" />
             </div>
-            <div
-              className={cn(
-                "mt-2 text-2xl font-semibold",
-                t.red ? "text-destructive" : "text-foreground",
-              )}
-            >
+            <div className="mt-2 text-2xl font-semibold text-foreground">
               {t.value}
             </div>
             {t.sub && (
@@ -397,160 +361,6 @@ function HourlyCtrCard() {
   );
 }
 
-// ------------------ 3. Bounce tracker ------------------
-
-function BounceCard() {
-  const [rows, setRows] = useState<BounceRow[]>(BOUNCES);
-  const updateContact = (id: string) => {
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    toast.success("Contact update request raised with vendor admin");
-  };
-
-  return (
-    <SectionCard
-      title="Bounce tracker"
-      description="Emails that failed to deliver. Long gaps usually mean the contact has left the company."
-    >
-      {rows.length === 0 ? (
-        <EmptyState label="All bounces cleared." />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Template</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead className="text-right">Days since last delivery</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => {
-              const stale = r.daysSinceDelivery >= 30;
-              return (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.template}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="text-foreground">{r.vendor}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {r.tenant}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{r.reason}</TableCell>
-                  <TableCell className="text-right">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums",
-                        stale
-                          ? "bg-cat-red-soft text-cat-red"
-                          : "bg-amber-500/10 text-amber-600",
-                      )}
-                    >
-                      {r.daysSinceDelivery} days
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateContact(r.id)}
-                      >
-                        <UserCog className="mr-1.5 h-3.5 w-3.5" />
-                        Update Contact
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
-    </SectionCard>
-  );
-}
-
-// ------------------ 4. Non-opener tracker ------------------
-
-function NonOpenerCard() {
-  const [rows, setRows] = useState<NonOpenerRow[]>(INITIAL_NON_OPENERS);
-  const suppress = (id: string) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, suppressed: true } : r)),
-    );
-    toast.success("Suppressed and routed to Help & Support");
-  };
-
-  return (
-    <SectionCard
-      title="Non-opener tracker"
-      description="Vendors who haven't opened this template's sends in a long time."
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Vendor</TableHead>
-            <TableHead>Template</TableHead>
-            <TableHead className="text-right">Days since last open</TableHead>
-            <TableHead className="text-right">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => {
-            const stale = r.daysSinceOpen >= 30;
-            return (
-              <TableRow key={r.id}>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium text-foreground">{r.vendor}</span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {r.tenant}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>{r.template}</TableCell>
-                <TableCell className="text-right">
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums",
-                      stale
-                        ? "bg-cat-red-soft text-cat-red"
-                        : "bg-amber-500/10 text-amber-600",
-                    )}
-                  >
-                    {r.daysSinceOpen} days
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end">
-                    {r.suppressed ? (
-                      <Badge className="gap-1 bg-muted text-muted-foreground hover:bg-muted">
-                        <CheckCircle2 className="h-3 w-3" />
-                        No further sends until contact refreshed
-                      </Badge>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => suppress(r.id)}
-                      >
-                        <LifeBuoy className="mr-1.5 h-3.5 w-3.5" />
-                        Suppress and Route to Help &amp; Support
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </SectionCard>
-  );
-}
 
 // ------------------ 5. Finance mail CTR (by config type) ------------------
 
