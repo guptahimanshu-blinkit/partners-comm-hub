@@ -3,8 +3,6 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   CalendarPlus,
   Info,
-  CheckCircle2,
-  ShieldCheck,
   Paperclip,
   BarChart3,
 } from "lucide-react";
@@ -380,26 +378,6 @@ function ScheduleNotificationPage() {
                 </dl>
               </div>
 
-              {/* Pre-flight checks */}
-              <div className="rounded-lg border border-border bg-background p-3">
-                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Pre-flight checks
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <PreflightBadge
-                    ok={audience <= 5000}
-                    label={`Audience threshold gate · ${audience.toLocaleString("en-IN")}`}
-                  />
-                  <PreflightBadge
-                    ok={!(selected.preflightChecks?.isAtFrequencyCap)}
-                    label="Weekly frequency cap"
-                  />
-                  <PreflightBadge
-                    ok={selected.preflightChecks?.waValidated !== false}
-                    label="WhatsApp Meta ID registry"
-                  />
-                </div>
-              </div>
             </>
           )}
 
@@ -474,8 +452,49 @@ function ScheduleNotificationPage() {
             )}
           </div>
 
-          <Button className="w-full" disabled={!canSubmit} onClick={submit}>
-            Schedule Notification
+          {selected && (() => {
+            const overAudience = audience > 1000;
+            const nonP1 = selected.priority && selected.priority !== "P1";
+            const freqOverflow = !!nonP1 && !!selected.preflightChecks?.isAtFrequencyCap;
+            const waRequired = /manufact/i.test("") || selected.sentTo.some((s) => /low tech/i.test(s));
+            const waInvalid = waRequired && selected.preflightChecks?.waValidated === false;
+            if (!overAudience && !freqOverflow && !waInvalid) return null;
+            return (
+              <div className="space-y-2">
+                {overAudience && (
+                  <div className="rounded-lg border border-cat-amber/50 bg-cat-amber-soft p-3 text-[12px] leading-relaxed text-cat-amber">
+                    <span className="mr-1">🚨</span>
+                    <span className="font-semibold uppercase tracking-wider">Governance Interception:</span>{" "}
+                    Target audience ({audience.toLocaleString("en-IN")}) exceeds the 1,000 recipient threshold. Direct dispatch is locked. Submission will route to Comms-Admin for approval.
+                  </div>
+                )}
+                {freqOverflow && (
+                  <div className="rounded-lg border border-yellow-400/60 bg-yellow-100/70 p-3 text-[12px] leading-relaxed text-yellow-900 dark:bg-yellow-500/10 dark:text-yellow-200">
+                    <span className="mr-1">⚠️</span>
+                    <span className="font-semibold uppercase tracking-wider">Frequency Cap Notice:</span>{" "}
+                    Target segment has reached max weekly frequency limit (3 non-P1 comms/week). This broadcast will be queued for next week's window.
+                  </div>
+                )}
+                {waInvalid && (
+                  <div className="rounded-lg border border-cat-red/50 bg-cat-red-soft p-3 text-[12px] leading-relaxed text-cat-red">
+                    <span className="mr-1">🛑</span>
+                    <span className="font-semibold uppercase tracking-wider">WhatsApp Registry Block:</span>{" "}
+                    Template not registered on Meta WhatsApp API. WhatsApp channel disabled for this drop.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <Button
+            className={cn(
+              "w-full",
+              audience > 1000 && "bg-cat-amber text-white hover:bg-cat-amber/90",
+            )}
+            disabled={!canSubmit}
+            onClick={submit}
+          >
+            {audience > 1000 ? "Request Admin Approval" : "Schedule Notification"}
           </Button>
         </div>
 
@@ -484,21 +503,5 @@ function ScheduleNotificationPage() {
         </p>
       </div>
     </AppShell>
-  );
-}
-
-function PreflightBadge({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
-        ok
-          ? "border-cat-green/40 bg-cat-green-soft text-cat-green"
-          : "border-cat-red/40 bg-cat-red-soft text-cat-red",
-      )}
-    >
-      <CheckCircle2 className="h-3 w-3" />
-      {label}
-    </span>
   );
 }
