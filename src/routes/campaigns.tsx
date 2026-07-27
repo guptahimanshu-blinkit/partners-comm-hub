@@ -2334,15 +2334,7 @@ function TemplateLibraryDialog({
                 <li key={t.id}>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (locked) {
-                        alert(
-                          `${t.templateId} is bound to ${usage} live campaign${usage === 1 ? "" : "s"}. Create a new version (v2) to edit — the original stays immutable.`,
-                        );
-                        return;
-                      }
-                      onPick(t);
-                    }}
+                    onClick={() => onPick(t)}
                     className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
                   >
                     <div className="min-w-0">
