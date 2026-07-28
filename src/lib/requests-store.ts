@@ -30,14 +30,16 @@ export type SubCategoryPurpose =
   | "Reports"
   | "Announcements"
   | "Campaigns"
-  | "Defect Flow Communications";
+  | "Defect Flow Communications"
+  | "Other";
 
 export type DomainType =
   | "Operations & Appointments"
   | "Finance & Payments"
   | "Assortment / MDM"
   | "Warehouse Ops"
-  | "Monetization";
+  | "Monetization"
+  | "Product / Process Launch";
 
 export type SequenceTier = "FYI" | "Standard" | "Critical";
 
