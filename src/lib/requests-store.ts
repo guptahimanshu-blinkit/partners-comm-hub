@@ -5,6 +5,7 @@ export type RequestStatus =
   | "Pending"
   | "Approved"
   | "Rejected"
+  | "On Hold"
   | "Rejected Post Publish";
 export type RequestType = "Template Approval";
 export type PriorityLevel = "P1" | "P2" | "P3";
@@ -23,6 +24,29 @@ export type RejectionCategory =
   | "Clubbing Conflict"
   | "Compliance Concern"
   | "Missing Info";
+
+export type RejectionReasonCategory =
+  | "Structure of mail issue"
+  | "Content clarity & comprehensive issue"
+  | "Grammatical errors"
+  | "Attachment related issues"
+  | "Mail can be clubbed with some other mail."
+  | "Incorrect category type of the mail category type has been defined"
+  | "Compliance concern"
+  | "User base not defined correctly"
+  | "Other";
+
+export const REJECTION_REASON_CATEGORIES: RejectionReasonCategory[] = [
+  "Structure of mail issue",
+  "Content clarity & comprehensive issue",
+  "Grammatical errors",
+  "Attachment related issues",
+  "Mail can be clubbed with some other mail.",
+  "Incorrect category type of the mail category type has been defined",
+  "Compliance concern",
+  "User base not defined correctly",
+  "Other",
+];
 
 // -------- New category / rule inference types --------
 
@@ -179,6 +203,10 @@ export interface TemplateRequest {
   rejectedAt?: string;
   rejectionReason?: string;
   rejectionCategory?: RejectionCategory;
+  rejectionCategories?: RejectionReasonCategory[];
+  heldAt?: string;
+  holdCategories?: RejectionReasonCategory[];
+  holdComments?: string;
 }
 
 // HMR-safe singletons: keep state on globalThis so hot reloads and any
@@ -297,8 +325,8 @@ export function approveRequest(id: string) {
 
 export function rejectRequest(
   id: string,
-  reason: string,
-  category: RejectionCategory,
+  categories: RejectionReasonCategory[],
+  comments: string,
 ) {
   hydrateStoreFromStorage();
   setRequests(
@@ -308,8 +336,29 @@ export function rejectRequest(
             ...r,
             status: "Rejected" as const,
             rejectedAt: nowStamp(),
-            rejectionReason: reason,
-            rejectionCategory: category,
+            rejectionReason: comments,
+            rejectionCategories: categories,
+          }
+        : r,
+    ),
+  );
+}
+
+export function holdRequest(
+  id: string,
+  categories: RejectionReasonCategory[],
+  comments: string,
+) {
+  hydrateStoreFromStorage();
+  setRequests(
+    REQUESTS.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            status: "On Hold" as const,
+            heldAt: nowStamp(),
+            holdCategories: categories,
+            holdComments: comments,
           }
         : r,
     ),
