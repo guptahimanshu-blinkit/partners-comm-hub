@@ -203,6 +203,10 @@ export interface TemplateRequest {
   rejectedAt?: string;
   rejectionReason?: string;
   rejectionCategory?: RejectionCategory;
+  rejectionCategories?: RejectionReasonCategory[];
+  heldAt?: string;
+  holdCategories?: RejectionReasonCategory[];
+  holdComments?: string;
 }
 
 // HMR-safe singletons: keep state on globalThis so hot reloads and any
