@@ -1903,11 +1903,11 @@ function ApproverView() {
                   <div className="font-medium text-foreground">{r.submittedBy}</div>
                   <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    CCs: {r.ccEmails.length > 0 ? r.ccEmails.join(", ") : "None"}
+                    CCs: {r.approvalCcEmails ?? [].length > 0 ? r.approvalCcEmails ?? [].join(", ") : "None"}
                   </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {r.team.join(", ") || "—"}
+                  {r.team || "—"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {new Date(r.submittedAt).toLocaleString("en-IN", {
@@ -2131,7 +2131,7 @@ function RequestDetail({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DetailField label="Submitted By" value={`${request.submittedBy} (${request.primaryEmail})`} full />
           <DetailField label="Slack POC" value={request.slackPoc || "—"} />
-          <DetailField label="Team" value={request.team.join(", ") || "—"} />
+          <DetailField label="Team" value={request.team || "—"} />
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
           <DetailField label="Subject line" value={request.subject} />
           <DetailField label="Purpose" value={request.purpose} full />
@@ -2151,8 +2151,8 @@ function RequestDetail({
                 : request.cta
             }
           />
-          <DetailField label="Frequency" value={request.frequency.join(", ") || "—"} />
-          <DetailField label="Approval CCs" value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"} full />
+          <DetailField label="Frequency" value={request.frequency || "—"} />
+          <DetailField label="Approval CCs" value={(request.approvalCcEmails ?? []).length > 0 ? (request.approvalCcEmails ?? []).join(", ") : "None"} full />
 
           <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
         </div>
@@ -2634,7 +2634,7 @@ function PublishedDetailDialog({
                   <DetailRow label="Subject" value={request.subject} />
                   <DetailRow
                     label="Frequency"
-                    value={request.frequency.join(", ")}
+                    value={request.frequency}
                   />
                   <DetailRow label="Attachment" value={request.attachment} />
                   <DetailRow label="CTA" value={request.cta} />
@@ -2644,9 +2644,9 @@ function PublishedDetailDialog({
                   />
                   <DetailRow
                     label="Approval CCs"
-                    value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"}
+                    value={(request.approvalCcEmails ?? []).length > 0 ? (request.approvalCcEmails ?? []).join(", ") : "None"}
                   />
-                  <DetailRow label="Team" value={request.team.join(", ")} />
+                  <DetailRow label="Team" value={request.team} />
                 </div>
                 <div className="mt-3 border-t border-border pt-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
