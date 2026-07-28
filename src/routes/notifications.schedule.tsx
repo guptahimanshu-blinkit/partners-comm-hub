@@ -361,7 +361,7 @@ function ScheduleNotificationPage() {
                       Frequency
                     </dt>
                     <dd className="text-[11px] font-medium text-foreground">
-                      {selected.frequency.join(", ")}
+                      {selected.frequency}
                     </dd>
                   </div>
 
@@ -385,7 +385,7 @@ function ScheduleNotificationPage() {
               Schedule Type
               {selected && (
                 <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                  (auto-set from frequency: {selected.frequency.join(", ")})
+                  (auto-set from frequency: {selected.frequency})
                 </span>
               )}
             </Label>
