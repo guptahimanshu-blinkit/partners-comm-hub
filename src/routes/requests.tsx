@@ -1180,12 +1180,31 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             </SelectContent>
           </Select>
           {cta === "Direct Link" && (
-            <Input
-              className="mt-2"
-              value={ctaDest}
-              onChange={(e) => setCtaDest(e.target.value)}
-              placeholder="Destination URL"
-            />
+            <div className="mt-2 space-y-2">
+              <div>
+                <Label className="text-xs">Target Portal Module Route *</Label>
+                <Select value={ctaModuleRoute} onValueChange={(v) => { setCtaModuleRoute(v); setCtaDest(v); }}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select module route" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CTA_MODULE_ROUTES.map((r) => (
+                      <SelectItem key={r.route} value={r.route}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Query Parameters (optional)</Label>
+                <Input
+                  value={ctaQueryParams}
+                  onChange={(e) => setCtaQueryParams(e.target.value)}
+                  placeholder="?po_id={{po_number}}"
+                />
+              </div>
+            </div>
           )}
         </FormRow>
         <FormRow label="Frequency of the mail to be sent" required>
