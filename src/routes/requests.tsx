@@ -842,17 +842,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <FormRow label="Request Type" required>
-          <Select value="Template Approval">
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Template Approval">Template Approval</SelectItem>
-            </SelectContent>
-          </Select>
-        </FormRow>
-
         <FormRow label="Template ID" required>
           <Input
             value={templateId}
