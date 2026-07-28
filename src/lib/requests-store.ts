@@ -8,7 +8,7 @@ export type RequestStatus =
   | "Rejected Post Publish";
 export type RequestType = "Template Approval";
 export type PriorityLevel = "P1" | "P2" | "P3";
-export type FrequencyOption = "Once" | "Daily" | "Weekly" | "Monthly";
+export type FrequencyOption = "Once" | "Daily Digest" | "Weekly" | "Monthly";
 export type AttachmentOption = "None" | "PDF" | "Image" | "Excel Export";
 export type CtaOption = "None" | "Direct Link" | "Autofilled Help & Support Ticket";
 export type CommTypeOption =
