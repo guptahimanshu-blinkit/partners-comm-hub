@@ -1945,7 +1945,6 @@ function ApproverView() {
           <TableHeader>
             <TableRow>
               <TableHead>Template Name</TableHead>
-              <TableHead>Request Type</TableHead>
               <TableHead>Submitted By</TableHead>
               <TableHead>Team</TableHead>
               <TableHead>Submitted At</TableHead>
@@ -1960,7 +1959,6 @@ function ApproverView() {
                 onClick={() => setSelectedId(r.id)}
               >
                 <TableCell className="font-medium">{r.templateName}</TableCell>
-                <TableCell className="text-sm">{r.requestType}</TableCell>
                 <TableCell className="text-sm">
                   <div className="font-medium text-foreground">{r.submittedBy}</div>
                   <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
@@ -1988,7 +1986,7 @@ function ApproverView() {
             ))}
             {pending.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
                   No pending requests.
                 </TableCell>
               </TableRow>
