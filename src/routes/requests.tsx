@@ -852,38 +852,51 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             Auto-detected from your Blinkit SSO session. Approval notifications route here.
           </p>
         </FormRow>
+        <FormRow label="Mail Owner Email" required>
+          <Input
+            type="email"
+            value={mailOwner}
+            onChange={(e) => setMailOwner(e.target.value)}
+            placeholder="owner.name@grofers.com"
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Email ID of the accountable process owner or manager. Must end in @grofers.com or @zomato.com.
+          </p>
+        </FormRow>
         <FormRow label="Send Approval Request Copy To (CC Emails)">
           <EmailPillInput
-            values={ccEmails}
-            onChange={setCcEmails}
+            values={approvalCcEmails}
+            onChange={setApprovalCcEmails}
             allowedDomains={["grofers.com", "zomato.com"]}
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
             Approval notifications, status updates, and sign-off requests will be routed to these internal reviewers.
           </p>
         </FormRow>
-        <FormRow label="Team (max 2)">
-          <MultiSelect
-            options={TEAM_OPTIONS}
-            values={team}
-            onChange={setTeam}
-            max={2}
-            placeholder="Pick your options"
-          />
-        </FormRow>
-        <FormRow label="Slack ID of internal POC owning the process">
-          <Select value={slackPoc} onValueChange={setSlackPoc}>
+        <FormRow label="Team" required>
+          <Select value={team} onValueChange={setTeam}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select user" />
+              <SelectValue placeholder="Select team" />
             </SelectTrigger>
             <SelectContent>
-              {SLACK_USERS.map((u) => (
-                <SelectItem key={u} value={u}>
-                  {u}
+              {TEAM_OPTIONS.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </FormRow>
+        <FormRow label="Analyst POC Email" required>
+          <Input
+            type="email"
+            value={analyst}
+            onChange={(e) => setAnalyst(e.target.value)}
+            placeholder="analyst.name@grofers.com"
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Must end in @grofers.com or @zomato.com.
+          </p>
         </FormRow>
         <FormRow label="Purpose of the mailer" required>
           <Textarea
