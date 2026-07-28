@@ -2175,8 +2175,6 @@ function RequestDetail({
           <div>
             <h2 className="text-lg font-semibold">{request.templateName}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{request.requestType}</span>
-              <span>·</span>
               <span>{request.templateId}</span>
               <span>·</span>
               <span>By {request.submittedBy}</span>
