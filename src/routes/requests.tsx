@@ -183,7 +183,7 @@ const SLACK_USERS = [
   "@priya.n",
 ];
 const FORMULA_OPTIONS = ["None", "Formula Attachment", "Table in Body"];
-const FREQ_OPTIONS: FrequencyOption[] = ["Once", "Daily", "Weekly", "Monthly"];
+const FREQ_OPTIONS: FrequencyOption[] = ["Once", "Daily Digest", "Weekly", "Monthly"];
 const COMM_TYPES: CommTypeOption[] = [
   "Financial",
   "Periodic",
