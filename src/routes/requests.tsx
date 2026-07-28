@@ -171,8 +171,41 @@ const TEAM_OPTIONS = [
   "Category",
 ];
 const SENT_TO_OPTIONS = [
-  "Manufacture",
-  "Vendor",
+  "All Vendors on PartnersBiz",
+  "All Manufacturers on PartnersBiz",
+  "Targeted Vendor IDs (Upload File)",
+  "Targeted Manufacturer IDs (Upload File)",
+];
+const PURPOSE_OPTIONS = [
+  "PO Cancellation Alert",
+  "Weekly Fill Rate Scorecard",
+  "Payment & Tax Deduction Reconciliation",
+  "Warehouse Slot & Appointment Schedule Change",
+  "Product / Process Launch",
+  "Other / Custom Purpose",
+];
+const SUB_CATEGORY_OPTIONS: Array<{ value: SubCategoryPurpose; label: string }> = [
+  { value: "Reports", label: "Reports (Periodic data exports & performance scorecards)" },
+  { value: "Announcements", label: "Announcements (General policy updates & platform news)" },
+  { value: "Campaigns", label: "Campaigns (Multi-step promotional & onboarding comms)" },
+  { value: "Defect Flow Communications", label: "Defect Flow Communications (Urgent operational alerts requiring action)" },
+  { value: "Other", label: "Other / Custom Category" },
+];
+const DOMAIN_OPTIONS: DomainType[] = [
+  "Operations & Appointments",
+  "Finance & Payments",
+  "Assortment / MDM",
+  "Warehouse Ops",
+  "Monetization",
+  "Product / Process Launch",
+];
+const CTA_MODULE_ROUTES = [
+  { route: "/app/appointments", label: "PO Appointments (/app/appointments)" },
+  { route: "/app/invoices", label: "Invoices (/app/invoices)" },
+  { route: "/app/po-summary", label: "PO Summary (/app/po-summary)" },
+  { route: "/app/fees-and-charges", label: "Fees & Charges (/app/fees-and-charges)" },
+  { route: "/app/report-requests", label: "Report Requests (/app/report-requests)" },
+  { route: "/app/tickets", label: "Support / Tickets (/app/tickets)" },
 ];
 const SLACK_USERS = [
   "@arjun.k",
@@ -183,7 +216,7 @@ const SLACK_USERS = [
   "@priya.n",
 ];
 const FORMULA_OPTIONS = ["None", "Formula Attachment", "Table in Body"];
-const FREQ_OPTIONS: FrequencyOption[] = ["Once", "Daily", "Weekly", "Monthly"];
+const FREQ_OPTIONS: FrequencyOption[] = ["Once", "Daily Digest", "Weekly", "Monthly"];
 const COMM_TYPES: CommTypeOption[] = [
   "Financial",
   "Periodic",
@@ -615,9 +648,10 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [templateName, setTemplateName] = useState("");
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
-  const [team, setTeam] = useState<string[]>([]);
-  const [slackPoc, setSlackPoc] = useState("");
+  const [team, setTeam] = useState<string>("");
+  const [mailOwner, setMailOwner] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [purposeCustomText, setPurposeCustomText] = useState("");
   const [sentTo, setSentTo] = useState<string[]>([]);
   const [vendorListName, setVendorListName] = useState("");
   const [mfrListName, setMfrListName] = useState("");
@@ -627,6 +661,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   );
   const [formulaFlags, setFormulaFlags] = useState<string[]>([]);
   const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
+  const [subCategoryCustomText, setSubCategoryCustomText] = useState("");
   const [domain, setDomain] = useState<DomainType | "">("");
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
@@ -634,8 +669,11 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [chartQuery, setChartQuery] = useState("");
   const [cta, setCta] = useState<CtaOption>("None");
   const [ctaDest, setCtaDest] = useState("");
-  const [frequency, setFrequency] = useState<FrequencyOption[]>([]);
-  const [ccEmails, setCcEmails] = useState<string[]>([]);
+  const [ctaModuleRoute, setCtaModuleRoute] = useState("");
+  const [ctaQueryParams, setCtaQueryParams] = useState("");
+  const [frequency, setFrequency] = useState<FrequencyOption>("Once");
+  const [scheduleDeadline, setScheduleDeadline] = useState("");
+  const [approvalCcEmails, setApprovalCcEmails] = useState<string[]>([]);
   const [analyst, setAnalyst] = useState("");
   const [waMessage, setWaMessage] = useState("");
   const [waFreq, setWaFreq] = useState<FrequencyOption[]>([]);
@@ -703,12 +741,42 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   }, [attachmentConfig]);
 
   const submit = () => {
-    if (!templateId || !templateName || !subject || !purpose) {
-      toast.error("Please fill required fields");
-      return;
-    }
-    if (!inferred || !subCategory || !domain) {
-      toast.error("Please select Sub-Category and Domain");
+    const missing: string[] = [];
+    if (!templateId) missing.push("Template ID");
+    if (!templateName) missing.push("Template Name");
+    if (!mailOwner || !/@(grofers|zomato)\.com$/i.test(mailOwner))
+      missing.push("Mail Owner Email (internal)");
+    if (!team) missing.push("Team");
+    if (!analyst || !/@(grofers|zomato)\.com$/i.test(analyst))
+      missing.push("Analyst POC Email (internal)");
+    if (!purpose) missing.push("Purpose");
+    if (purpose === "Other / Custom Purpose" && !purposeCustomText.trim())
+      missing.push("Custom Purpose Text");
+    if (!subCategory) missing.push("Sub-Category Purpose");
+    if (subCategory === "Other" && !subCategoryCustomText.trim())
+      missing.push("Custom Sub-Category Text");
+    if (!domain) missing.push("Domain");
+    if (!subject) missing.push("Subject Line");
+    if (!body) missing.push("Body Text");
+    if (!frequency) missing.push("Frequency");
+    if (!scheduleDeadline) missing.push("Schedule Deadline");
+    if (cta === "Direct Link" && !ctaModuleRoute)
+      missing.push("Target Portal Module Route");
+    if (
+      sentTo.includes("Targeted Vendor IDs (Upload File)") &&
+      !vendorListName
+    )
+      missing.push("Vendor ID list file");
+    if (
+      sentTo.includes("Targeted Manufacturer IDs (Upload File)") &&
+      !mfrListName
+    )
+      missing.push("Manufacturer ID list file");
+
+    if (missing.length > 0 || !inferred) {
+      toast.error(
+        `⚠️ Please complete the following required fields: ${missing.join(", ") || "Sub-Category and Domain"}`,
+      );
       return;
     }
     const req: TemplateRequest = {
@@ -717,9 +785,11 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       templateId,
       templateName,
       primaryEmail: AUTH_SUBMITTER_EMAIL,
+      mailOwner,
+      approvalCcEmails,
       team,
-      slackPoc,
       purpose,
+      purposeCustomText: purposeCustomText || undefined,
       sentTo,
       emailAttachmentsName: attachmentConfig.fileName || "-",
       vendorListName: vendorListName || "-",
@@ -728,17 +798,20 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       body,
       inlineSqlChart: chartQuery || undefined,
       formulaFlags,
-      subCategory,
-      domain,
+      subCategory: subCategory as SubCategoryPurpose,
+      subCategoryCustomText: subCategoryCustomText || undefined,
+      domain: domain as DomainType,
       categoryId: inferred.categoryId,
       priority: inferred.priority,
       attachment: attachmentOption,
       attachmentConfig,
       cta,
       ctaDestination: cta === "Direct Link" ? ctaDest : undefined,
+      ctaModuleRoute: cta === "Direct Link" ? ctaModuleRoute : undefined,
+      ctaQueryParams: cta === "Direct Link" ? ctaQueryParams : undefined,
       frequency,
-      ccEmails,
-      analystPoc: analyst || undefined,
+      scheduleDeadline,
+      analystPoc: analyst,
       whatsapp: showWhatsApp
         ? { message: waMessage, frequency: waFreq, cta: waCta }
         : undefined,
@@ -749,7 +822,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     };
     addRequest(req);
     const ccPart =
-      ccEmails.length > 0 ? ` and CC'd ${ccEmails.length} reviewer${ccEmails.length === 1 ? "" : "s"}` : " (no CCs)";
+      approvalCcEmails.length > 0
+        ? ` and CC'd ${approvalCcEmails.length} reviewer${approvalCcEmails.length === 1 ? "" : "s"}`
+        : " (no CCs)";
     toast.success(
       `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
     );
@@ -810,89 +885,106 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             Auto-detected from your Blinkit SSO session. Approval notifications route here.
           </p>
         </FormRow>
+        <FormRow label="Mail Owner Email" required>
+          <Input
+            type="email"
+            value={mailOwner}
+            onChange={(e) => setMailOwner(e.target.value)}
+            placeholder="owner.name@grofers.com"
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Email ID of the accountable process owner or manager. Must end in @grofers.com or @zomato.com.
+          </p>
+        </FormRow>
         <FormRow label="Send Approval Request Copy To (CC Emails)">
           <EmailPillInput
-            values={ccEmails}
-            onChange={setCcEmails}
+            values={approvalCcEmails}
+            onChange={setApprovalCcEmails}
             allowedDomains={["grofers.com", "zomato.com"]}
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
             Approval notifications, status updates, and sign-off requests will be routed to these internal reviewers.
           </p>
         </FormRow>
-        <FormRow label="Team (max 2)">
-          <MultiSelect
-            options={TEAM_OPTIONS}
-            values={team}
-            onChange={setTeam}
-            max={2}
-            placeholder="Pick your options"
-          />
-        </FormRow>
-        <FormRow label="Slack ID of internal POC owning the process">
-          <Select value={slackPoc} onValueChange={setSlackPoc}>
+        <FormRow label="Team" required>
+          <Select value={team} onValueChange={setTeam}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select user" />
+              <SelectValue placeholder="Select team" />
             </SelectTrigger>
             <SelectContent>
-              {SLACK_USERS.map((u) => (
-                <SelectItem key={u} value={u}>
-                  {u}
+              {TEAM_OPTIONS.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </FormRow>
-        <FormRow label="Purpose of the mailer" required>
-          <Textarea
-            value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-            rows={3}
+        <FormRow label="Analyst POC Email" required>
+          <Input
+            type="email"
+            value={analyst}
+            onChange={(e) => setAnalyst(e.target.value)}
+            placeholder="analyst.name@grofers.com"
           />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Must end in @grofers.com or @zomato.com.
+          </p>
         </FormRow>
-        <FormRow label="Mail will be sent to (max 2)">
+        <FormRow label="Purpose of the mailer" required>
+          <Select value={purpose} onValueChange={setPurpose}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Select purpose" />
+            </SelectTrigger>
+            <SelectContent>
+              {PURPOSE_OPTIONS.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-[11px] italic text-muted-foreground">
+            (Note: Preset purpose options are pending confirmation from Category Team. Current options shown for layout demonstration.)
+          </p>
+          {purpose === "Other / Custom Purpose" && (
+            <Textarea
+              className="mt-2"
+              value={purposeCustomText}
+              onChange={(e) => setPurposeCustomText(e.target.value)}
+              rows={3}
+              placeholder="Describe the custom purpose"
+            />
+          )}
+        </FormRow>
+        <FormRow label="Mail will be sent to" required>
           <MultiSelect
             options={SENT_TO_OPTIONS}
             values={sentTo}
             onChange={(next) => {
-              const hasVendor = next.some((v) => /vendor/i.test(v));
-              const hasMfr = next.some((v) => /manufactur/i.test(v));
-              if (!hasVendor && vendorListName) setVendorListName("");
-              if (!hasMfr && mfrListName) setMfrListName("");
+              const hasVendorUpload = next.includes("Targeted Vendor IDs (Upload File)");
+              const hasMfrUpload = next.includes("Targeted Manufacturer IDs (Upload File)");
+              if (!hasVendorUpload && vendorListName) setVendorListName("");
+              if (!hasMfrUpload && mfrListName) setMfrListName("");
               setSentTo(next);
             }}
             max={2}
-            placeholder="Pick vendor segment"
-          />
-        </FormRow>
-        <FormRow label="Estimated audience size">
-          <Input
-            type="number"
-            value={audienceCount}
-            onChange={(e) =>
-              setAudienceCount(Math.max(0, Number(e.target.value) || 0))
-            }
+            placeholder="Pick audience"
           />
         </FormRow>
         {(() => {
-          const hasVendor = sentTo.some((v) => /vendor/i.test(v));
-          const hasMfr = sentTo.some((v) => /manufactur/i.test(v));
-          if (!hasVendor && !hasMfr) {
-            return (
-              <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                Please select target audience above to attach ID lists.
-              </div>
-            );
-          }
+          const hasVendorUpload = sentTo.includes("Targeted Vendor IDs (Upload File)");
+          const hasMfrUpload = sentTo.includes("Targeted Manufacturer IDs (Upload File)");
+          if (!hasVendorUpload && !hasMfrUpload) return null;
           return (
             <>
-              {hasVendor && (
-                <FormRow label="Vendor ID list">
+              {hasVendorUpload && (
+                <FormRow label="Vendor ID list" required>
                   <FileField value={vendorListName} onChange={setVendorListName} />
                 </FormRow>
               )}
-              {hasMfr && (
-                <FormRow label="Manufacturer ID list">
+              {hasMfrUpload && (
+                <FormRow label="Manufacturer ID list" required>
                   <FileField value={mfrListName} onChange={setMfrListName} />
                 </FormRow>
               )}
@@ -900,7 +992,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           );
         })()}
 
-        <FormRow label="Does this include any formula generated attachment or table in mail body (max 2)">
+        <FormRow label="Does this include any formula generated attachment or table in mail body">
           <MultiSelect
             options={FORMULA_OPTIONS}
             values={formulaFlags}
@@ -930,13 +1022,27 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
                 <SelectValue placeholder="Select purpose" />
               </SelectTrigger>
               <SelectContent>
-                {SUB_CATEGORIES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
+                {SUB_CATEGORY_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {subCategory === "Other" && (
+              <>
+                <Textarea
+                  className="mt-2"
+                  value={subCategoryCustomText}
+                  onChange={(e) => setSubCategoryCustomText(e.target.value)}
+                  rows={2}
+                  placeholder="Describe the custom category"
+                />
+                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                  ⚠️ Custom Category — Requires Manual Governance Review
+                </div>
+              </>
+            )}
           </FormRow>
           <FormRow label="Domain" required>
             <Select
@@ -947,7 +1053,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
                 <SelectValue placeholder="Select domain" />
               </SelectTrigger>
               <SelectContent>
-                {DOMAINS.map((d) => (
+                {DOMAIN_OPTIONS.map((d) => (
                   <SelectItem key={d} value={d}>
                     {d}
                   </SelectItem>
@@ -957,7 +1063,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           </FormRow>
         </div>
 
-        {inferred && <InferredRulesPanel rules={inferred} />}
+        {inferred && (
+          <>
+            <div className="text-[11px] text-muted-foreground">
+              🔒 Inherited from mail category type, not editable here
+            </div>
+            <InferredRulesPanel rules={inferred} />
+          </>
+        )}
       </section>
 
       {/* Template Editor with liquid variables + triple preview */}
@@ -1067,30 +1180,53 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             </SelectContent>
           </Select>
           {cta === "Direct Link" && (
-            <Input
-              className="mt-2"
-              value={ctaDest}
-              onChange={(e) => setCtaDest(e.target.value)}
-              placeholder="Destination URL"
-            />
+            <div className="mt-2 space-y-2">
+              <div>
+                <Label className="text-xs">Target Portal Module Route *</Label>
+                <Select value={ctaModuleRoute} onValueChange={(v) => { setCtaModuleRoute(v); setCtaDest(v); }}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select module route" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CTA_MODULE_ROUTES.map((r) => (
+                      <SelectItem key={r.route} value={r.route}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Query Parameters (optional)</Label>
+                <Input
+                  value={ctaQueryParams}
+                  onChange={(e) => setCtaQueryParams(e.target.value)}
+                  placeholder="?po_id={{po_number}}"
+                />
+              </div>
+            </div>
           )}
         </FormRow>
-        <FormRow label="Frequency of the mail to be sent (max 2)">
-          <FrequencyPickerLight values={frequency} onChange={setFrequency} />
-        </FormRow>
-        <FormRow label="Analyst POC (optional)">
-          <Select value={analyst} onValueChange={setAnalyst}>
+        <FormRow label="Frequency of the mail to be sent" required>
+          <Select value={frequency} onValueChange={(v) => setFrequency(v as FrequencyOption)}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select user" />
+              <SelectValue placeholder="Select frequency" />
             </SelectTrigger>
             <SelectContent>
-              {SLACK_USERS.map((u) => (
-                <SelectItem key={u} value={u}>
-                  {u}
+              {FREQ_OPTIONS.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {f}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </FormRow>
+        <FormRow label="Schedule Deadline / Expiry Cap" required>
+          <Input
+            type="datetime-local"
+            value={scheduleDeadline}
+            onChange={(e) => setScheduleDeadline(e.target.value)}
+          />
         </FormRow>
       </section>
 
@@ -1844,11 +1980,11 @@ function ApproverView() {
                   <div className="font-medium text-foreground">{r.submittedBy}</div>
                   <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    CCs: {r.ccEmails.length > 0 ? r.ccEmails.join(", ") : "None"}
+                    CCs: {r.approvalCcEmails ?? [].length > 0 ? r.approvalCcEmails ?? [].join(", ") : "None"}
                   </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {r.team.join(", ") || "—"}
+                  {r.team || "—"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {new Date(r.submittedAt).toLocaleString("en-IN", {
@@ -2071,12 +2207,12 @@ function RequestDetail({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DetailField label="Submitted By" value={`${request.submittedBy} (${request.primaryEmail})`} full />
-          <DetailField label="Slack POC" value={request.slackPoc || "—"} />
-          <DetailField label="Team" value={request.team.join(", ") || "—"} />
+          <DetailField label="Mail Owner" value={request.mailOwner || "—"} />
+          <DetailField label="Team" value={request.team || "—"} />
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
           <DetailField label="Subject line" value={request.subject} />
           <DetailField label="Purpose" value={request.purpose} full />
-          <DetailField label="Email Attachments" value={request.emailAttachmentsName} />
+          <DetailField label="Email Attachments" value={request.emailAttachmentsName && request.emailAttachmentsName !== "-" ? request.emailAttachmentsName : "No attachment"} />
           <DetailField label="Vendor ID list" value={request.vendorListName} />
           <DetailField label="Manufacturer ID list" value={request.manufacturerListName} />
           <DetailField label="Formula / Table flags" value={request.formulaFlags.join(", ") || "—"} />
@@ -2092,8 +2228,8 @@ function RequestDetail({
                 : request.cta
             }
           />
-          <DetailField label="Frequency" value={request.frequency.join(", ") || "—"} />
-          <DetailField label="Approval CCs" value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"} full />
+          <DetailField label="Frequency" value={request.frequency || "—"} />
+          <DetailField label="Approval CCs" value={(request.approvalCcEmails ?? []).length > 0 ? (request.approvalCcEmails ?? []).join(", ") : "None"} full />
 
           <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
         </div>
@@ -2575,7 +2711,7 @@ function PublishedDetailDialog({
                   <DetailRow label="Subject" value={request.subject} />
                   <DetailRow
                     label="Frequency"
-                    value={request.frequency.join(", ")}
+                    value={request.frequency}
                   />
                   <DetailRow label="Attachment" value={request.attachment} />
                   <DetailRow label="CTA" value={request.cta} />
@@ -2585,9 +2721,9 @@ function PublishedDetailDialog({
                   />
                   <DetailRow
                     label="Approval CCs"
-                    value={request.ccEmails.length > 0 ? request.ccEmails.join(", ") : "None"}
+                    value={(request.approvalCcEmails ?? []).length > 0 ? (request.approvalCcEmails ?? []).join(", ") : "None"}
                   />
-                  <DetailRow label="Team" value={request.team.join(", ")} />
+                  <DetailRow label="Team" value={request.team} />
                 </div>
                 <div className="mt-3 border-t border-border pt-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

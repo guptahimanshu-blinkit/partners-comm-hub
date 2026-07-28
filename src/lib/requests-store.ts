@@ -8,7 +8,7 @@ export type RequestStatus =
   | "Rejected Post Publish";
 export type RequestType = "Template Approval";
 export type PriorityLevel = "P1" | "P2" | "P3";
-export type FrequencyOption = "Once" | "Daily" | "Weekly" | "Monthly";
+export type FrequencyOption = "Once" | "Daily Digest" | "Weekly" | "Monthly";
 export type AttachmentOption = "None" | "PDF" | "Image" | "Excel Export";
 export type CtaOption = "None" | "Direct Link" | "Autofilled Help & Support Ticket";
 export type CommTypeOption =
@@ -30,14 +30,16 @@ export type SubCategoryPurpose =
   | "Reports"
   | "Announcements"
   | "Campaigns"
-  | "Defect Flow Communications";
+  | "Defect Flow Communications"
+  | "Other";
 
 export type DomainType =
   | "Operations & Appointments"
   | "Finance & Payments"
   | "Assortment / MDM"
   | "Warehouse Ops"
-  | "Monetization";
+  | "Monetization"
+  | "Product / Process Launch";
 
 export type SequenceTier = "FYI" | "Standard" | "Critical";
 
@@ -86,6 +88,17 @@ export function inferCategoryRules(
   subCategory: SubCategoryPurpose,
   domain: DomainType,
 ): InferredRules {
+  if (subCategory === "Other") {
+    return {
+      categoryId: "daily_ops",
+      priority: "P3",
+      channels: ["Portal", "Mail"],
+      batching: "Manual review required",
+      expiry: "Set by Comms-Admin",
+      unsubscribe: "ALLOWED",
+    };
+  }
+
   const isActionable =
     subCategory === "Defect Flow Communications" ||
     subCategory === "Campaigns";
@@ -127,10 +140,11 @@ export interface TemplateRequest {
   templateId: string;
   templateName: string;
   primaryEmail: string;
-  ccEmails: string[];
-  team: string[];
-  slackPoc: string;
+  mailOwner: string;
+  approvalCcEmails?: string[];
+  team: string;
   purpose: string;
+  purposeCustomText?: string;
   sentTo: string[];
   emailAttachmentsName: string;
   vendorListName: string;
@@ -140,6 +154,7 @@ export interface TemplateRequest {
   inlineSqlChart?: string;
   formulaFlags: string[];
   subCategory?: SubCategoryPurpose;
+  subCategoryCustomText?: string;
   domain?: DomainType;
   commType?: CommTypeOption;
   categoryId: CategoryId;
@@ -148,8 +163,11 @@ export interface TemplateRequest {
   attachmentConfig?: AttachmentConfig;
   cta: CtaOption;
   ctaDestination?: string;
-  frequency: FrequencyOption[];
-  analystPoc?: string;
+  ctaModuleRoute?: string;
+  ctaQueryParams?: string;
+  frequency: FrequencyOption;
+  scheduleDeadline: string;
+  analystPoc: string;
   whatsapp?: WhatsAppDraft;
   sequenceTier?: SequenceTier;
   preflightChecks?: PreflightChecks;
@@ -773,7 +791,7 @@ export function deriveCampaign(
   const channels: CampaignChannel[] = ["Email"];
   if (req.whatsapp) channels.push("WhatsApp");
   channels.push("Dashboard");
-  const freq: FrequencyOption = req.frequency[0] ?? "Once";
+  const freq: FrequencyOption = req.frequency ?? "Once";
   const isOnce = freq === "Once";
   return {
     id: `CMP-${log.id.replace(/^PUB-/, "")}`,
@@ -905,7 +923,7 @@ function seedCampaigns(): Campaign[] {
     segment: "Tech Enabled Vendors",
     audienceCount: 880,
     triggerType: "Recurring",
-    frequency: "Daily",
+    frequency: "Daily Digest",
     reminders: 0,
     status: "Completed",
     attachment: "None",
@@ -1232,9 +1250,9 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-4A2F91",
       templateName: "PO Cancellation Alert — Kolkata K4",
       primaryEmail: "priya.n@zomato.com",
-      ccEmails: ["ops-north@zomato.com"],
-      team: ["Supply Chain", "Ops"],
-      slackPoc: "@arjun.k",
+      mailOwner: "priya.n@zomato.com",
+      approvalCcEmails: ["ops-north@zomato.com"],
+      team: "Supply Chain",
       purpose:
         "Alert vendors when their PO gets cancelled at short notice so they can stop dispatch.",
       sentTo: ["Tech Enabled Vendors", "Low Tech Vendors"],
@@ -1249,7 +1267,7 @@ function seed(): TemplateRequest[] {
       priority: "P1",
       attachment: "PDF",
       cta: "Autofilled Help & Support Ticket",
-      frequency: ["Once"],
+      frequency: "Once",
       analystPoc: "@meera.s",
       sequenceTier: "Critical",
       whatsapp: {
@@ -1258,6 +1276,7 @@ function seed(): TemplateRequest[] {
         frequency: ["Once"],
         cta: "https://partnersbiz.blinkit.com/po",
       },
+      scheduleDeadline: "2026-08-15T09:30",
       status: "Pending",
       submittedBy: "Priya Nair",
       submittedAt: iso(35),
@@ -1268,9 +1287,9 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-7C1D08",
       templateName: "Weekly Fill Rate Scorecard",
       primaryEmail: "rahul.d@zomato.com",
-      ccEmails: [],
-      team: ["Analytics"],
-      slackPoc: "@rahul.d",
+      mailOwner: "rahul.d@zomato.com",
+      approvalCcEmails: [],
+      team: "Analytics",
       purpose: "Share weekly fill rate performance with vendor supply chain leads.",
       sentTo: ["Tech Enabled Vendors"],
       emailAttachmentsName: "fillrate_wk28.xlsx",
@@ -1286,8 +1305,10 @@ function seed(): TemplateRequest[] {
       attachment: "Excel Export",
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/reports/fill-rate",
-      frequency: ["Weekly"],
+      frequency: "Weekly",
       sequenceTier: "Standard",
+      scheduleDeadline: "2026-08-15T09:30",
+      analystPoc: "analyst@grofers.com",
       status: "Pending",
       submittedBy: "Rahul Deshmukh",
       submittedAt: iso(180),
@@ -1298,9 +1319,11 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-9E5B22",
       templateName: "Payment on Hold — Invoice Rejection",
       primaryEmail: "finance-comms@zomato.com",
-      ccEmails: [],
-      team: ["Finance"],
-      slackPoc: "@nikhil.r",
+      mailOwner: "finance-comms@zomato.com",
+      approvalCcEmails: [],
+      team: "Finance",
+      analystPoc: "analyst@grofers.com",
+      scheduleDeadline: "2026-08-15T09:30",
       purpose:
         "Notify vendors when payment is placed on hold due to invoice mismatch.",
       sentTo: ["Tech Enabled Vendors"],
@@ -1319,7 +1342,7 @@ function seed(): TemplateRequest[] {
       attachment: "PDF",
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/invoices",
-      frequency: ["Once"],
+      frequency: "Once",
       sequenceTier: "Critical",
       status: "Approved",
       submittedBy: "Nikhil Rao",
@@ -1332,9 +1355,9 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-2B8410",
       templateName: "Near-Expiry PO Reminder",
       primaryEmail: "priya.n@zomato.com",
-      ccEmails: [],
-      team: ["Supply Chain"],
-      slackPoc: "@arjun.k",
+      mailOwner: "priya.n@zomato.com",
+      approvalCcEmails: [],
+      team: "Supply Chain",
       purpose: "Remind vendors of POs approaching expiry within 48 hours.",
       sentTo: ["Tech Enabled Vendors"],
       emailAttachmentsName: "reminder.pdf",
@@ -1350,8 +1373,10 @@ function seed(): TemplateRequest[] {
       attachment: "None",
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/po",
-      frequency: ["Daily"],
+      frequency: "Daily Digest",
       sequenceTier: "Standard",
+      scheduleDeadline: "2026-08-15T09:30",
+      analystPoc: "analyst@grofers.com",
       status: "Rejected",
       submittedBy: "Priya Nair",
       submittedAt: iso(2880),
@@ -1366,9 +1391,11 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-6F30C7",
       templateName: "OTP for Vendor Portal Login",
       primaryEmail: "security@zomato.com",
-      ccEmails: [],
-      team: ["Security"],
-      slackPoc: "@kavya.m",
+      mailOwner: "security@zomato.com",
+      approvalCcEmails: [],
+      analystPoc: "security-analyst@grofers.com",
+      scheduleDeadline: "2026-08-15T09:30",
+      team: "Security",
       purpose: "Send login OTP to vendor portal users.",
       sentTo: ["Tech Enabled Vendors", "Low Tech Vendors"],
       emailAttachmentsName: "-",
@@ -1381,7 +1408,7 @@ function seed(): TemplateRequest[] {
       priority: "P1",
       attachment: "None",
       cta: "None",
-      frequency: ["Once"],
+      frequency: "Once",
       sequenceTier: "Critical",
       whatsapp: {
         message: "Your Blinkit Vendor Portal OTP is {{otp}}. Do not share with anyone.",
@@ -1398,9 +1425,11 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-8410F2",
       templateName: "Fill Rate Weekly Digest — North",
       primaryEmail: "rahul.d@zomato.com",
-      ccEmails: [],
-      team: ["Analytics"],
-      slackPoc: "@rahul.d",
+      mailOwner: "rahul.d@zomato.com",
+      approvalCcEmails: [],
+      analystPoc: "analyst@grofers.com",
+      scheduleDeadline: "2026-08-15T09:30",
+      team: "Analytics",
       purpose: "Weekly fill rate digest for North region vendors.",
       sentTo: ["Tech Enabled Vendors"],
       emailAttachmentsName: "fillrate_north.xlsx",
@@ -1419,7 +1448,7 @@ function seed(): TemplateRequest[] {
       attachment: "Excel Export",
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/reports/fill-rate",
-      frequency: ["Weekly"],
+      frequency: "Weekly",
       sequenceTier: "Standard",
       status: "Approved",
       submittedBy: "Rahul Deshmukh",
@@ -1432,9 +1461,9 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-77BC09",
       templateName: "Weekend PO Reminder — Bulk",
       primaryEmail: "priya.n@zomato.com",
-      ccEmails: [],
-      team: ["Supply Chain"],
-      slackPoc: "@priya.n",
+      mailOwner: "priya.n@zomato.com",
+      approvalCcEmails: [],
+      team: "Supply Chain",
       purpose: "Weekend bulk reminder for open POs across all vendors.",
       sentTo: ["Tech Enabled Vendors", "Low Tech Vendors"],
       emailAttachmentsName: "-",
@@ -1450,8 +1479,10 @@ function seed(): TemplateRequest[] {
       attachment: "None",
       cta: "Direct Link",
       ctaDestination: "https://partnersbiz.blinkit.com/po",
-      frequency: ["Once"],
+      frequency: "Once",
       sequenceTier: "Standard",
+      scheduleDeadline: "2026-08-15T09:30",
+      analystPoc: "analyst@grofers.com",
       status: "Rejected Post Publish",
       submittedBy: "Priya Nair",
       submittedAt: iso(5760),

@@ -65,10 +65,8 @@ function targetLevelFromSentTo(sentTo: string[]): "Vendor" | "Manufacturer" {
   return sentTo.some((s) => /manufact/i.test(s)) ? "Manufacturer" : "Vendor";
 }
 
-function scheduleTypeFromFrequency(freq: string[]): ScheduleType {
-  return freq.some((f) => /weekly|daily|monthly/i.test(f))
-    ? "recurring"
-    : "one_time";
+function scheduleTypeFromFrequency(freq: string): ScheduleType {
+  return /weekly|daily|monthly/i.test(freq) ? "recurring" : "one_time";
 }
 
 function estimatedRecipients(req: TemplateRequest): number {
@@ -363,7 +361,7 @@ function ScheduleNotificationPage() {
                       Frequency
                     </dt>
                     <dd className="text-[11px] font-medium text-foreground">
-                      {selected.frequency.join(", ")}
+                      {selected.frequency}
                     </dd>
                   </div>
 
@@ -387,7 +385,7 @@ function ScheduleNotificationPage() {
               Schedule Type
               {selected && (
                 <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                  (auto-set from frequency: {selected.frequency.join(", ")})
+                  (auto-set from frequency: {selected.frequency})
                 </span>
               )}
             </Label>
