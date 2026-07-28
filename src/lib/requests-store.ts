@@ -1409,7 +1409,7 @@ function seed(): TemplateRequest[] {
       sequenceTier: "Critical",
       whatsapp: {
         message: "Your Blinkit Vendor Portal OTP is {{otp}}. Do not share with anyone.",
-        frequency: "Once",
+        frequency: ["Once"],
         cta: "+911800-000-000",
       },
       status: "Pending",
