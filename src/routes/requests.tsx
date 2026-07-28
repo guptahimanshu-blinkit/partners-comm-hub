@@ -171,8 +171,41 @@ const TEAM_OPTIONS = [
   "Category",
 ];
 const SENT_TO_OPTIONS = [
-  "Manufacture",
-  "Vendor",
+  "All Vendors on PartnersBiz",
+  "All Manufacturers on PartnersBiz",
+  "Targeted Vendor IDs (Upload File)",
+  "Targeted Manufacturer IDs (Upload File)",
+];
+const PURPOSE_OPTIONS = [
+  "PO Cancellation Alert",
+  "Weekly Fill Rate Scorecard",
+  "Payment & Tax Deduction Reconciliation",
+  "Warehouse Slot & Appointment Schedule Change",
+  "Product / Process Launch",
+  "Other / Custom Purpose",
+];
+const SUB_CATEGORY_OPTIONS: Array<{ value: SubCategoryPurpose; label: string }> = [
+  { value: "Reports", label: "Reports (Periodic data exports & performance scorecards)" },
+  { value: "Announcements", label: "Announcements (General policy updates & platform news)" },
+  { value: "Campaigns", label: "Campaigns (Multi-step promotional & onboarding comms)" },
+  { value: "Defect Flow Communications", label: "Defect Flow Communications (Urgent operational alerts requiring action)" },
+  { value: "Other", label: "Other / Custom Category" },
+];
+const DOMAIN_OPTIONS: DomainType[] = [
+  "Operations & Appointments",
+  "Finance & Payments",
+  "Assortment / MDM",
+  "Warehouse Ops",
+  "Monetization",
+  "Product / Process Launch",
+];
+const CTA_MODULE_ROUTES = [
+  { route: "/app/appointments", label: "PO Appointments (/app/appointments)" },
+  { route: "/app/invoices", label: "Invoices (/app/invoices)" },
+  { route: "/app/po-summary", label: "PO Summary (/app/po-summary)" },
+  { route: "/app/fees-and-charges", label: "Fees & Charges (/app/fees-and-charges)" },
+  { route: "/app/report-requests", label: "Report Requests (/app/report-requests)" },
+  { route: "/app/tickets", label: "Support / Tickets (/app/tickets)" },
 ];
 const SLACK_USERS = [
   "@arjun.k",
