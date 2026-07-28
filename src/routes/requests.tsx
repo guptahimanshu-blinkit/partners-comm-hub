@@ -2130,7 +2130,7 @@ function RequestDetail({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DetailField label="Submitted By" value={`${request.submittedBy} (${request.primaryEmail})`} full />
-          <DetailField label="Slack POC" value={request.slackPoc || "—"} />
+          <DetailField label="Mail Owner" value={request.mailOwner || "—"} />
           <DetailField label="Team" value={request.team || "—"} />
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
           <DetailField label="Subject line" value={request.subject} />
