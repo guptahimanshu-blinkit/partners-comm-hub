@@ -932,55 +932,59 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           </p>
         </FormRow>
         <FormRow label="Purpose of the mailer" required>
-          <Textarea
-            value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-            rows={3}
-          />
+          <Select value={purpose} onValueChange={setPurpose}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Select purpose" />
+            </SelectTrigger>
+            <SelectContent>
+              {PURPOSE_OPTIONS.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-[11px] italic text-muted-foreground">
+            (Note: Preset purpose options are pending confirmation from Category Team. Current options shown for layout demonstration.)
+          </p>
+          {purpose === "Other / Custom Purpose" && (
+            <Textarea
+              className="mt-2"
+              value={purposeCustomText}
+              onChange={(e) => setPurposeCustomText(e.target.value)}
+              rows={3}
+              placeholder="Describe the custom purpose"
+            />
+          )}
         </FormRow>
-        <FormRow label="Mail will be sent to (max 2)">
+        <FormRow label="Mail will be sent to" required>
           <MultiSelect
             options={SENT_TO_OPTIONS}
             values={sentTo}
             onChange={(next) => {
-              const hasVendor = next.some((v) => /vendor/i.test(v));
-              const hasMfr = next.some((v) => /manufactur/i.test(v));
-              if (!hasVendor && vendorListName) setVendorListName("");
-              if (!hasMfr && mfrListName) setMfrListName("");
+              const hasVendorUpload = next.includes("Targeted Vendor IDs (Upload File)");
+              const hasMfrUpload = next.includes("Targeted Manufacturer IDs (Upload File)");
+              if (!hasVendorUpload && vendorListName) setVendorListName("");
+              if (!hasMfrUpload && mfrListName) setMfrListName("");
               setSentTo(next);
             }}
             max={2}
-            placeholder="Pick vendor segment"
-          />
-        </FormRow>
-        <FormRow label="Estimated audience size">
-          <Input
-            type="number"
-            value={audienceCount}
-            onChange={(e) =>
-              setAudienceCount(Math.max(0, Number(e.target.value) || 0))
-            }
+            placeholder="Pick audience"
           />
         </FormRow>
         {(() => {
-          const hasVendor = sentTo.some((v) => /vendor/i.test(v));
-          const hasMfr = sentTo.some((v) => /manufactur/i.test(v));
-          if (!hasVendor && !hasMfr) {
-            return (
-              <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                Please select target audience above to attach ID lists.
-              </div>
-            );
-          }
+          const hasVendorUpload = sentTo.includes("Targeted Vendor IDs (Upload File)");
+          const hasMfrUpload = sentTo.includes("Targeted Manufacturer IDs (Upload File)");
+          if (!hasVendorUpload && !hasMfrUpload) return null;
           return (
             <>
-              {hasVendor && (
-                <FormRow label="Vendor ID list">
+              {hasVendorUpload && (
+                <FormRow label="Vendor ID list" required>
                   <FileField value={vendorListName} onChange={setVendorListName} />
                 </FormRow>
               )}
-              {hasMfr && (
-                <FormRow label="Manufacturer ID list">
+              {hasMfrUpload && (
+                <FormRow label="Manufacturer ID list" required>
                   <FileField value={mfrListName} onChange={setMfrListName} />
                 </FormRow>
               )}
@@ -988,7 +992,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           );
         })()}
 
-        <FormRow label="Does this include any formula generated attachment or table in mail body (max 2)">
+        <FormRow label="Does this include any formula generated attachment or table in mail body">
           <MultiSelect
             options={FORMULA_OPTIONS}
             values={formulaFlags}
