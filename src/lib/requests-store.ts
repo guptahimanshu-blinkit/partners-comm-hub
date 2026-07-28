@@ -5,6 +5,7 @@ export type RequestStatus =
   | "Pending"
   | "Approved"
   | "Rejected"
+  | "On Hold"
   | "Rejected Post Publish";
 export type RequestType = "Template Approval";
 export type PriorityLevel = "P1" | "P2" | "P3";
@@ -23,6 +24,29 @@ export type RejectionCategory =
   | "Clubbing Conflict"
   | "Compliance Concern"
   | "Missing Info";
+
+export type RejectionReasonCategory =
+  | "Structure of mail issue"
+  | "Content clarity & comprehensive issue"
+  | "Grammatical errors"
+  | "Attachment related issues"
+  | "Mail can be clubbed with some other mail."
+  | "Incorrect category type of the mail category type has been defined"
+  | "Compliance concern"
+  | "User base not defined correctly"
+  | "Other";
+
+export const REJECTION_REASON_CATEGORIES: RejectionReasonCategory[] = [
+  "Structure of mail issue",
+  "Content clarity & comprehensive issue",
+  "Grammatical errors",
+  "Attachment related issues",
+  "Mail can be clubbed with some other mail.",
+  "Incorrect category type of the mail category type has been defined",
+  "Compliance concern",
+  "User base not defined correctly",
+  "Other",
+];
 
 // -------- New category / rule inference types --------
 
