@@ -563,7 +563,6 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Template Name</TableHead>
-            <TableHead>Request Type</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Submitted At</TableHead>
           </TableRow>
@@ -593,9 +592,6 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {r.requestType}
-                  </TableCell>
                   <TableCell>
                     <StatusTag status={r.status} />
                   </TableCell>
@@ -612,7 +608,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                 </TableRow>
                 {isExpanded && canExpand && (
                   <TableRow>
-                    <TableCell colSpan={4} className="bg-muted/30">
+                    <TableCell colSpan={3} className="bg-muted/30">
                       <div className="space-y-2 p-2">
                         {postPublish && (
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
