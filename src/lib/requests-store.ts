@@ -325,8 +325,8 @@ export function approveRequest(id: string) {
 
 export function rejectRequest(
   id: string,
-  reason: string,
-  category: RejectionCategory,
+  categories: RejectionReasonCategory[],
+  comments: string,
 ) {
   hydrateStoreFromStorage();
   setRequests(
@@ -336,8 +336,29 @@ export function rejectRequest(
             ...r,
             status: "Rejected" as const,
             rejectedAt: nowStamp(),
-            rejectionReason: reason,
-            rejectionCategory: category,
+            rejectionReason: comments,
+            rejectionCategories: categories,
+          }
+        : r,
+    ),
+  );
+}
+
+export function holdRequest(
+  id: string,
+  categories: RejectionReasonCategory[],
+  comments: string,
+) {
+  hydrateStoreFromStorage();
+  setRequests(
+    REQUESTS.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            status: "On Hold" as const,
+            heldAt: nowStamp(),
+            holdCategories: categories,
+            holdComments: comments,
           }
         : r,
     ),
