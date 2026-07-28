@@ -791,7 +791,7 @@ export function deriveCampaign(
   const channels: CampaignChannel[] = ["Email"];
   if (req.whatsapp) channels.push("WhatsApp");
   channels.push("Dashboard");
-  const freq: FrequencyOption = req.frequency[0] ?? "Once";
+  const freq: FrequencyOption = req.frequency ?? "Once";
   const isOnce = freq === "Once";
   return {
     id: `CMP-${log.id.replace(/^PUB-/, "")}`,
