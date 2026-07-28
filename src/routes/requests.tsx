@@ -708,12 +708,42 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   }, [attachmentConfig]);
 
   const submit = () => {
-    if (!templateId || !templateName || !subject || !purpose) {
-      toast.error("Please fill required fields");
-      return;
-    }
-    if (!inferred || !subCategory || !domain) {
-      toast.error("Please select Sub-Category and Domain");
+    const missing: string[] = [];
+    if (!templateId) missing.push("Template ID");
+    if (!templateName) missing.push("Template Name");
+    if (!mailOwner || !/@(grofers|zomato)\.com$/i.test(mailOwner))
+      missing.push("Mail Owner Email (internal)");
+    if (!team) missing.push("Team");
+    if (!analyst || !/@(grofers|zomato)\.com$/i.test(analyst))
+      missing.push("Analyst POC Email (internal)");
+    if (!purpose) missing.push("Purpose");
+    if (purpose === "Other / Custom Purpose" && !purposeCustomText.trim())
+      missing.push("Custom Purpose Text");
+    if (!subCategory) missing.push("Sub-Category Purpose");
+    if (subCategory === "Other" && !subCategoryCustomText.trim())
+      missing.push("Custom Sub-Category Text");
+    if (!domain) missing.push("Domain");
+    if (!subject) missing.push("Subject Line");
+    if (!body) missing.push("Body Text");
+    if (!frequency) missing.push("Frequency");
+    if (!scheduleDeadline) missing.push("Schedule Deadline");
+    if (cta === "Direct Link" && !ctaModuleRoute)
+      missing.push("Target Portal Module Route");
+    if (
+      sentTo.includes("Targeted Vendor IDs (Upload File)") &&
+      !vendorListName
+    )
+      missing.push("Vendor ID list file");
+    if (
+      sentTo.includes("Targeted Manufacturer IDs (Upload File)") &&
+      !mfrListName
+    )
+      missing.push("Manufacturer ID list file");
+
+    if (missing.length > 0 || !inferred) {
+      toast.error(
+        `⚠️ Please complete the following required fields: ${missing.join(", ") || "Sub-Category and Domain"}`,
+      );
       return;
     }
     const req: TemplateRequest = {
@@ -722,9 +752,11 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       templateId,
       templateName,
       primaryEmail: AUTH_SUBMITTER_EMAIL,
+      mailOwner,
+      approvalCcEmails,
       team,
-      slackPoc,
       purpose,
+      purposeCustomText: purposeCustomText || undefined,
       sentTo,
       emailAttachmentsName: attachmentConfig.fileName || "-",
       vendorListName: vendorListName || "-",
@@ -733,17 +765,20 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       body,
       inlineSqlChart: chartQuery || undefined,
       formulaFlags,
-      subCategory,
-      domain,
+      subCategory: subCategory as SubCategoryPurpose,
+      subCategoryCustomText: subCategoryCustomText || undefined,
+      domain: domain as DomainType,
       categoryId: inferred.categoryId,
       priority: inferred.priority,
       attachment: attachmentOption,
       attachmentConfig,
       cta,
       ctaDestination: cta === "Direct Link" ? ctaDest : undefined,
+      ctaModuleRoute: cta === "Direct Link" ? ctaModuleRoute : undefined,
+      ctaQueryParams: cta === "Direct Link" ? ctaQueryParams : undefined,
       frequency,
-      ccEmails,
-      analystPoc: analyst || undefined,
+      scheduleDeadline,
+      analystPoc: analyst,
       whatsapp: showWhatsApp
         ? { message: waMessage, frequency: waFreq, cta: waCta }
         : undefined,
@@ -754,7 +789,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     };
     addRequest(req);
     const ccPart =
-      ccEmails.length > 0 ? ` and CC'd ${ccEmails.length} reviewer${ccEmails.length === 1 ? "" : "s"}` : " (no CCs)";
+      approvalCcEmails.length > 0
+        ? ` and CC'd ${approvalCcEmails.length} reviewer${approvalCcEmails.length === 1 ? "" : "s"}`
+        : " (no CCs)";
     toast.success(
       `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
     );
