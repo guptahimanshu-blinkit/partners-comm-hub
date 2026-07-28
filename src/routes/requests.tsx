@@ -2212,7 +2212,7 @@ function RequestDetail({
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
           <DetailField label="Subject line" value={request.subject} />
           <DetailField label="Purpose" value={request.purpose} full />
-          <DetailField label="Email Attachments" value={request.emailAttachmentsName} />
+          <DetailField label="Email Attachments" value={request.emailAttachmentsName && request.emailAttachmentsName !== "-" ? request.emailAttachmentsName : "No attachment"} />
           <DetailField label="Vendor ID list" value={request.vendorListName} />
           <DetailField label="Manufacturer ID list" value={request.manufacturerListName} />
           <DetailField label="Formula / Table flags" value={request.formulaFlags.join(", ") || "—"} />
