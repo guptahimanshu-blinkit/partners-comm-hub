@@ -2133,6 +2133,49 @@ function TemplateDeliverabilityCard({ templateId }: { templateId: string }) {
 
 
 
+function formatDeadline(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })} IST`;
+}
+
+function ReasonChecklist({
+  selected,
+  onToggle,
+}: {
+  selected: RejectionReasonCategory[];
+  onToggle: (v: RejectionReasonCategory) => void;
+}) {
+  return (
+    <div className="max-h-[220px] space-y-1.5 overflow-y-auto rounded-md border border-border p-2">
+      {REJECTION_REASON_CATEGORIES.map((c) => {
+        const checked = selected.includes(c);
+        return (
+          <label
+            key={c}
+            className="flex cursor-pointer items-start gap-2 rounded p-1.5 text-[13px] hover:bg-muted/50"
+          >
+            <Checkbox
+              checked={checked}
+              onCheckedChange={() => onToggle(c)}
+              className="mt-0.5"
+            />
+            <span className="leading-snug">{c}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 function RequestDetail({
   request,
   onBack,
@@ -2140,17 +2183,21 @@ function RequestDetail({
   request: TemplateRequest;
   onBack: () => void;
 }) {
-  const hasClubbingMatch = getClubbingMatch(request.id) !== null;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const [reasonCat, setReasonCat] = useState<RejectionCategory | "">(
-    hasClubbingMatch ? "Clubbing Conflict" : "",
-  );
+  const [reasonCats, setReasonCats] = useState<RejectionReasonCategory[]>([]);
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [holdCats, setHoldCats] = useState<RejectionReasonCategory[]>([]);
+  const [holdComments, setHoldComments] = useState("");
 
-  const openReject = () => {
-    if (hasClubbingMatch && !reasonCat) setReasonCat("Clubbing Conflict");
-    setRejectOpen(true);
-  };
+  const toggleReason = (c: RejectionReasonCategory) =>
+    setReasonCats((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+  const toggleHold = (c: RejectionReasonCategory) =>
+    setHoldCats((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
 
   const approve = () => {
     approveRequest(request.id);
@@ -2158,15 +2205,76 @@ function RequestDetail({
     onBack();
   };
   const confirmReject = () => {
-    if (!reason.trim() || !reasonCat) {
-      toast.error("Reason and category are required");
+    if (reasonCats.length === 0) {
+      toast.error("Select at least one reason category");
       return;
     }
-    rejectRequest(request.id, reason.trim(), reasonCat as RejectionCategory);
+    const otherPicked = reasonCats.includes("Other");
+    if (otherPicked && !reason.trim()) {
+      toast.error("Additional notes are required when selecting 'Other'");
+      return;
+    }
+    rejectRequest(request.id, reasonCats, reason.trim());
     toast.success(`${request.templateName} rejected`);
     setRejectOpen(false);
     onBack();
   };
+  const confirmHold = () => {
+    if (holdCats.length === 0) {
+      toast.error("Select at least one hold reason category");
+      return;
+    }
+    if (!holdComments.trim()) {
+      toast.error("Hold explanation is required");
+      return;
+    }
+    holdRequest(request.id, holdCats, holdComments.trim());
+    toast.success(`Request ${request.id} put on hold. Submitter notified.`);
+    setHoldOpen(false);
+    onBack();
+  };
+
+  // ID list resolution
+  const sentToLower = request.sentTo.map((s) => s.toLowerCase());
+  const vendorFieldValue = sentToLower.some((s) =>
+    s.includes("all vendors on partnersbiz"),
+  )
+    ? "All Vendors Directory (Auto-fetched from DB)"
+    : request.vendorListName && request.vendorListName !== "-"
+      ? `📎 ${request.vendorListName}`
+      : "Not Applicable";
+  const mfrFieldValue = sentToLower.some((s) =>
+    s.includes("all manufacturers on partnersbiz"),
+  )
+    ? "All Manufacturers Directory (Auto-fetched from DB)"
+    : request.manufacturerListName && request.manufacturerListName !== "-"
+      ? `📎 ${request.manufacturerListName}`
+      : "Not Applicable";
+
+  const frequencyValue = `${request.frequency || "—"} · Deadline: ${formatDeadline(request.scheduleDeadline)}`;
+  const ccValue =
+    (request.approvalCcEmails ?? []).length > 0
+      ? (request.approvalCcEmails ?? []).join(", ")
+      : "None";
+  const purposeValue = `${request.purpose || "—"}${
+    request.purpose === "Other / Custom Purpose" && request.purposeCustomText
+      ? ` · Custom Purpose: ${request.purposeCustomText}`
+      : ""
+  }`;
+  const subCategoryValue = `${request.subCategory || "—"}${
+    request.subCategory === "Other" && request.subCategoryCustomText
+      ? ` · Custom Category: ${request.subCategoryCustomText}`
+      : ""
+  }`;
+  const ctaValue =
+    request.cta === "Direct Link"
+      ? `${request.cta} → Route: ${request.ctaModuleRoute ?? "—"}${
+          request.ctaQueryParams ? ` ${request.ctaQueryParams}` : ""
+        }`
+      : request.cta;
+  const attachmentValue = request.attachment && request.attachment !== "None"
+    ? request.attachment
+    : "No Attachment";
 
   return (
     <div className="space-y-5">
@@ -2189,6 +2297,7 @@ function RequestDetail({
           <div className="flex items-center gap-2">
             <CategoryTag id={request.categoryId} />
             <PriorityTag p={request.priority} />
+            <StatusTag status={request.status} />
           </div>
         </div>
 
@@ -2196,33 +2305,30 @@ function RequestDetail({
           <DetailField label="Submitted By" value={`${request.submittedBy} (${request.primaryEmail})`} full />
           <DetailField label="Mail Owner" value={request.mailOwner || "—"} />
           <DetailField label="Team" value={request.team || "—"} />
+          <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
+          <DetailField label="Approval CCs" value={ccValue} full />
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
-          <DetailField label="Subject line" value={request.subject} />
-          <DetailField label="Purpose" value={request.purpose} full />
-          <DetailField label="Email Attachments" value={request.emailAttachmentsName && request.emailAttachmentsName !== "-" ? request.emailAttachmentsName : "No attachment"} />
-          <DetailField label="Vendor ID list" value={request.vendorListName} />
-          <DetailField label="Manufacturer ID list" value={request.manufacturerListName} />
-          <DetailField label="Formula / Table flags" value={request.formulaFlags.join(", ") || "—"} />
+          <DetailField label="Vendor ID list" value={vendorFieldValue} />
+          <DetailField label="Manufacturer ID list" value={mfrFieldValue} />
+          <DetailField label="Purpose" value={purposeValue} full />
+          <DetailField label="Sub-Category Purpose" value={subCategoryValue} />
+          <DetailField label="Domain" value={request.domain || "—"} />
+          <DetailField label="Subject line" value={request.subject} full />
           {request.commType && (
             <DetailField label="Comm type" value={request.commType} />
           )}
-          <DetailField label="Attachment" value={request.attachment} />
-          <DetailField
-            label="Call to Action"
-            value={
-              request.cta === "Direct Link"
-                ? `Direct Link → ${request.ctaDestination ?? "—"}`
-                : request.cta
-            }
-          />
-          <DetailField label="Frequency" value={request.frequency || "—"} />
-          <DetailField label="Approval CCs" value={(request.approvalCcEmails ?? []).length > 0 ? (request.approvalCcEmails ?? []).join(", ") : "None"} full />
-
-          <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
+          <DetailField label="Attachment" value={attachmentValue} />
+          <DetailField label="Email Attachments" value={request.emailAttachmentsName && request.emailAttachmentsName !== "-" ? request.emailAttachmentsName : "No attachment"} />
+          <DetailField label="Call to Action" value={ctaValue} full />
+          <DetailField label="Frequency" value={frequencyValue} full />
+          <DetailField label="Formula / Table flags" value={request.formulaFlags.join(", ") || "—"} full />
         </div>
 
         <div className="mt-5">
           <InheritedPanel categoryId={request.categoryId} priority={request.priority} />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            🔒 Inherited from mail category type, not editable here
+          </p>
         </div>
 
         <div className="mt-5">
@@ -2243,15 +2349,20 @@ function RequestDetail({
 
       <ClubbingMatchPanel requestId={request.id} />
 
-
-
       <div className="flex justify-end gap-2">
         <Button
           variant="outline"
-          onClick={openReject}
+          onClick={() => setRejectOpen(true)}
           className="gap-2 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
         >
           <XCircle className="h-4 w-4" /> Reject
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setHoldOpen(true)}
+          className="gap-2 border-cat-amber/40 text-cat-amber hover:bg-cat-amber-soft"
+        >
+          <PauseCircle className="h-4 w-4" /> Hold
         </Button>
         <Button onClick={approve} className="gap-2">
           <CheckCircle2 className="h-4 w-4" /> Approve
@@ -2261,41 +2372,35 @@ function RequestDetail({
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject request</DialogTitle>
+            <DialogTitle>Reject Request</DialogTitle>
             <DialogDescription>
-              Provide a clear reason. The submitter will see this on their request row.
+              Provide a reason category. The submitter will see this on their request row.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-[13px]">
-                Reason for Rejection<span className="ml-0.5 text-cat-red">*</span>
+                Reason Category<span className="ml-0.5 text-cat-red">*</span>
+              </Label>
+              <ReasonChecklist selected={reasonCats} onToggle={toggleReason} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px]">
+                Reason for Rejection / Additional Notes
+                {reasonCats.includes("Other") && (
+                  <span className="ml-0.5 text-cat-red">*</span>
+                )}
               </Label>
               <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={4}
+                placeholder={
+                  reasonCats.includes("Other")
+                    ? "Required — describe the rejection reason"
+                    : "Optional notes for the submitter"
+                }
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[13px]">
-                Reason Category<span className="ml-0.5 text-cat-red">*</span>
-              </Label>
-              <Select
-                value={reasonCat}
-                onValueChange={(v) => setReasonCat(v as RejectionCategory)}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {REJECTION_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -2306,9 +2411,47 @@ function RequestDetail({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={holdOpen} onOpenChange={setHoldOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Put Request on Hold</DialogTitle>
+            <DialogDescription>
+              Pause this request and notify the submitter about the action required.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-[13px]">
+                Hold Reason Category<span className="ml-0.5 text-cat-red">*</span>
+              </Label>
+              <ReasonChecklist selected={holdCats} onToggle={toggleHold} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px]">
+                Hold Explanation / Action Required from Submitter
+                <span className="ml-0.5 text-cat-red">*</span>
+              </Label>
+              <Textarea
+                value={holdComments}
+                onChange={(e) => setHoldComments(e.target.value)}
+                rows={4}
+                placeholder="Describe what the submitter needs to do to unblock this request"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setHoldOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmHold}>Confirm Hold</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function DetailField({
   label,
