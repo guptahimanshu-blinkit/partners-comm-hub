@@ -563,7 +563,6 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Template Name</TableHead>
-            <TableHead>Request Type</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Submitted At</TableHead>
           </TableRow>
@@ -593,9 +592,6 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {r.requestType}
-                  </TableCell>
                   <TableCell>
                     <StatusTag status={r.status} />
                   </TableCell>
@@ -612,7 +608,7 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
                 </TableRow>
                 {isExpanded && canExpand && (
                   <TableRow>
-                    <TableCell colSpan={4} className="bg-muted/30">
+                    <TableCell colSpan={3} className="bg-muted/30">
                       <div className="space-y-2 p-2">
                         {postPublish && (
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
@@ -842,17 +838,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <FormRow label="Request Type" required>
-          <Select value="Template Approval">
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Template Approval">Template Approval</SelectItem>
-            </SelectContent>
-          </Select>
-        </FormRow>
-
         <FormRow label="Template ID" required>
           <Input
             value={templateId}
@@ -1960,7 +1945,6 @@ function ApproverView() {
           <TableHeader>
             <TableRow>
               <TableHead>Template Name</TableHead>
-              <TableHead>Request Type</TableHead>
               <TableHead>Submitted By</TableHead>
               <TableHead>Team</TableHead>
               <TableHead>Submitted At</TableHead>
@@ -1975,7 +1959,6 @@ function ApproverView() {
                 onClick={() => setSelectedId(r.id)}
               >
                 <TableCell className="font-medium">{r.templateName}</TableCell>
-                <TableCell className="text-sm">{r.requestType}</TableCell>
                 <TableCell className="text-sm">
                   <div className="font-medium text-foreground">{r.submittedBy}</div>
                   <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
@@ -2003,7 +1986,7 @@ function ApproverView() {
             ))}
             {pending.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
                   No pending requests.
                 </TableCell>
               </TableRow>
@@ -2192,8 +2175,6 @@ function RequestDetail({
           <div>
             <h2 className="text-lg font-semibold">{request.templateName}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{request.requestType}</span>
-              <span>·</span>
               <span>{request.templateId}</span>
               <span>·</span>
               <span>By {request.submittedBy}</span>
