@@ -1130,22 +1130,26 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             />
           )}
         </FormRow>
-        <FormRow label="Frequency of the mail to be sent (max 2)">
-          <FrequencyPickerLight values={frequency} onChange={setFrequency} />
-        </FormRow>
-        <FormRow label="Analyst POC (optional)">
-          <Select value={analyst} onValueChange={setAnalyst}>
+        <FormRow label="Frequency of the mail to be sent" required>
+          <Select value={frequency} onValueChange={(v) => setFrequency(v as FrequencyOption)}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select user" />
+              <SelectValue placeholder="Select frequency" />
             </SelectTrigger>
             <SelectContent>
-              {SLACK_USERS.map((u) => (
-                <SelectItem key={u} value={u}>
-                  {u}
+              {FREQ_OPTIONS.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {f}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </FormRow>
+        <FormRow label="Schedule Deadline / Expiry Cap" required>
+          <Input
+            type="datetime-local"
+            value={scheduleDeadline}
+            onChange={(e) => setScheduleDeadline(e.target.value)}
+          />
         </FormRow>
       </section>
 
