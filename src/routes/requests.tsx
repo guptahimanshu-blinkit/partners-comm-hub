@@ -1022,13 +1022,27 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
                 <SelectValue placeholder="Select purpose" />
               </SelectTrigger>
               <SelectContent>
-                {SUB_CATEGORIES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
+                {SUB_CATEGORY_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {subCategory === "Other" && (
+              <>
+                <Textarea
+                  className="mt-2"
+                  value={subCategoryCustomText}
+                  onChange={(e) => setSubCategoryCustomText(e.target.value)}
+                  rows={2}
+                  placeholder="Describe the custom category"
+                />
+                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                  ⚠️ Custom Category — Requires Manual Governance Review
+                </div>
+              </>
+            )}
           </FormRow>
           <FormRow label="Domain" required>
             <Select
@@ -1039,7 +1053,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
                 <SelectValue placeholder="Select domain" />
               </SelectTrigger>
               <SelectContent>
-                {DOMAINS.map((d) => (
+                {DOMAIN_OPTIONS.map((d) => (
                   <SelectItem key={d} value={d}>
                     {d}
                   </SelectItem>
@@ -1049,7 +1063,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           </FormRow>
         </div>
 
-        {inferred && <InferredRulesPanel rules={inferred} />}
+        {inferred && (
+          <>
+            <div className="text-[11px] text-muted-foreground">
+              🔒 Inherited from mail category type, not editable here
+            </div>
+            <InferredRulesPanel rules={inferred} />
+          </>
+        )}
       </section>
 
       {/* Template Editor with liquid variables + triple preview */}
