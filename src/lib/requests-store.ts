@@ -88,6 +88,17 @@ export function inferCategoryRules(
   subCategory: SubCategoryPurpose,
   domain: DomainType,
 ): InferredRules {
+  if (subCategory === "Other") {
+    return {
+      categoryId: "daily_ops",
+      priority: "P3",
+      channels: ["Portal", "Mail"],
+      batching: "Manual review required",
+      expiry: "Set by Comms-Admin",
+      unsubscribe: "ALLOWED",
+    };
+  }
+
   const isActionable =
     subCategory === "Defect Flow Communications" ||
     subCategory === "Campaigns";
@@ -129,10 +140,11 @@ export interface TemplateRequest {
   templateId: string;
   templateName: string;
   primaryEmail: string;
-  ccEmails: string[];
-  team: string[];
-  slackPoc: string;
+  mailOwner: string;
+  approvalCcEmails?: string[];
+  team: string;
   purpose: string;
+  purposeCustomText?: string;
   sentTo: string[];
   emailAttachmentsName: string;
   vendorListName: string;
@@ -142,6 +154,7 @@ export interface TemplateRequest {
   inlineSqlChart?: string;
   formulaFlags: string[];
   subCategory?: SubCategoryPurpose;
+  subCategoryCustomText?: string;
   domain?: DomainType;
   commType?: CommTypeOption;
   categoryId: CategoryId;
@@ -150,8 +163,11 @@ export interface TemplateRequest {
   attachmentConfig?: AttachmentConfig;
   cta: CtaOption;
   ctaDestination?: string;
-  frequency: FrequencyOption[];
-  analystPoc?: string;
+  ctaModuleRoute?: string;
+  ctaQueryParams?: string;
+  frequency: FrequencyOption;
+  scheduleDeadline: string;
+  analystPoc: string;
   whatsapp?: WhatsAppDraft;
   sequenceTier?: SequenceTier;
   preflightChecks?: PreflightChecks;
