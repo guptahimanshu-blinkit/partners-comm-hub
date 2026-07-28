@@ -261,6 +261,7 @@ function StatusTag({ status }: { status: TemplateRequest["status"] }) {
     Pending: { cls: "bg-cat-amber-soft text-cat-amber", label: "Pending" },
     Approved: { cls: "bg-cat-green-soft text-cat-green", label: "Approved" },
     Rejected: { cls: "bg-cat-red-soft text-cat-red", label: "Rejected" },
+    "On Hold": { cls: "bg-cat-amber-soft text-cat-amber", label: "On Hold" },
     "Rejected Post Publish": {
       cls: "bg-cat-red-soft text-cat-red",
       label: "Rejected",
