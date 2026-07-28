@@ -1319,8 +1319,11 @@ function seed(): TemplateRequest[] {
       templateId: "APOLLO-9E5B22",
       templateName: "Payment on Hold — Invoice Rejection",
       primaryEmail: "finance-comms@zomato.com",
+      mailOwner: "finance-comms@zomato.com",
       approvalCcEmails: [],
       team: "Finance",
+      analystPoc: "analyst@grofers.com",
+      scheduleDeadline: "2026-08-15T09:30",
       purpose:
         "Notify vendors when payment is placed on hold due to invoice mismatch.",
       sentTo: ["Tech Enabled Vendors"],
