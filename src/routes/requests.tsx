@@ -16,6 +16,7 @@ import {
   Cloud,
   FileUp,
   Ban,
+  PauseCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
