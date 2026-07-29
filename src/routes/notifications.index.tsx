@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
 import { AlertOctagon, CheckCircle2, Inbox, Zap } from "lucide-react";
-import { z } from "zod";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
+
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
