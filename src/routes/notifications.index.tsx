@@ -95,7 +95,8 @@ function NotificationCentreInner() {
   const setTab = (tab: SidebarTab) =>
     navigate({ search: { tab, filter: "all" }, replace: true });
   const setFilter = (f: "all" | "action") =>
-    navigate({ search: (prev) => ({ ...prev, filter: f }), replace: true });
+    navigate({ search: (prev: NotifSearch) => ({ ...prev, filter: f }), replace: true });
+
 
   const meta = TAB_META[activeTab];
   const tabItems = useMemo(
