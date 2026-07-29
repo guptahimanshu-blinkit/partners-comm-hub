@@ -3,7 +3,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   SlidersHorizontal,
-  
   CalendarPlus,
   PlusCircle,
   Inbox,
@@ -13,6 +12,13 @@ import {
   BarChart3,
   ClipboardCheck,
   Megaphone,
+  FileText,
+  Receipt,
+  IndianRupee,
+  FileBarChart,
+  CalendarClock,
+  Package,
+  Settings2,
 } from "lucide-react";
 
 
@@ -45,6 +51,24 @@ import {
   isCategoryAssignedTo,
 } from "@/lib/role-assignments";
 import { usePublishLogs } from "@/lib/requests-store";
+import {
+  useFeatureComms,
+  unreadCountByTab,
+  SIDEBAR_TAB_ROUTES,
+  type SidebarTab,
+} from "@/lib/feature-comms";
+import { BellDrawer } from "@/components/layout/BellDrawer";
+
+const FEATURE_TABS: Array<{ tab: SidebarTab; icon: typeof Bell }> = [
+  { tab: "PO Summary", icon: FileText },
+  { tab: "Appointments", icon: CalendarClock },
+  { tab: "Assortment", icon: Package },
+  { tab: "Invoices", icon: Receipt },
+  { tab: "Report Requests", icon: FileBarChart },
+  { tab: "Fees & Charges", icon: IndianRupee },
+  { tab: "Admin", icon: Settings2 },
+];
+
 
 interface NavItem {
   to: string;
