@@ -208,9 +208,47 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     );
   };
 
+  const comms = useFeatureComms();
+  const showFeatureTabs = role === "vendor_admin" || role === "vendor_employee";
+
   return (
     <div className="flex flex-col gap-5">
       <nav className="flex flex-col gap-1">{items.map(renderItem)}</nav>
+      {showFeatureTabs && (
+        <div>
+          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Vendor Portal
+          </p>
+          <nav className="flex flex-col gap-1">
+            {FEATURE_TABS.map(({ tab, icon: Icon }) => {
+              const to = SIDEBAR_TAB_ROUTES[tab];
+              const active = pathname === to;
+              const count = unreadCountByTab(comms, tab);
+              return (
+                <Link
+                  key={tab}
+                  to={to}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                  )}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  <span className="truncate">{tab}</span>
+                  {count > 0 && (
+                    <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-cat-red-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-red">
+                      {count}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      )}
       {supportItems.length > 0 && (
         <div>
           <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
@@ -222,6 +260,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     </div>
   );
 }
+
 
 
 function RoleSwitcher() {
