@@ -53,10 +53,7 @@ const TAB_META: Record<SidebarTab, { title: string; description: string }> = {
 
 const ACTIVE_TABS: SidebarTab[] = SIDEBAR_TABS;
 
-const searchSchema = z.object({
-  tab: fallback(z.string(), "PO Summary").default("PO Summary"),
-  filter: fallback(z.string(), "all").default("all"),
-});
+type NotifSearch = { tab?: string; filter?: string };
 
 export const Route = createFileRoute("/notifications/")({
   head: () => ({
@@ -65,9 +62,13 @@ export const Route = createFileRoute("/notifications/")({
       { name: "description", content: "In-context vendor notifications organised by feature tab." },
     ],
   }),
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (raw: Record<string, unknown>): NotifSearch => ({
+    tab: typeof raw.tab === "string" ? raw.tab : undefined,
+    filter: typeof raw.filter === "string" ? raw.filter : undefined,
+  }),
   component: NotificationCentre,
 });
+
 
 function NotificationCentre() {
   const { role } = useRole();
