@@ -1,644 +1,339 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Navigate } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  Inbox,
-  Clock,
-  ExternalLink,
-  LifeBuoy,
-  CircleAlert,
-  Paperclip,
-  Flag,
-} from "lucide-react";
+import { createFileRoute, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
+import { AlertOctagon, CheckCircle2, Inbox, Zap } from "lucide-react";
 
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { DetailDialog } from "@/components/notifications/DetailDialog";
-import { RaiseTicketDialog } from "@/components/notifications/RaiseTicketDialog";
-import {
-  PinnedP1Banners,
-  ActionCardDeck,
-} from "@/components/notifications/ActionDeck";
-import {
-  POCancellationDialog,
-  findActionItemByPO,
-  type POCancellationPayload,
-} from "@/components/notifications/POCancellationDialog";
-import { getNotificationCtaKind, CTA_LABEL } from "@/lib/action-cta";
-import {
-  recordVendorAction,
-  useSyncedNotifications,
-  acknowledgeVendorNotification,
-} from "@/lib/requests-store";
 import { useRole } from "@/lib/role-context";
-import { useRoleAssignments, isCategoryAssignedTo } from "@/lib/role-assignments";
-
 import {
-  CATEGORIES,
-  NOTIFICATIONS,
-  colorClasses,
-  priorityBadgeClass,
-  type AppNotification,
-  type CategoryId,
-} from "@/lib/mock-data";
+  useFeatureComms,
+  markCommRead,
+  markCommsReadByTab,
+  SIDEBAR_TABS,
+  type SidebarTab,
+  type FeatureComm,
+} from "@/lib/feature-comms";
+
+const TAB_META: Record<SidebarTab, { title: string; description: string }> = {
+  "PO Summary": {
+    title: "PO Summary — Purchase Orders",
+    description: "Purchase orders, revisions, cancellations, and RTV alerts routed to your team.",
+  },
+  Appointments: {
+    title: "Appointments — Warehouse Slots",
+    description: "Inbound slots, confirmations, cancellations, and QR gate passes.",
+  },
+  Assortment: {
+    title: "Assortment — MDM & Catalog",
+    description: "MDM requests, image rework, and catalog health tracking.",
+  },
+  Invoices: {
+    title: "Invoices & Payment Records",
+    description: "Invoice verification, rejections, TDS disputes, and payment holds.",
+  },
+  "Report Requests": {
+    title: "Report Requests — Scorecards & Exports",
+    description: "Fill rate scorecards, LQI, forecast, and monthly sales exports.",
+  },
+  "Fees & Charges": {
+    title: "Fees & Charges — Debit Notes",
+    description: "GRN + DN + POD bundles, debit notes, and RTV courier charges.",
+  },
+  Admin: {
+    title: "Admin — Account & Access",
+    description: "Account activation, OTP login, and reactivation notices.",
+  },
+  "Consumer Offers": { title: "Consumer Offers", description: "Consumer-facing offer communications." },
+  Sales: { title: "Sales", description: "Sales performance and monetization updates." },
+  "Stock on Hand": { title: "Stock on Hand", description: "Inventory positions across facilities." },
+};
+
+const ACTIVE_TABS: SidebarTab[] = SIDEBAR_TABS;
+
+type NotifSearch = { tab?: string; filter?: string };
 
 export const Route = createFileRoute("/notifications/")({
   head: () => ({
-    meta: [{ title: "Notification Centre — PartnersBiz Comms Centre" }],
+    meta: [
+      { title: "Notification Centre — PartnersBiz" },
+      { name: "description", content: "In-context vendor notifications organised by feature tab." },
+    ],
+  }),
+  validateSearch: (raw: Record<string, unknown>): NotifSearch => ({
+    tab: typeof raw.tab === "string" ? raw.tab : undefined,
+    filter: typeof raw.filter === "string" ? raw.filter : undefined,
   }),
   component: NotificationCentre,
 });
 
+
 function NotificationCentre() {
-  const { role, employeeRole } = useRole();
-
-  if (role === "internal_ops") {
-    return <Navigate to="/requests" />;
-  }
-
-  return <NotificationCentreInner isEmployee={role === "vendor_employee"} employeeRole={employeeRole} />;
+  const { role } = useRole();
+  if (role === "internal_ops") return <Navigate to="/requests" />;
+  return <NotificationCentreInner />;
 }
 
-function NotificationCentreInner({
-  isEmployee,
-  employeeRole,
-}: {
-  isEmployee: boolean;
-  employeeRole: string;
-}) {
-  const { assignments } = useRoleAssignments();
-  const [selectedCat, setSelectedCat] = useState<CategoryId | "all">("all");
-  const [selectedSub, setSelectedSub] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string>("n1");
-  const [detailFor, setDetailFor] = useState<AppNotification | null>(null);
-  const [ticketFor, setTicketFor] = useState<AppNotification | null>(null);
-  const [flagFor, setFlagFor] = useState<AppNotification | null>(null);
-  const [poPayload, setPoPayload] = useState<POCancellationPayload | null>(null);
-  const [viewMode, setViewMode] = useState<"deck" | "list">("list");
+const PRIORITY_CLASS: Record<FeatureComm["priority"], string> = {
+  P1: "bg-cat-red-soft text-cat-red",
+  P2: "bg-cat-amber-soft text-cat-amber",
+  P3: "bg-cat-grey-soft text-cat-grey",
+};
 
-  const openViewDetails = (n: AppNotification) => {
-    if (getNotificationCtaKind(n) === "po_cancel") {
-      const poField = n.detail.find((d) => /po number/i.test(d.label));
-      const poNumber = poField?.value ?? n.subject.match(/PO\s*#?(\S+)/i)?.[1] ?? "";
-      const facility = n.detail.find((d) => /facility|warehouse/i.test(d.label))?.value;
-      const linked = findActionItemByPO(poNumber);
-      setPoPayload({
-        poNumber: poNumber || "—",
-        vendorName: linked?.vendorName ?? "ITC Limited",
-        warehouse: facility ?? "Kolkata K4 Feeder Warehouse",
-        reason:
-          n.detail.find((d) => /reason/i.test(d.label))?.value ??
-          "Buyer inventory adjustment / Facility capacity",
-        actionItemId: linked?.id,
-        sourceNotification: n,
-      });
-      return;
-    }
-    setDetailFor(n);
-  };
+function NotificationCentreInner() {
+  const search = useSearch({ from: "/notifications/" });
+  const navigate = useNavigate({ from: "/notifications/" });
+  const comms = useFeatureComms();
+
+  const activeTab = (ACTIVE_TABS.includes(search.tab as SidebarTab)
+    ? (search.tab as SidebarTab)
+    : "PO Summary") as SidebarTab;
+  const filter: "all" | "action" = search.filter === "action" ? "action" : "all";
+
+  const setTab = (tab: SidebarTab) =>
+    navigate({ search: { tab, filter: "all" }, replace: true });
+  const setFilter = (f: "all" | "action") =>
+    navigate({ search: (prev: NotifSearch) => ({ ...prev, filter: f }), replace: true });
 
 
-  const synced = useSyncedNotifications();
-  const visible = useMemo(() => {
-    const merged = [...synced, ...NOTIFICATIONS];
-    return merged.filter(
-      (n) => !isEmployee || isCategoryAssignedTo(n.category, employeeRole, assignments),
-    );
-  }, [synced, isEmployee, employeeRole, assignments]);
+  const meta = TAB_META[activeTab];
+  const tabItems = useMemo(
+    () => comms.filter((c) => c.sidebarTab === activeTab),
+    [comms, activeTab],
+  );
+  const actionItems = tabItems.filter((c) => c.actionRequired);
+  const unread = tabItems.filter((c) => !c.isRead);
+  const actionableUnread = unread.filter((c) => c.actionRequired);
+  const banner = actionableUnread[0];
 
-  const unreadByCat = (cat: CategoryId) =>
-    visible.filter((n) => n.category === cat && !n.read).length;
-  const unreadBySub = (cat: CategoryId, sub: string) =>
-    visible.filter((n) => n.category === cat && n.subCategory === sub && !n.read).length;
-
-  const list = useMemo(() => {
-    let l = visible;
-    if (selectedCat !== "all") l = l.filter((n) => n.category === selectedCat);
-    if (selectedSub) l = l.filter((n) => n.subCategory === selectedSub);
-    return l;
-  }, [visible, selectedCat, selectedSub]);
-
-  const totalUnread = visible.filter((n) => !n.read).length;
+  const visible = useMemo(
+    () => (filter === "action" ? tabItems.filter((c) => c.actionRequired) : tabItems),
+    [tabItems, filter],
+  );
 
   return (
     <AppShell>
-      <div className="flex flex-col lg:flex-row">
-        {/* Category folders */}
-        <div className="border-b border-border p-4 lg:h-[calc(100vh-4rem)] lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-          <button
-            onClick={() => {
-              setSelectedCat("all");
-              setSelectedSub(null);
-            }}
-            className={cn(
-              "mb-2 flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
-              selectedCat === "all"
-                ? "bg-accent text-accent-foreground"
-                : "hover:bg-muted",
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <Inbox className="h-4 w-4" /> All notifications
-            </span>
-            {totalUnread > 0 && (
-              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-foreground px-1.5 text-[11px] font-bold text-background">
-                {totalUnread}
-              </span>
-            )}
-          </button>
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        {/* Tab bar */}
+        <TabBar activeTab={activeTab} onSelect={setTab} comms={comms} />
 
-          <div className="space-y-0.5">
-            {CATEGORIES.filter(
-              (cat) => !isEmployee || isCategoryAssignedTo(cat.id, employeeRole, assignments),
-            ).map((cat) => {
-              const c = colorClasses[cat.color];
-              const count = unreadByCat(cat.id);
-              const isActive = selectedCat === cat.id;
-              return (
-                <Collapsible key={cat.id} defaultOpen={cat.id === "finance_payments"}>
-                  <div
-                    className={cn(
-                      "flex items-center rounded-lg text-sm transition-colors",
-                      isActive && !selectedSub ? "bg-muted" : "hover:bg-muted/60",
-                    )}
-                  >
-                    <button
-                      onClick={() => {
-                        setSelectedCat(cat.id);
-                        setSelectedSub(null);
-                      }}
-                      className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left"
-                    >
-                      <span className={cn("h-2 w-2 shrink-0 rounded-full", c.dot)} />
-                      <span className="min-w-0 flex-1 truncate font-medium">
-                        {cat.label}
-                      </span>
-                      {count > 0 && (
-                        <span
-                          className={cn(
-                            "grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold",
-                            c.badge,
-                          )}
-                        >
-                          {count}
-                        </span>
-                      )}
-                    </button>
-                    <CollapsibleTrigger className="group grid h-9 w-8 place-items-center rounded-md text-muted-foreground hover:text-foreground">
-                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent className="ml-4 border-l border-border pl-2">
-                    {cat.subCategories.map((sub) => {
-                      const subCount = unreadBySub(cat.id, sub.id);
-                      const subActive = selectedSub === sub.id;
-                      return (
-                        <button
-                          key={sub.id}
-                          onClick={() => {
-                            setSelectedCat(cat.id);
-                            setSelectedSub(sub.id);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-md px-3 py-2 text-[13px] transition-colors",
-                            subActive
-                              ? "bg-accent font-medium text-accent-foreground"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                          )}
-                        >
-                          <span className="truncate">{sub.label}</span>
-                          {subCount > 0 && (
-                            <span className="ml-2 shrink-0 text-[11px] font-semibold text-foreground">
-                              {subCount}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-            })}
+        {/* Dynamic header */}
+        <div className="mt-6 mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{meta.title}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{meta.description}</p>
           </div>
-        </div>
-
-        {/* Notification list */}
-        <div className="min-w-0 flex-1 p-4 sm:p-6">
-          <div className="mb-5">
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Notification Centre
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isEmployee
-                ? `Showing notifications relevant to your role: ${employeeRole}`
-                : "All notifications for ITC Limited across every category"}
-            </p>
-          </div>
-
-          <PinnedP1Banners />
-
-          <div className="mb-4 inline-flex rounded-lg border border-border bg-muted/40 p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode("deck")}
-              className={cn(
-                "rounded-md px-3 py-1.5 font-medium transition-colors",
-                viewMode === "deck"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Card Deck View
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={cn(
-                "rounded-md px-3 py-1.5 font-medium transition-colors",
-                viewMode === "list"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Standard List View
-            </button>
-          </div>
-
-          {viewMode === "deck" ? (
-            <ActionCardDeck />
-          ) : list.length === 0 ? (
-            <div className="grid place-items-center rounded-xl border border-dashed border-border py-16 text-center">
-              <Inbox className="mb-3 h-8 w-8 text-muted-foreground" />
-              <p className="font-medium">You're all caught up</p>
-              <p className="text-sm text-muted-foreground">
-                No notifications in this view.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {list.map((n) => (
-                <NotificationCard
-                  key={n.id}
-                  n={n}
-                  selected={selectedId === n.id}
-                  onSelect={() => setSelectedId(selectedId === n.id ? "" : n.id)}
-                  onViewDetails={() => openViewDetails(n)}
-                  onRaiseTicket={() => setTicketFor(n)}
-                  onFlag={() => setFlagFor(n)}
-                />
-              ))}
-            </div>
+          {unread.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => markCommsReadByTab(activeTab)}>
+              Mark all read ({unread.length})
+            </Button>
           )}
         </div>
+
+        {/* Action banner */}
+        {banner && <ActionBanner banner={banner} count={actionableUnread.length} />}
+
+        {/* Quick filters */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          <FilterPill
+            active={filter === "all"}
+            onClick={() => setFilter("all")}
+            label={`All ${activeTab} (${tabItems.length})`}
+          />
+          <FilterPill
+            active={filter === "action"}
+            onClick={() => setFilter("action")}
+            label={`Action Required (${actionItems.length})`}
+            icon={<Zap className="h-3.5 w-3.5" />}
+            tone="red"
+          />
+        </div>
+
+        {/* Data table */}
+        <FeatureTable items={visible} tab={activeTab} />
       </div>
-
-      <DetailDialog
-        notification={detailFor}
-        open={!!detailFor}
-        onOpenChange={(v) => !v && setDetailFor(null)}
-      />
-      <RaiseTicketDialog
-        notification={ticketFor}
-        open={!!ticketFor}
-        onOpenChange={(v) => !v && setTicketFor(null)}
-      />
-      <ReportMismatchDialog
-        notification={flagFor}
-        open={!!flagFor}
-        onOpenChange={(v) => !v && setFlagFor(null)}
-      />
-      <POCancellationDialog
-        open={!!poPayload}
-        onOpenChange={(v) => !v && setPoPayload(null)}
-        payload={poPayload}
-        onRaiseTicket={(n) => setTicketFor(n)}
-      />
-
     </AppShell>
   );
 }
 
-function NotificationCard({
-  n,
-  selected,
+function TabBar({
+  activeTab,
   onSelect,
-  onViewDetails,
-  onRaiseTicket,
-  onFlag,
+  comms,
 }: {
-  n: AppNotification;
-  selected: boolean;
-  onSelect: () => void;
-  onViewDetails: () => void;
-  onRaiseTicket: () => void;
-  onFlag: () => void;
+  activeTab: SidebarTab;
+  onSelect: (t: SidebarTab) => void;
+  comms: FeatureComm[];
 }) {
-
-  const cat = CATEGORIES.find((c) => c.id === n.category)!;
-  const c = colorClasses[cat.color];
-
+  const unreadByTab = (t: SidebarTab) =>
+    comms.filter((c) => c.sidebarTab === t && !c.isRead).length;
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-xl border bg-card transition-all",
-        selected ? "border-primary/40 shadow-sm ring-1 ring-primary/10" : "border-border",
-        n.expired && "opacity-60",
-      )}
-    >
-      <button
-        onClick={onSelect}
-        className="flex w-full items-start gap-3 p-4 text-left"
-      >
-        {!n.read && !selected && (
-          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-        )}
-        {(n.read || selected) && (
-          <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", c.dot, "opacity-40")} />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <Badge className={cn("text-[10px]", priorityBadgeClass(n.priority))}>
-              {n.priority}
-            </Badge>
-            <Badge variant="outline" className={cn("text-[10px]", c.text)}>
-              {cat.label}
-            </Badge>
-            {n.expired && (
-              <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
-                <Clock className="h-3 w-3" /> Expired
-              </Badge>
-            )}
-            {n.attachment && (
-              <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
-                <Paperclip className="h-3 w-3" /> {n.attachment.type}
-              </Badge>
-            )}
-          </div>
-          <p
+    <div className="-mx-1 flex flex-wrap gap-1 border-b border-border pb-2">
+      {ACTIVE_TABS.map((t) => {
+        const active = t === activeTab;
+        const count = unreadByTab(t);
+        return (
+          <button
+            key={t}
+            type="button"
+            onClick={() => onSelect(t)}
             className={cn(
-              "text-sm leading-snug",
-              n.read ? "font-medium" : "font-semibold",
+              "relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
           >
-            {n.subject}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{n.relativeTime}</p>
-        </div>
-      </button>
-
-      {selected && (
-        <div className="border-t border-border bg-muted/30 p-4">
-          <div className="rounded-lg border border-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-muted-foreground">
-                {n.timestamp}
+            {t}
+            {count > 0 && (
+              <span
+                className={cn(
+                  "inline-flex min-w-[18px] items-center justify-center rounded-full px-1 py-0.5 text-[10px] font-bold",
+                  active ? "bg-primary-foreground text-primary" : "bg-cat-red text-white",
+                )}
+              >
+                {count}
               </span>
-              <Badge className={cn("text-[10px]", priorityBadgeClass(n.priority))}>
-                {n.priority} · {cat.label}
-              </Badge>
-            </div>
-            <h3 className="text-[15px] font-semibold leading-snug">{n.subject}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {n.message}
-            </p>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {(() => {
-                const kind = getNotificationCtaKind(n);
-                const cat = n.category;
-                const suppressTicket =
-                  cat === "daily_ops" ||
-                  cat === "reports_analytics" ||
-                  n.subCategory === "announcement" ||
-                  n.subCategory === "announcements";
-
-                let primaryLabel: string;
-                let primaryIcon = <ExternalLink className="h-4 w-4" />;
-                let primaryAction: () => void = onViewDetails;
-
-                const poRef =
-                  n.detail.find((d) => /po number|po \/|po#|invoice|ref/i.test(d.label))
-                    ?.value ??
-                  n.subject.match(/PO\s*#?(\S+)/i)?.[1] ??
-                  n.poInvoiceNo ??
-                  "";
-                const nowIst = new Date().toLocaleString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                  timeZone: "Asia/Kolkata",
-                });
-
-                if (cat === "action_required") {
-                  primaryLabel = "Acknowledge & Stop Dispatch →";
-                  primaryAction = () => {
-                    if (n.linkedCampaignId) {
-                      acknowledgeVendorNotification(n, {
-                        vendorName: "ITC Limited",
-                        poInvoiceNo: poRef || undefined,
-                        actionType: "Acknowledged & Stopped",
-                        statusTransition:
-                          "Pending Vendor Ack ──► Acknowledged & Stopped",
-                        clearedRiskFlag: "In-transit risk cleared",
-                        eventText: `${nowIst} IST · ITC Limited acknowledged ${poRef ? `PO #${poRef.replace(/^#/, "")}` : n.subject} cancellation via PartnersBiz Portal — In-transit risk cleared.`,
-                      });
-                    } else {
-                      recordVendorAction({
-                        vendorName: "ITC Limited",
-                        vendorId: "M-4412",
-                        templateId: "APOLLO-8410F2",
-                        templateName: "PO Cancellation Notice",
-                        campaignId: "c-001",
-                        poInvoiceNo: poRef || "PO #KF-77120",
-                        actionType: "Acknowledged & Stopped",
-                        statusTransition:
-                          "Pending Vendor Ack ──► Acknowledged & Stopped",
-                        clearedRiskFlag: "In-transit dispatch risk cleared",
-                        channel: "PartnersBiz Portal",
-                      });
-                    }
-                    toast.success("Acknowledged — Workdesk telemetry updated ✓");
-                  };
-                } else if (cat === "finance_payments") {
-                  primaryLabel = "Reconcile Statement →";
-                  primaryAction = () => {
-                    if (n.linkedCampaignId) {
-                      acknowledgeVendorNotification(n, {
-                        vendorName: "ITC Limited",
-                        poInvoiceNo: poRef || undefined,
-                        actionType: "Reconciled Statement",
-                        statusTransition:
-                          "Pending Reconciliation ──► Reconciled",
-                        clearedRiskFlag: "Financial discrepancy cleared",
-                        eventText: `${nowIst} IST · ITC Limited reconciled ${poRef || n.subject} via PartnersBiz Portal — Financial discrepancy cleared.`,
-                      });
-                    } else {
-                      recordVendorAction({
-                        vendorName: "ITC Limited",
-                        vendorId: "M-4412",
-                        templateId: "APOLLO-2291",
-                        templateName: "Rebate Reconciliation Notice",
-                        campaignId: "c-002",
-                        poInvoiceNo: poRef || "INV-BB-55921",
-                        actionType: "Reconciled Statement",
-                        statusTransition: "Pending Reconciliation ──► Reconciled",
-                        clearedRiskFlag: "Financial discrepancy cleared",
-                        channel: "PartnersBiz Portal",
-                      });
-                    }
-                    toast.success("Statement reconciled — Workdesk telemetry updated ✓");
-                  };
-                } else if (suppressTicket) {
-                  primaryLabel = n.attachment ? "Download Report" : "View Details";
-                } else if (kind !== "generic") {
-                  primaryLabel = `${CTA_LABEL[kind]} →`;
-                } else if (n.cta === "view_details") {
-                  primaryLabel = "View Details";
-                } else {
-                  primaryLabel = "Raise Ticket";
-                  primaryIcon = <LifeBuoy className="h-4 w-4" />;
-                  primaryAction = onRaiseTicket;
-                }
-
-                const showSecondary =
-                  !suppressTicket && primaryAction !== onRaiseTicket;
-
-                return (
-                  <>
-                    <Button size="sm" onClick={primaryAction} className="gap-1.5">
-                      {primaryIcon}
-                      {primaryLabel}
-                    </Button>
-                    {showSecondary && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={onRaiseTicket}
-                        className="gap-1.5"
-                      >
-                        <LifeBuoy className="h-4 w-4" /> Raise Dispute / Ticket
-                      </Button>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-            {n.category === "reports_analytics" &&
-              (n.attachment?.type === "PDF" ||
-                n.attachment?.type === "Excel Export") && (
-                <button
-                  type="button"
-                  onClick={onFlag}
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  <Flag className="h-3.5 w-3.5" /> Report data mismatch
-                </button>
-              )}
-
-
-          </div>
-          {n.expired && (
-            <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CircleAlert className="h-3.5 w-3.5" /> This notification is past its
-              configured expiry and is shown for reference only.
-            </p>
-          )}
-        </div>
-      )}
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function ReportMismatchDialog({
-  notification,
-  open,
-  onOpenChange,
-}: {
-  notification: AppNotification | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const [note, setNote] = useState("");
-  const cat = notification
-    ? CATEGORIES.find((c) => c.id === notification.category)
-    : null;
-
-  const submit = () => {
-    toast.success("Reported, Help and Support will review this");
-    setNote("");
-    onOpenChange(false);
-  };
-
+function ActionBanner({ banner, count }: { banner: FeatureComm; count: number }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Flag className="h-4 w-4" /> Report data mismatch
-          </DialogTitle>
-          <DialogDescription>
-            Flag this report for review by Help and Support. This does not affect the
-            notification itself.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-xs text-muted-foreground">Comm name</Label>
-            <div className="mt-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
-              {notification?.subject ?? ""}
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Category</Label>
-            <div className="mt-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
-              {cat?.label ?? ""}
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="mismatch-note" className="text-xs text-muted-foreground">
-              What looks wrong
-            </Label>
-            <Textarea
-              id="mismatch-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Describe the mismatch you spotted…"
-              className="mt-1 min-h-[100px]"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={note.trim().length === 0}>
-            Submit report
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-cat-red/40 bg-cat-red-soft/60 px-4 py-3">
+      <AlertOctagon className="h-5 w-5 shrink-0 text-cat-red" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
+          🛑 {count} Action Required
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{banner.title}</p>
+        <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{banner.description}</p>
+      </div>
+      <Button size="sm" onClick={() => markCommRead(banner.id)} className="shrink-0">
+        {banner.actionCta} →
+      </Button>
+    </div>
   );
 }
 
+function FilterPill({
+  active,
+  onClick,
+  label,
+  icon,
+  tone,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon?: React.ReactNode;
+  tone?: "red";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? tone === "red"
+            ? "border-cat-red bg-cat-red text-white"
+            : "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+const TAB_COLUMNS: Record<SidebarTab, string> = {
+  "PO Summary": "PO / Reference",
+  Invoices: "Invoice / Reference",
+  "Fees & Charges": "Charge Ref",
+  Appointments: "Slot / Facility",
+  Assortment: "SKU / Request",
+  "Report Requests": "Report",
+  Admin: "Item",
+  "Consumer Offers": "Offer",
+  Sales: "Metric",
+  "Stock on Hand": "SKU",
+};
+
+function FeatureTable({ items, tab }: { items: FeatureComm[]; tab: SidebarTab }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  if (items.length === 0) {
+    return (
+      <div className="grid place-items-center rounded-xl border border-dashed border-border py-16 text-center">
+        <Inbox className="mb-3 h-8 w-8 text-muted-foreground" />
+        <p className="font-medium">Nothing to show</p>
+        <p className="text-sm text-muted-foreground">No items match this filter.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-3 border-b bg-muted/40 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <span>{TAB_COLUMNS[tab]}</span>
+        <span>Sub-category</span>
+        <span>Priority</span>
+        <span>Action</span>
+      </div>
+      <ul className="divide-y">
+        {items.map((c) => {
+          const isSelected = selectedId === c.id;
+          return (
+            <li
+              key={c.id}
+              className={cn(
+                "grid grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] items-center gap-3 px-4 py-3 text-sm",
+                !c.isRead && "bg-primary/5",
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedId(isSelected ? null : c.id)}
+                className="min-w-0 text-left"
+              >
+                <p className="truncate font-semibold text-foreground">{c.title}</p>
+                <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                  {c.description}
+                </p>
+                {isSelected && (
+                  <p className="mt-2 text-[12px] text-muted-foreground">
+                    Domain: {c.domain} · Category: {c.category}
+                  </p>
+                )}
+              </button>
+              <span className="truncate text-[12px] text-muted-foreground">{c.subCategory}</span>
+              <div className="flex items-center gap-2">
+                <Badge className={cn("h-5 rounded-md px-1.5 text-[10px]", PRIORITY_CLASS[c.priority])}>
+                  {c.priority}
+                </Badge>
+                {c.isRead && (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" aria-label="Read" />
+                )}
+              </div>
+              {c.actionRequired && !c.isRead ? (
+                <Button size="sm" variant="outline" onClick={() => markCommRead(c.id)}>
+                  {c.actionCta}
+                </Button>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">—</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
