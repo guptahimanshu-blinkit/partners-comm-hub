@@ -21,6 +21,13 @@ import { Route as NotificationsSettingsRouteImport } from './routes/notification
 import { Route as NotificationsSendCalendarRouteImport } from './routes/notifications.send-calendar'
 import { Route as NotificationsScheduleRouteImport } from './routes/notifications.schedule'
 import { Route as HelpMyTicketsRouteImport } from './routes/help.my-tickets'
+import { Route as AppReportRequestsRouteImport } from './routes/app.report-requests'
+import { Route as AppPoSummaryRouteImport } from './routes/app.po-summary'
+import { Route as AppInvoicesRouteImport } from './routes/app.invoices'
+import { Route as AppFeesAndChargesRouteImport } from './routes/app.fees-and-charges'
+import { Route as AppAssortmentRouteImport } from './routes/app.assortment'
+import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
+import { Route as AppAdminRouteImport } from './routes/app.admin'
 
 const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
   id: '/vendor-delivery-profiles',
@@ -83,6 +90,41 @@ const HelpMyTicketsRoute = HelpMyTicketsRouteImport.update({
   path: '/help/my-tickets',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppReportRequestsRoute = AppReportRequestsRouteImport.update({
+  id: '/app/report-requests',
+  path: '/app/report-requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppPoSummaryRoute = AppPoSummaryRouteImport.update({
+  id: '/app/po-summary',
+  path: '/app/po-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppInvoicesRoute = AppInvoicesRouteImport.update({
+  id: '/app/invoices',
+  path: '/app/invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppFeesAndChargesRoute = AppFeesAndChargesRouteImport.update({
+  id: '/app/fees-and-charges',
+  path: '/app/fees-and-charges',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAssortmentRoute = AppAssortmentRouteImport.update({
+  id: '/app/assortment',
+  path: '/app/assortment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
+  id: '/app/appointments',
+  path: '/app/appointments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/app/admin',
+  path: '/app/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -92,6 +134,13 @@ export interface FileRoutesByFullPath {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/app/admin': typeof AppAdminRoute
+  '/app/appointments': typeof AppAppointmentsRoute
+  '/app/assortment': typeof AppAssortmentRoute
+  '/app/fees-and-charges': typeof AppFeesAndChargesRoute
+  '/app/invoices': typeof AppInvoicesRoute
+  '/app/po-summary': typeof AppPoSummaryRoute
+  '/app/report-requests': typeof AppReportRequestsRoute
   '/help/my-tickets': typeof HelpMyTicketsRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -106,6 +155,13 @@ export interface FileRoutesByTo {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/app/admin': typeof AppAdminRoute
+  '/app/appointments': typeof AppAppointmentsRoute
+  '/app/assortment': typeof AppAssortmentRoute
+  '/app/fees-and-charges': typeof AppFeesAndChargesRoute
+  '/app/invoices': typeof AppInvoicesRoute
+  '/app/po-summary': typeof AppPoSummaryRoute
+  '/app/report-requests': typeof AppReportRequestsRoute
   '/help/my-tickets': typeof HelpMyTicketsRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -121,6 +177,13 @@ export interface FileRoutesById {
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
+  '/app/admin': typeof AppAdminRoute
+  '/app/appointments': typeof AppAppointmentsRoute
+  '/app/assortment': typeof AppAssortmentRoute
+  '/app/fees-and-charges': typeof AppFeesAndChargesRoute
+  '/app/invoices': typeof AppInvoicesRoute
+  '/app/po-summary': typeof AppPoSummaryRoute
+  '/app/report-requests': typeof AppReportRequestsRoute
   '/help/my-tickets': typeof HelpMyTicketsRoute
   '/notifications/schedule': typeof NotificationsScheduleRoute
   '/notifications/send-calendar': typeof NotificationsSendCalendarRoute
@@ -137,6 +200,13 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/app/admin'
+    | '/app/appointments'
+    | '/app/assortment'
+    | '/app/fees-and-charges'
+    | '/app/invoices'
+    | '/app/po-summary'
+    | '/app/report-requests'
     | '/help/my-tickets'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -151,6 +221,13 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/app/admin'
+    | '/app/appointments'
+    | '/app/assortment'
+    | '/app/fees-and-charges'
+    | '/app/invoices'
+    | '/app/po-summary'
+    | '/app/report-requests'
     | '/help/my-tickets'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -165,6 +242,13 @@ export interface FileRouteTypes {
     | '/po-extension-request'
     | '/requests'
     | '/vendor-delivery-profiles'
+    | '/app/admin'
+    | '/app/appointments'
+    | '/app/assortment'
+    | '/app/fees-and-charges'
+    | '/app/invoices'
+    | '/app/po-summary'
+    | '/app/report-requests'
     | '/help/my-tickets'
     | '/notifications/schedule'
     | '/notifications/send-calendar'
@@ -180,6 +264,13 @@ export interface RootRouteChildren {
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   RequestsRoute: typeof RequestsRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
+  AppAdminRoute: typeof AppAdminRoute
+  AppAppointmentsRoute: typeof AppAppointmentsRoute
+  AppAssortmentRoute: typeof AppAssortmentRoute
+  AppFeesAndChargesRoute: typeof AppFeesAndChargesRoute
+  AppInvoicesRoute: typeof AppInvoicesRoute
+  AppPoSummaryRoute: typeof AppPoSummaryRoute
+  AppReportRequestsRoute: typeof AppReportRequestsRoute
   HelpMyTicketsRoute: typeof HelpMyTicketsRoute
   NotificationsScheduleRoute: typeof NotificationsScheduleRoute
   NotificationsSendCalendarRoute: typeof NotificationsSendCalendarRoute
@@ -273,6 +364,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HelpMyTicketsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/report-requests': {
+      id: '/app/report-requests'
+      path: '/app/report-requests'
+      fullPath: '/app/report-requests'
+      preLoaderRoute: typeof AppReportRequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/po-summary': {
+      id: '/app/po-summary'
+      path: '/app/po-summary'
+      fullPath: '/app/po-summary'
+      preLoaderRoute: typeof AppPoSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/invoices': {
+      id: '/app/invoices'
+      path: '/app/invoices'
+      fullPath: '/app/invoices'
+      preLoaderRoute: typeof AppInvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/fees-and-charges': {
+      id: '/app/fees-and-charges'
+      path: '/app/fees-and-charges'
+      fullPath: '/app/fees-and-charges'
+      preLoaderRoute: typeof AppFeesAndChargesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/assortment': {
+      id: '/app/assortment'
+      path: '/app/assortment'
+      fullPath: '/app/assortment'
+      preLoaderRoute: typeof AppAssortmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/appointments': {
+      id: '/app/appointments'
+      path: '/app/appointments'
+      fullPath: '/app/appointments'
+      preLoaderRoute: typeof AppAppointmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/admin': {
+      id: '/app/admin'
+      path: '/app/admin'
+      fullPath: '/app/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -284,6 +424,13 @@ const rootRouteChildren: RootRouteChildren = {
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   RequestsRoute: RequestsRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
+  AppAdminRoute: AppAdminRoute,
+  AppAppointmentsRoute: AppAppointmentsRoute,
+  AppAssortmentRoute: AppAssortmentRoute,
+  AppFeesAndChargesRoute: AppFeesAndChargesRoute,
+  AppInvoicesRoute: AppInvoicesRoute,
+  AppPoSummaryRoute: AppPoSummaryRoute,
+  AppReportRequestsRoute: AppReportRequestsRoute,
   HelpMyTicketsRoute: HelpMyTicketsRoute,
   NotificationsScheduleRoute: NotificationsScheduleRoute,
   NotificationsSendCalendarRoute: NotificationsSendCalendarRoute,
