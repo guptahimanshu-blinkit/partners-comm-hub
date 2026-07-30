@@ -79,10 +79,14 @@ import {
   isValidEmail,
   inferCategoryRules,
   REJECTION_REASON_CATEGORIES,
+  normalizeAttachmentConfig,
+
   type InferredRules,
   type SubCategoryPurpose,
   type DomainType,
   type AttachmentConfig,
+  type AttachmentItem,
+
   type PreflightChecks,
   type PublishLog,
   type TemplateRequest,
@@ -707,12 +711,18 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [expectedActionType, setExpectedActionType] = useState("");
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
+    items: [],
   });
+  const [attQueryDraft, setAttQueryDraft] = useState("");
+  const [attFormulaDraft, setAttFormulaDraft] = useState("");
   const [chartQuery, setChartQuery] = useState("");
   const [cta, setCta] = useState<CtaOption>("None");
   const [ctaDest, setCtaDest] = useState("");
   const [ctaModuleRoute, setCtaModuleRoute] = useState("");
   const [ctaQueryParams, setCtaQueryParams] = useState("");
+  const [ticketCategory, setTicketCategory] = useState("");
+  const [ticketSubcategory, setTicketSubcategory] = useState("");
+
   const [frequency, setFrequency] = useState<FrequencyOption>("Once");
   const [scheduleDeadline, setScheduleDeadline] = useState("");
   const [approvalCcEmails, setApprovalCcEmails] = useState<string[]>([]);
@@ -738,22 +748,44 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     waValidated: showWhatsApp ? waMessage.trim().length > 0 : true,
   };
 
-  const attachmentOption: AttachmentOption = useMemo(() => {
-    if (attachmentConfig.type === "none") return "None";
-    const name = (
-      attachmentConfig.fileName ||
-      attachmentConfig.queryKey ||
-      attachmentConfig.s3Path ||
-      attachmentConfig.formulaSpec ||
-      ""
-    ).toLowerCase();
-    if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv"))
-      return "Excel Export";
-    if (name.endsWith(".pdf")) return "PDF";
-    return "PDF";
-  }, [attachmentConfig]);
+
+
+
 
   const submit = () => {
+    // 1) Auto-commit any uncommitted attachment draft text before auditing.
+    const committedItems: AttachmentItem[] = [...(attachmentConfig.items ?? [])];
+    if (attQueryDraft.trim())
+      committedItems.push({ id: attachmentUid(), type: "query", name: attQueryDraft.trim() });
+    if (attFormulaDraft.trim())
+      committedItems.push({ id: attachmentUid(), type: "formula", name: attFormulaDraft.trim() });
+    const finalAttachmentConfig: AttachmentConfig = {
+      ...attachmentConfig,
+      items: committedItems,
+      type: committedItems.length === 0 ? "none" : (committedItems[0].type as "static"),
+    };
+    if (committedItems.length !== (attachmentConfig.items ?? []).length) {
+      setAttachmentConfig(finalAttachmentConfig);
+      setAttQueryDraft("");
+      setAttFormulaDraft("");
+    }
+    const finalAttachmentOption: AttachmentOption =
+      committedItems.length === 0
+        ? "None"
+        : /\.(xlsx|xls|csv)$/i.test(committedItems[0].name)
+          ? "Excel Export"
+          : "PDF";
+
+    // 2) CTA-specific hard gates.
+    if (cta === "Autofilled Help & Support Ticket" && (!ticketCategory || !ticketSubcategory)) {
+      toast.error("⚠️ Please complete required fields: Ticket Category & Subcategory");
+      return;
+    }
+    if (cta === "Direct Link" && !ctaModuleRoute) {
+      toast.error("⚠️ Please complete required fields: Target Portal Module Route");
+      return;
+    }
+
     const missing: string[] = [];
     if (!templateId) missing.push("Template ID");
     if (!mailOwner || !/@(grofers|zomato)\.com$/i.test(mailOwner))
@@ -770,11 +802,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (domain === "Other" && !customDomain.trim()) missing.push("Custom Domain Name");
     if (!subject) missing.push("Subject Line");
     if (!body) missing.push("Body Text");
-    if (attachmentConfig.type === "formula" && !(attachmentConfig.formulaSpec ?? "").trim())
-      missing.push("Formula Attachment Specification");
     if (!frequency) missing.push("Frequency");
     if (!scheduleDeadline) missing.push("Schedule Deadline");
-    if (cta === "Direct Link" && !ctaModuleRoute) missing.push("Target Portal Module Route");
     if (sentTo.includes("Targeted Vendor IDs (Upload File)") && !vendorListName)
       missing.push("Vendor ID list file");
     if (sentTo.includes("Targeted Manufacturer IDs (Upload File)") && !mfrListName)
@@ -791,6 +820,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       );
       return;
     }
+
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
@@ -803,13 +833,17 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       customTeam: team === "Other" ? customTeam.trim() : undefined,
       purpose,
       sentTo,
-      emailAttachmentsName: attachmentConfig.fileName || "-",
+      emailAttachmentsName:
+        committedItems.length > 0 ? committedItems.map((i) => i.name).join(", ") : "No Attachment",
+
       vendorListName: vendorListName || "-",
       manufacturerListName: mfrListName || "-",
       subject,
       body,
       inlineSqlChart: chartQuery || undefined,
-      formulaFlags: attachmentConfig.type === "formula" ? ["Formula Attachment"] : ["None"],
+      formulaFlags: committedItems.some((i) => i.type === "formula")
+        ? ["Formula Attachment"]
+        : ["None"],
       subCategory: subCategory as SubCategoryPurpose,
       customSubCategory: subCategory === "Other" ? customSubCategory.trim() : undefined,
       domain: domain as DomainType | "Other",
@@ -817,12 +851,15 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       customCategory: customCategory.trim() || undefined,
       categoryId: inferred.categoryId,
       priority: inferred.priority,
-      attachment: attachmentOption,
-      attachmentConfig,
+      attachment: finalAttachmentOption,
+      attachmentConfig: finalAttachmentConfig,
       cta,
       ctaDestination: cta === "Direct Link" ? ctaDest : undefined,
       ctaModuleRoute: cta === "Direct Link" ? ctaModuleRoute : undefined,
       ctaQueryParams: cta === "Direct Link" ? ctaQueryParams : undefined,
+      ticketCategory: cta === "Autofilled Help & Support Ticket" ? ticketCategory : undefined,
+      ticketSubcategory: cta === "Autofilled Help & Support Ticket" ? ticketSubcategory : undefined,
+
       frequency,
       scheduleDeadline,
       analystPoc: analyst,
@@ -1144,10 +1181,32 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       {/* Smart attachment + CTA + Frequency */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Attachment">
-          <SmartAttachment value={attachmentConfig} onChange={setAttachmentConfig} />
+          <SmartAttachment
+            value={attachmentConfig}
+            onChange={setAttachmentConfig}
+            queryDraft={attQueryDraft}
+            onQueryDraftChange={setAttQueryDraft}
+            formulaDraft={attFormulaDraft}
+            onFormulaDraftChange={setAttFormulaDraft}
+          />
         </FormRow>
         <FormRow label="Call to Action">
-          <Select value={cta} onValueChange={(v) => setCta(v as CtaOption)}>
+          <Select
+            value={cta}
+            onValueChange={(v) => {
+              const next = v as CtaOption;
+              setCta(next);
+              if (next !== "Direct Link") {
+                setCtaModuleRoute("");
+                setCtaQueryParams("");
+                setCtaDest("");
+              }
+              if (next !== "Autofilled Help & Support Ticket") {
+                setTicketCategory("");
+                setTicketSubcategory("");
+              }
+            }}
+          >
             <SelectTrigger className="h-9">
               <SelectValue />
             </SelectTrigger>
@@ -1192,6 +1251,63 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               </div>
             </div>
           )}
+          {cta === "Autofilled Help & Support Ticket" && (
+            <div className="mt-2 space-y-2">
+              <div>
+                <Label className="text-xs">
+                  Ticket Category <span className="text-cat-red">*</span>
+                </Label>
+                <Select
+                  value={ticketCategory}
+                  onValueChange={(v) => {
+                    setTicketCategory(v);
+                    setTicketSubcategory("");
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select ticket category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(TICKET_TAXONOMY).map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">
+                  Ticket Subcategory <span className="text-cat-red">*</span>
+                </Label>
+                <Select
+                  value={ticketSubcategory}
+                  onValueChange={setTicketSubcategory}
+                  disabled={!ticketCategory}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue
+                      placeholder={
+                        ticketCategory ? "Select subcategory" : "Select a category first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(TICKET_TAXONOMY[ticketCategory] ?? []).map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                ℹ️ Autofills vendor ticket category to eliminate mistagged tickets and support SLA
+                rejections.
+              </p>
+            </div>
+          )}
+
         </FormRow>
         <FormRow label="Frequency of the mail to be sent" required>
           <Select value={frequency} onValueChange={(v) => setFrequency(v as FrequencyOption)}>
@@ -1513,42 +1629,160 @@ function InferredRulesPanel({
   );
 }
 
-// ---------- Smart attachment ----------
+// ---------- Full PartnersBiz support ticket taxonomy ----------
+export const TICKET_TAXONOMY: Record<string, string[]> = {
+  "Purchase Order": [
+    "Need PO Copy (Response time ~3 Days)",
+    "PO Header Amendment (Response time ~2 Days)",
+    "PO Item Amendment (Response time ~2 Days)",
+    "Vendor Outage (Response time ~2 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  "GRN & Discrepancy Note": [
+    "Need GRN Copy (Response time ~2 Days)",
+    "Need DN details (Response time ~1 Day)",
+    "DN Action - Request Return / Liquidation (Response time ~1 Day)",
+    "Mismatch in DN Stock Returned (Response time ~3 Days)",
+    "Require Proof for DN (Response time ~2 Days)",
+    "Update Courier Details for DN (Response time ~3 Days)",
+    "GRN Pending (Response time ~2 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  Payment: [
+    "Need Payment Advice (Response time ~1 Day)",
+    "Understand My Payment Advice (Response time ~2 Days)",
+    "Payment Pending against an Invoice (Response time ~1 Day)",
+    "Short Payment (Response time ~1 Day)",
+    "Reconciliation Request (Response time ~2 Days)",
+    "Request Ledger (Response time ~2 Days)",
+    "Debit Note Workings (Response time ~3 Days)",
+    "Update Bank Details (Response time ~2 Days)",
+    "TDS Certificate (Response time ~3 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  Assortment: [
+    "Update product images & videos (Response time ~2 Days)",
+    "Update category of product (Response time ~2 Days)",
+    "Update dimensions (Response time ~2 Days)",
+    "Update Shelf Life (Response time ~2 Days)",
+    "Update product name (Response time ~2 Days)",
+    "Group/Ungroup PIDs (Response time ~2 Days)",
+    "Update product attributes (Response time ~2 Days)",
+    "Change brand logo (Response time ~2 Days)",
+    "Update case size (inner/outer) (Response time ~2 Days)",
+    "Update HSN code (Response time ~2 Days)",
+    "Others (Response time ~4 Days)",
+  ],
+  Returns: [
+    "Need POD (Response time ~1 Day)",
+    "Update RTV Details (Response time ~1 Day)",
+    "Discrepancy Form (Response time ~3 Days)",
+    "Need PRN Details (Response time ~3 Days)",
+    "Mismatch in debit notes (Response time ~3 Days)",
+    "Others (Response time ~3 Days)",
+  ],
+  Onboarding: [
+    "Warehouse details needed (Response time ~4 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  "Login Issues": ["Not receiving OTP (Response time ~1 Day)", "Other"],
+  "Fees & Charges": ["Dispute Charge (Response time ~2 Days)", "Other"],
+  "Marketing & Brand Fund Invoices": [
+    "Data Request - Sales (Response time ~3 Days)",
+    "Data Request - Distributor wise invoices (Response time ~3 Days)",
+    "Data Request - Invoice Copy (Response time ~3 Days)",
+    "Update Brand Fund Communication Email (Response time ~2 Days)",
+    "Brand Fund/ Marketing Invoice Issue (Response time ~2 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  Other: ["Other (Response time ~4 Days)"],
+};
+
+// ---------- Smart attachment (multi-source engine) ----------
+const ATTACHMENT_ICON: Record<AttachmentItem["type"], string> = {
+  static: "📄",
+  query: "🗄️",
+  formula: "☁️",
+};
+
+function attachmentUid(): string {
+  return `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+type AttachmentTabKey = "none" | "static" | "query" | "formula";
+
 function SmartAttachment({
   value,
   onChange,
+  queryDraft,
+  onQueryDraftChange,
+  formulaDraft,
+  onFormulaDraftChange,
 }: {
   value: AttachmentConfig;
   onChange: (v: AttachmentConfig) => void;
+  queryDraft: string;
+  onQueryDraftChange: (v: string) => void;
+  formulaDraft: string;
+  onFormulaDraftChange: (v: string) => void;
 }) {
-  const tabs: Array<{
-    key: AttachmentConfig["type"];
-    label: string;
-    icon: typeof Ban;
-  }> = [
+  const items = value.items ?? [];
+  const [tab, setTab] = useState<AttachmentTabKey>(items.length === 0 ? "none" : "static");
+
+  const tabs: Array<{ key: AttachmentTabKey; label: string; icon: typeof Ban }> = [
     { key: "none", label: "No Attachment", icon: Ban },
     { key: "static", label: "Static Upload", icon: FileUp },
     { key: "query", label: "SQL Query Output", icon: Database },
     { key: "formula", label: "Dynamic Formula Attachment", icon: Cloud },
   ];
 
-  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if (f) onChange({ type: "static", fileName: f.name });
+  const commit = (next: AttachmentItem[]) => {
+    const primary = next[next.length - 1];
+    onChange({
+      ...value,
+      items: next,
+      type: next.length === 0 ? "none" : (primary?.type ?? "static"),
+      fileName: next.find((i) => i.type === "static")?.name,
+      queryKey: next.find((i) => i.type === "query")?.name,
+      formulaSpec: next.find((i) => i.type === "formula")?.name,
+    });
   };
+
+  const addFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const next = [...items];
+    Array.from(files).forEach((f) => {
+      next.push({
+        id: attachmentUid(),
+        type: "static",
+        name: f.name,
+        size: `${Math.max(1, Math.round(f.size / 1024))} KB`,
+      });
+    });
+    commit(next);
+  };
+
+  const addText = (type: "query" | "formula", raw: string) => {
+    const name = raw.trim();
+    if (!name) return;
+    commit([...items, { id: attachmentUid(), type, name }]);
+    if (type === "query") onQueryDraftChange("");
+    else onFormulaDraftChange("");
+  };
+
+  const remove = (id: string) => commit(items.filter((i) => i.id !== id));
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">
         {tabs.map((t) => {
-          const on = value.type === t.key;
+          const on = tab === t.key;
           const Icon = t.icon;
           return (
             <button
               key={t.key}
               type="button"
-              onClick={() => onChange({ type: t.key })}
+              onClick={() => setTab(t.key)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 on
@@ -1562,58 +1796,188 @@ function SmartAttachment({
         })}
       </div>
 
-      {value.type === "static" && (
+      {tab === "none" && (
+        <p className="text-[11px] text-muted-foreground">
+          No attachment will ship with this communication. Switch tabs to add one or more sources —
+          adding a source never clears the ones already configured.
+        </p>
+      )}
+
+      {tab === "static" && (
         <label
           onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
+          onDrop={(e) => {
+            e.preventDefault();
+            addFiles(e.dataTransfer.files);
+          }}
           className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border bg-muted/30 px-3 py-6 text-center text-xs text-muted-foreground hover:bg-muted/50"
         >
           <FileUp className="h-5 w-5" />
-          <span className="font-medium">
-            {value.fileName ?? "Drag & drop a file, or click to browse"}
-          </span>
-          <span className="text-[10px]">Auto-detects .pdf / .xlsx extension</span>
+          <span className="font-medium">Drag &amp; drop files, or click to browse</span>
+          <span className="text-[10px]">Multiple files supported · .pdf / .xlsx / .csv</span>
           <input
             type="file"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onChange({ type: "static", fileName: f.name });
+              addFiles(e.target.files);
+              e.target.value = "";
             }}
           />
         </label>
       )}
 
-      {value.type === "query" && (
-        <Input
-          value={value.queryKey ?? ""}
-          onChange={(e) => onChange({ type: "query", queryKey: e.target.value })}
-          placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
-        />
+      {tab === "query" && (
+        <div className="flex items-start gap-2">
+          <Input
+            value={queryDraft}
+            onChange={(e) => onQueryDraftChange(e.target.value)}
+            placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0"
+            onClick={() => addText("query", queryDraft)}
+          >
+            + Add SQL Query
+          </Button>
+        </div>
       )}
 
-      {value.type === "formula" && (
+      {tab === "formula" && (
         <div className="space-y-1">
-          <Label className="text-xs">
-            Formula Attachment Specification
-            <span className="ml-0.5 text-cat-red">*</span>
-          </Label>
-          <Input
-            value={value.formulaSpec ?? ""}
-            onChange={(e) => onChange({ type: "formula", formulaSpec: e.target.value })}
-            placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx or formula_script_name.py"
-          />
+          <Label className="text-xs">Formula Attachment Specification</Label>
+          <div className="flex items-start gap-2">
+            <Input
+              value={formulaDraft}
+              onChange={(e) => onFormulaDraftChange(e.target.value)}
+              placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0"
+              onClick={() => addText("formula", formulaDraft)}
+            >
+              + Add Formula Spec
+            </Button>
+          </div>
           <p className="text-[11px] text-muted-foreground">
-            The formula file or script that generates the attachment at send time. Reviewed by the
-            approver before publishing.
+            The formula file or script that generates the attachment at send time.
           </p>
         </div>
       )}
+
+      <div className="rounded-lg border border-border bg-muted/30 p-3">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Configured Attachments ({items.length})
+        </div>
+        {items.length === 0 ? (
+          <p className="mt-1 text-xs text-muted-foreground">No attachments configured yet.</p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {items.map((item) => (
+              <span
+                key={item.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs"
+              >
+                <span>{ATTACHMENT_ICON[item.type]}</span>
+                <span className="font-medium">{item.name}</span>
+                {item.size && <span className="text-[10px] text-muted-foreground">{item.size}</span>}
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.name}`}
+                  onClick={() => remove(item.id)}
+                  className="text-muted-foreground hover:text-cat-red"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ---------- Approver: multi-attachment inspection ----------
+function AttachmentInspectionCard({ items }: { items: AttachmentItem[] }) {
+  const [active, setActive] = useState<AttachmentItem | null>(null);
+
+  const typeLabel = (t: AttachmentItem["type"]) =>
+    t === "static" ? "Static Upload" : t === "query" ? "SQL Query Output" : "Dynamic Formula Spec";
+
+  const metadata = (item: AttachmentItem) => {
+    if (item.type === "query")
+      return `-- ${item.name}\nSELECT vendor_id, po_number, amount_due\nFROM finance.pending_rebates\nWHERE status = 'PENDING'\n  AND send_date = CURRENT_DATE;`;
+    if (item.type === "formula")
+      return `# ${item.name}\nsource: s3 formula runner\nexecution: send-time (T-15 min)\noutput: xlsx (per-vendor sliced)\nowner: comms-automation@grofers.com`;
+    return `file: ${item.name}\nsize: ${item.size ?? "412 KB"}\nuploaded_by: Himanshu Gupta\nchecksum: sha256:9f2c…a71b\nretention: 90 days`;
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Attachments &amp; Specifications ({items.length})
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-1 text-[13px] text-muted-foreground">No Attachments Configured</p>
+      ) : (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActive(item)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:border-primary hover:bg-primary/10"
+            >
+              <span>{ATTACHMENT_ICON[item.type]}</span>
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Attachment Inspection: {active?.name}</DialogTitle>
+            <DialogDescription>
+              {active ? `${typeLabel(active.type)} · ${active.name}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-cat-green/40 bg-cat-green-soft px-3 py-2 text-xs font-medium text-cat-green">
+              ✅ Security Cleared · No Malware Detected
+            </div>
+            <pre className="max-h-56 overflow-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-[11px] leading-relaxed">
+              {active ? metadata(active) : ""}
+            </pre>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() =>
+                toast.success(
+                  `Simulated download started — ${active?.name ?? "attachment"} (sandboxed preview)`,
+                )
+              }
+            >
+              Simulate Download / View Script
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 // ---------- Liquid variable pills ----------
+
 function extractLiquidVars(text: string): string[] {
   const out = new Set<string>();
   const re = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
@@ -2220,20 +2584,17 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
   }`;
   const ctaValue =
     request.cta === "Direct Link"
-      ? `${request.cta} → Route: ${request.ctaModuleRoute ?? "—"}`
-      : request.cta;
+      ? `Direct Link ➔ Route: ${request.ctaModuleRoute || "—"} | Query: ${request.ctaQueryParams || "None"}`
+      : request.cta === "Autofilled Help & Support Ticket"
+        ? `Autofilled Support Ticket ➔ Category: ${request.ticketCategory || "—"} | Subcategory: ${request.ticketSubcategory || "—"}`
+        : request.cta;
   const queryParamsValue = request.ctaQueryParams || "None";
   const attachmentValue =
     request.attachment && request.attachment !== "None" ? request.attachment : "No Attachment";
-  const attachmentSpecValue =
-    request.attachmentConfig?.formulaSpec ||
-    request.attachmentConfig?.s3Path ||
-    request.attachmentConfig?.queryKey ||
-    request.attachmentConfig?.fileName ||
-    (request.emailAttachmentsName && request.emailAttachmentsName !== "-"
-      ? request.emailAttachmentsName
-      : "Not applicable");
+  const attachmentItems: AttachmentItem[] =
+    normalizeAttachmentConfig(request.attachmentConfig).items ?? [];
   const actionRequiredYes = request.actionRequired === true;
+
 
   return (
     <div className="space-y-5">
@@ -2318,11 +2679,13 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           ) : null}
           {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
-          <DetailField label="Attachment Detailed Spec" value={attachmentSpecValue} />
-          <DetailField label="Target Portal CTA Route" value={ctaValue} />
+          <DetailField label="Target Portal CTA Route" value={ctaValue} full />
           <DetailField label="Query Parameters" value={queryParamsValue} />
-          <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} full />
+          <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} />
         </div>
+
+        <AttachmentInspectionCard items={attachmentItems} />
+
 
         <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
