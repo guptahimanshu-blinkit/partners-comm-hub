@@ -630,7 +630,70 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
 }
 
 // ------- Form -------
+const apolloTemplateUrl = (templateId: string) =>
+  `https://apollo.internal.blinkit.com/templates/${encodeURIComponent(templateId.trim())}`;
+
+function CheckTemplateButton({
+  templateId,
+  variant = "outline",
+  label = "Check Template",
+}: {
+  templateId: string;
+  variant?: "outline" | "default";
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = templateId.trim();
+  const url = apolloTemplateUrl(id);
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant={variant}
+        disabled={!id}
+        className="shrink-0 gap-1.5 whitespace-nowrap"
+        onClick={() => setOpen(true)}
+      >
+        <Search className="h-3.5 w-3.5" />
+        {label}
+        <ExternalLink className="h-3.5 w-3.5" />
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Opening Apollo Service</DialogTitle>
+            <DialogDescription>
+              Opening Apollo Service for Template ID: <span className="font-mono">{id}</span>…
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-[11px] break-all text-muted-foreground">
+            {url}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="gap-1.5"
+              onClick={() => {
+                window.open(url, "_blank", "noopener,noreferrer");
+                setOpen(false);
+              }}
+            >
+              Launch Apollo <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function NewRequestForm({ onDone }: { onDone: () => void }) {
+
   const [templateId, setTemplateId] = useState("");
   // Apollo Service auto-fetch simulation — the whole payload is fetched by Template ID.
   const apolloTemplate = useMemo(() => lookupApolloTemplate(templateId), [templateId]);
