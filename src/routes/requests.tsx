@@ -2248,11 +2248,19 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           <div>
             <h2 className="text-lg font-semibold">{request.templateName}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{request.templateId}</span>
+              <span>Template ID: {request.templateId}</span>
               <span>·</span>
               <span>By {request.submittedBy}</span>
             </div>
+            <div className="mt-2">
+              <CheckTemplateButton
+                templateId={request.templateId}
+                variant="default"
+                label="Check Template on Apollo"
+              />
+            </div>
           </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <Badge
               className={cn(
