@@ -719,7 +719,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
-    return inferCategoryRules(subCategory, domain);
+    const resolvedDomain: DomainType =
+      domain === "Other" ? "Operations & Appointments" : domain;
+    return inferCategoryRules(subCategory, resolvedDomain);
   }, [subCategory, domain]);
 
   const showWhatsApp = sentTo.includes("Vendor");
@@ -737,6 +739,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       attachmentConfig.fileName ||
       attachmentConfig.queryKey ||
       attachmentConfig.s3Path ||
+      attachmentConfig.formulaSpec ||
       ""
     ).toLowerCase();
     if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv"))
