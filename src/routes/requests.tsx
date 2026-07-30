@@ -746,14 +746,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     waValidated: showWhatsApp ? waMessage.trim().length > 0 : true,
   };
 
-  const attachmentOption: AttachmentOption = useMemo(() => {
-    const items = attachmentConfig.items ?? [];
-    if (items.length === 0) return "None";
-    const name = items[0].name.toLowerCase();
-    if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv"))
-      return "Excel Export";
-    return "PDF";
-  }, [attachmentConfig]);
+
+
 
 
   const submit = () => {
