@@ -560,3 +560,110 @@ export function priorityBadgeClass(priority: Priority): string {
       return "bg-cat-grey-soft text-cat-grey";
   }
 }
+
+// ---------- Apollo auto-fetched email templates ----------
+export type ApolloBannerTheme = "finance" | "po" | "rtv" | "ops" | "generic";
+
+export interface ApolloTemplate {
+  templateId: string;
+  templateName: string;
+  subject: string;
+  /** Rich HTML body as authored in the Apollo template designer. */
+  bodyHtml: string;
+  bannerTheme: ApolloBannerTheme;
+  bannerTitle: string;
+  bannerSubtitle: string;
+  whatsappMessage: string;
+}
+
+export const APOLLO_TEMPLATES: ApolloTemplate[] = [
+  {
+    templateId: "14ff3a94-9d76-47c4-8157-6bc16d1887d1",
+    templateName: "Payment Due Reminder — Vendor PO",
+    subject: "Action needed: PO {{po_number}} payment of {{amount_due}} is due",
+    bannerTheme: "finance",
+    bannerTitle: "Finance & Payments",
+    bannerSubtitle: "Payment due reminder",
+    bodyHtml: `<p>Hi <strong>{{vendor_name}}</strong>,</p>
+<p>Our records show an outstanding payment against your purchase order. Please review the details below and act before the due date to avoid a payment hold.</p>
+<div class="callout"><strong>Amount due:</strong> {{amount_due}} &nbsp;·&nbsp; <strong>Due date:</strong> {{due_date}}</div>
+<ul>
+  <li>PO Number: <strong>{{po_number}}</strong></li>
+  <li>Invoice validation must be completed before the due date.</li>
+  <li>Any debit notes raised will be netted off automatically.</li>
+</ul>
+<p>You can track the live status in the PartnersBiz Invoices module.</p>`,
+    whatsappMessage:
+      "Hi {{vendor_name}}, payment of {{amount_due}} for PO {{po_number}} is due on {{due_date}}. Please review in PartnersBiz.",
+  },
+  {
+    templateId: "2b91c07e-5c4f-4a10-9d33-71a2f5f0c221",
+    templateName: "PO Cancellation Notice",
+    subject: "PO {{po_number}} has been cancelled",
+    bannerTheme: "po",
+    bannerTitle: "Purchase Orders",
+    bannerSubtitle: "Cancellation notice",
+    bodyHtml: `<p>Hi <strong>{{vendor_name}}</strong>,</p>
+<p>The purchase order below has been cancelled by Blinkit buying operations. No further ASN can be created against this PO.</p>
+<div class="callout"><strong>PO {{po_number}}</strong> — status: CANCELLED</div>
+<ul>
+  <li>Reconcile any in-transit shipments immediately.</li>
+  <li>Raise a Help &amp; Support ticket if goods have already dispatched.</li>
+</ul>`,
+    whatsappMessage:
+      "Hi {{vendor_name}}, PO {{po_number}} has been cancelled. No further ASN can be created. Check PartnersBiz.",
+  },
+  {
+    templateId: "7d5e1a62-33b8-4c9e-bb47-0a9c2e4d8f10",
+    templateName: "RTV Pickup Scheduled",
+    subject: "RTV pickup scheduled for {{vendor_name}} on {{due_date}}",
+    bannerTheme: "rtv",
+    bannerTitle: "Returns to Vendor",
+    bannerSubtitle: "Pickup scheduling",
+    bodyHtml: `<p>Hi <strong>{{vendor_name}}</strong>,</p>
+<p>An RTV pickup has been scheduled against your account. Please arrange a vehicle and confirm the appointment slot.</p>
+<div class="callout"><strong>Pickup date:</strong> {{due_date}} &nbsp;·&nbsp; <strong>Reference:</strong> {{po_number}}</div>
+<ul>
+  <li>Unlifted RTV stock is auto-debited after 7 days.</li>
+  <li>Gate entry requires a valid appointment ID.</li>
+</ul>`,
+    whatsappMessage:
+      "Hi {{vendor_name}}, your RTV pickup is scheduled on {{due_date}} (ref {{po_number}}). Confirm your slot in PartnersBiz.",
+  },
+];
+
+const APOLLO_FALLBACK_BODY = `<p>Hi <strong>{{vendor_name}}</strong>,</p>
+<p>This communication was auto-fetched from the Apollo template service. The design, imagery and content blocks below are rendered exactly as they will be delivered to vendors.</p>
+<div class="callout"><strong>Reference:</strong> {{po_number}} &nbsp;·&nbsp; <strong>Due:</strong> {{due_date}}</div>
+<ul>
+  <li>Content blocks are locked and managed in Apollo.</li>
+  <li>Liquid variables hydrate at send time per vendor.</li>
+</ul>`;
+
+/** Simulates the Apollo Service template fetch. Unknown IDs return a generic branded template. */
+export function lookupApolloTemplate(rawId: string): ApolloTemplate | null {
+  const id = rawId.trim();
+  if (!id) return null;
+  const exact = APOLLO_TEMPLATES.find((t) => t.templateId.toLowerCase() === id.toLowerCase());
+  if (exact) return exact;
+  return {
+    templateId: id,
+    templateName: `Apollo Template · ${id}`,
+    subject: "PartnersBiz update for {{vendor_name}} — reference {{po_number}}",
+    bannerTheme: "generic",
+    bannerTitle: "PartnersBiz Communication",
+    bannerSubtitle: "Auto-fetched from Apollo",
+    bodyHtml: APOLLO_FALLBACK_BODY,
+    whatsappMessage:
+      "Hi {{vendor_name}}, you have a new PartnersBiz update for reference {{po_number}}.",
+  };
+}
+
+export const APOLLO_SAMPLE_DATA: Record<string, string> = {
+  vendor_name: "Kwality Foods",
+  po_number: "PO-88213",
+  amount_due: "₹42,300",
+  due_date: "18 Aug 2026",
+  invoice_no: "INV-88213",
+  facility: "Kolkata K4 Feeder Warehouse",
+};
