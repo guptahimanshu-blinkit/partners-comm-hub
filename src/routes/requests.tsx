@@ -1578,7 +1578,7 @@ function SmartAttachment({
     { key: "none", label: "No Attachment", icon: Ban },
     { key: "static", label: "Static Upload", icon: FileUp },
     { key: "query", label: "SQL Query Output", icon: Database },
-    { key: "s3", label: "S3 Path Pattern", icon: Cloud },
+    { key: "formula", label: "Dynamic Formula Attachment", icon: Cloud },
   ];
 
   const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
