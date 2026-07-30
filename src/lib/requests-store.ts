@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import type { CategoryId } from "./mock-data";
+import {
+  addFeatureComm,
+  type FeatureCategory,
+  type FeatureDomain,
+} from "./feature-comms";
 
 export type RequestStatus =
   | "Pending"
@@ -207,6 +212,8 @@ export interface TemplateRequest {
   heldAt?: string;
   holdCategories?: RejectionReasonCategory[];
   holdComments?: string;
+  /** Operational action expected from the vendor/manufacturer. */
+  actionRequired?: boolean;
 }
 
 // HMR-safe singletons: keep state on globalThis so hot reloads and any
@@ -312,8 +319,45 @@ export function addRequest(r: TemplateRequest) {
   setRequests([r, ...REQUESTS]);
 }
 
+const CATEGORY_LABEL: Record<CategoryId, FeatureCategory> = {
+  action_required: "Reminders",
+  finance_payments: "Finance & Payments",
+  reports_analytics: "Reports & Analytics",
+  daily_ops: "Daily Ops Updates",
+  account_access: "Account & Access",
+};
+
+/**
+ * Approval → PartnersBiz injection.
+ * Mints a live vendor-facing notification from the approved request payload so
+ * the comm is visible on the portal the moment Workdesk approves it.
+ */
+function injectApprovedRequestNotification(r: TemplateRequest) {
+  const audience = r.sentTo.length > 0 ? r.sentTo.join(", ") : "All Vendors";
+  const body = (r.body || r.purpose || "").replace(/\s+/g, " ").trim();
+  addFeatureComm({
+    id: `FC-${r.id}`,
+    title: r.subject || r.templateName,
+    description: body
+      ? `${body.slice(0, 220)}${body.length > 220 ? "…" : ""} · Audience: ${audience}`
+      : `Approved communication issued from Workdesk. Audience: ${audience}`,
+    actionRequired: r.actionRequired ?? r.categoryId === "action_required",
+    domain: (r.domain ?? "Operations & Appointments") as FeatureDomain,
+    subCategory: r.subCategory ?? "Announcements",
+    category: CATEGORY_LABEL[r.categoryId] ?? "Daily Ops Updates",
+    priority: r.priority,
+    actionCta:
+      r.cta === "Direct Link"
+        ? "Open Module"
+        : r.cta === "Autofilled Help & Support Ticket"
+          ? "Raise Ticket"
+          : "View Details",
+  });
+}
+
 export function approveRequest(id: string) {
   hydrateStoreFromStorage();
+  const target = REQUESTS.find((r) => r.id === id);
   setRequests(
     REQUESTS.map((r) =>
       r.id === id
@@ -321,6 +365,7 @@ export function approveRequest(id: string) {
         : r,
     ),
   );
+  if (target) injectApprovedRequestNotification(target);
 }
 
 export function rejectRequest(
