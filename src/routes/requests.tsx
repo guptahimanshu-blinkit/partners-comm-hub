@@ -837,7 +837,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       customTeam: team === "Other" ? customTeam.trim() : undefined,
       purpose,
       sentTo,
-      emailAttachmentsName: attachmentConfig.fileName || "-",
+      emailAttachmentsName:
+        committedItems.length > 0 ? committedItems.map((i) => i.name).join(", ") : "No Attachment",
+
       vendorListName: vendorListName || "-",
       manufacturerListName: mfrListName || "-",
       subject,
