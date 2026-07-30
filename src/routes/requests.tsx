@@ -18,6 +18,7 @@ import {
   Ban,
   PauseCircle,
 } from "lucide-react";
+import { lookupExcelActionRequired } from "@/lib/feature-comms";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -67,7 +68,6 @@ import {
   flagLog,
   isValidEmail,
   inferCategoryRules,
-
   REJECTION_REASON_CATEGORIES,
   type InferredRules,
   type SubCategoryPurpose,
