@@ -1399,8 +1399,22 @@ function EmailPillInput({
 }
 
 // ---------- Inferred Rules Panel ----------
-function InferredRulesPanel({ rules }: { rules: InferredRules }) {
+function InferredRulesPanel({
+  rules,
+  subCategory,
+  domain,
+  actionRequired,
+  onActionRequiredChange,
+}: {
+  rules: InferredRules;
+  subCategory: string;
+  domain: string;
+  actionRequired: boolean | null;
+  onActionRequiredChange: (v: boolean) => void;
+}) {
   const cfg = CATEGORY_CONFIG[rules.categoryId];
+  const excelMatch = lookupExcelActionRequired(subCategory, domain);
+
   return (
     <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
       <div className="flex items-center justify-between">
@@ -1418,15 +1432,11 @@ function InferredRulesPanel({ rules }: { rules: InferredRules }) {
         <Badge className={cn("hover:bg-inherit", colorClasses[cfg.color].badge)}>
           Category: {cfg.label}
         </Badge>
-        <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">
-          Priority: {rules.priority}
-        </Badge>
         {rules.channels.map((c) => (
           <Badge key={c} variant="outline">
             {c}
           </Badge>
         ))}
-        <Badge variant="secondary">Batching: {rules.batching}</Badge>
         <Badge variant="secondary">Expiry: {rules.expiry}</Badge>
         <Badge
           className={cn(
@@ -1440,10 +1450,62 @@ function InferredRulesPanel({ rules }: { rules: InferredRules }) {
             ? "Unsubscribe: Locked"
             : "Unsubscribe: Allowed"}
         </Badge>
+        {excelMatch && (
+          <Badge
+            className={cn(
+              "hover:bg-inherit",
+              excelMatch.actionRequired
+                ? "bg-cat-red-soft text-cat-red"
+                : "bg-cat-grey-soft text-cat-grey",
+            )}
+          >
+            Action Required: {excelMatch.actionRequired ? "Yes" : "No"}
+          </Badge>
+        )}
       </div>
+
+      {excelMatch ? (
+        <p className="text-[11px] text-muted-foreground">
+          🔒 Matched {excelMatch.matchedCount} master-sheet communication
+          {excelMatch.matchedCount === 1 ? "" : "s"} (e.g. “{excelMatch.sampleTitle}”)
+          — action flag inherited, not editable.
+        </p>
+      ) : (
+        <div className="space-y-2 rounded-md border border-border bg-background p-3">
+          <p className="text-xs font-medium text-foreground">
+            ❓ Is an operational action required from the vendor/manufacturer for
+            this communication?
+          </p>
+          <div className="flex items-center gap-4">
+            {[
+              { label: "Yes", value: true },
+              { label: "No", value: false },
+            ].map((opt) => (
+              <label
+                key={opt.label}
+                className="flex cursor-pointer items-center gap-1.5 text-xs font-medium"
+              >
+                <input
+                  type="radio"
+                  name="submitter-action-required"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={actionRequired === opt.value}
+                  onChange={() => onActionRequiredChange(opt.value)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Custom category — not found in the master sheet, so this flag drives
+            the vendor-side action banner.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
+
 
 // ---------- Smart attachment ----------
 function SmartAttachment({
