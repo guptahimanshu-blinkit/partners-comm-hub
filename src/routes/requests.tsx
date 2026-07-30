@@ -751,21 +751,27 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const submit = () => {
     const missing: string[] = [];
     if (!templateId) missing.push("Template ID");
-    if (!templateName) missing.push("Template Name");
     if (!mailOwner || !/@(grofers|zomato)\.com$/i.test(mailOwner))
       missing.push("Mail Owner Email (internal)");
     if (!team) missing.push("Team");
+    if (team === "Other" && !customTeam.trim())
+      missing.push("Custom Team Name");
     if (!analyst || !/@(grofers|zomato)\.com$/i.test(analyst))
       missing.push("Analyst POC Email (internal)");
-    if (!purpose) missing.push("Purpose");
-    if (purpose === "Other / Custom Purpose" && !purposeCustomText.trim())
-      missing.push("Custom Purpose Text");
+    if (!purpose.trim()) missing.push("Purpose of Mail");
     if (!subCategory) missing.push("Sub-Category Purpose");
-    if (subCategory === "Other" && !subCategoryCustomText.trim())
-      missing.push("Custom Sub-Category Text");
+    if (subCategory === "Other" && !customSubCategory.trim())
+      missing.push("Custom Sub-Category Name");
     if (!domain) missing.push("Domain");
+    if (domain === "Other" && !customDomain.trim())
+      missing.push("Custom Domain Name");
     if (!subject) missing.push("Subject Line");
     if (!body) missing.push("Body Text");
+    if (
+      attachmentConfig.type === "formula" &&
+      !(attachmentConfig.formulaSpec ?? "").trim()
+    )
+      missing.push("Formula Attachment Specification");
     if (!frequency) missing.push("Frequency");
     if (!scheduleDeadline) missing.push("Schedule Deadline");
     if (cta === "Direct Link" && !ctaModuleRoute)
@@ -787,6 +793,12 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       );
       return;
     }
+    const excelMatch =
+      domain === "Other"
+        ? null
+        : lookupExcelActionRequired(subCategory, domain);
+    const resolvedActionRequired =
+      excelMatch?.actionRequired ?? actionRequired ?? false;
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
@@ -796,8 +808,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       mailOwner,
       approvalCcEmails,
       team,
+      customTeam: team === "Other" ? customTeam.trim() : undefined,
       purpose,
-      purposeCustomText: purposeCustomText || undefined,
       sentTo,
       emailAttachmentsName: attachmentConfig.fileName || "-",
       vendorListName: vendorListName || "-",
@@ -805,10 +817,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       subject,
       body,
       inlineSqlChart: chartQuery || undefined,
-      formulaFlags,
+      formulaFlags:
+        attachmentConfig.type === "formula" ? ["Formula Attachment"] : ["None"],
       subCategory: subCategory as SubCategoryPurpose,
-      subCategoryCustomText: subCategoryCustomText || undefined,
-      domain: domain as DomainType,
+      customSubCategory:
+        subCategory === "Other" ? customSubCategory.trim() : undefined,
+      domain,
+      customDomain: domain === "Other" ? customDomain.trim() : undefined,
+      customCategory: customCategory.trim() || undefined,
       categoryId: inferred.categoryId,
       priority: inferred.priority,
       attachment: attachmentOption,
@@ -824,10 +840,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         ? { message: waMessage, frequency: waFreq, cta: waCta }
         : undefined,
       preflightChecks: preflight,
-      actionRequired:
-        lookupExcelActionRequired(subCategory, domain)?.actionRequired ??
-        actionRequired ??
-        false,
+      actionRequired: resolvedActionRequired,
       status: "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
