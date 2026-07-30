@@ -83,6 +83,8 @@ import {
   type SubCategoryPurpose,
   type DomainType,
   type AttachmentConfig,
+  type AttachmentItem,
+
   type PreflightChecks,
   type PublishLog,
   type TemplateRequest,
