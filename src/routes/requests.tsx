@@ -98,7 +98,6 @@ const DOMAINS: DomainType[] = [
   "Monetization",
 ];
 
-
 export const Route = createFileRoute("/requests")({
   head: () => ({
     meta: [{ title: "Requests — PartnersBiz Comms Centre" }],
@@ -194,7 +193,10 @@ const SUB_CATEGORY_OPTIONS: Array<{ value: SubCategoryPurpose; label: string }> 
   { value: "Reports", label: "Reports (Periodic data exports & performance scorecards)" },
   { value: "Announcements", label: "Announcements (General policy updates & platform news)" },
   { value: "Campaigns", label: "Campaigns (Multi-step promotional & onboarding comms)" },
-  { value: "Defect Flow Communications", label: "Defect Flow Communications (Urgent operational alerts requiring action)" },
+  {
+    value: "Defect Flow Communications",
+    label: "Defect Flow Communications (Urgent operational alerts requiring action)",
+  },
   { value: "Other", label: "Other / Custom Category" },
 ];
 const DOMAIN_OPTIONS: DomainType[] = [
@@ -213,14 +215,7 @@ const CTA_MODULE_ROUTES = [
   { route: "/app/report-requests", label: "Report Requests (/app/report-requests)" },
   { route: "/app/tickets", label: "Support / Tickets (/app/tickets)" },
 ];
-const SLACK_USERS = [
-  "@arjun.k",
-  "@meera.s",
-  "@rahul.d",
-  "@nikhil.r",
-  "@kavya.m",
-  "@priya.n",
-];
+const SLACK_USERS = ["@arjun.k", "@meera.s", "@rahul.d", "@nikhil.r", "@kavya.m", "@priya.n"];
 const FORMULA_OPTIONS = ["None", "Formula Attachment", "Table in Body"];
 const FREQ_OPTIONS: FrequencyOption[] = ["Once", "Daily Digest", "Weekly", "Monthly"];
 const COMM_TYPES: CommTypeOption[] = [
@@ -251,11 +246,7 @@ function RequestsPage() {
           <p className="text-sm text-muted-foreground">Simulating: Workdesk</p>
         </header>
 
-        {internalRole === "Template Submitter" ? (
-          <SubmitterView />
-        ) : (
-          <ApproverView />
-        )}
+        {internalRole === "Template Submitter" ? <SubmitterView /> : <ApproverView />}
       </div>
     </AppShell>
   );
@@ -329,11 +320,7 @@ function TagChips({
   emptyText?: string;
 }) {
   if (values.length === 0)
-    return (
-      <p className="text-xs text-muted-foreground">
-        {emptyText ?? "None selected"}
-      </p>
-    );
+    return <p className="text-xs text-muted-foreground">{emptyText ?? "None selected"}</p>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {values.map((v) => (
@@ -389,9 +376,7 @@ function MultiSelect({
         </SelectTrigger>
         <SelectContent>
           {available.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground">
-              All options selected
-            </div>
+            <div className="px-3 py-2 text-xs text-muted-foreground">All options selected</div>
           ) : (
             available.map((o) => (
               <SelectItem key={o} value={o}>
@@ -438,16 +423,12 @@ function WhatsAppBubble({
             <>
               <textarea
                 value={message}
-                onChange={(e) =>
-                  onMessage?.(e.target.value.slice(0, 300))
-                }
+                onChange={(e) => onMessage?.(e.target.value.slice(0, 300))}
                 placeholder="Type WhatsApp message (max 300 chars)"
                 className="w-full resize-none border-0 bg-transparent text-[14px] leading-snug text-[#111] outline-none placeholder:text-[#5c7a4a]/60"
                 rows={4}
               />
-              <div className="text-right text-[10px] text-[#075E54]/70">
-                {message.length}/300
-              </div>
+              <div className="text-right text-[10px] text-[#075E54]/70">{message.length}/300</div>
             </>
           )}
         </div>
@@ -577,17 +558,14 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
         <TableBody>
           {requests.map((r) => {
             const isExpanded = expanded === r.id;
-            const isRejected =
-              r.status === "Rejected" || r.status === "Rejected Post Publish";
+            const isRejected = r.status === "Rejected" || r.status === "Rejected Post Publish";
             const canExpand = isRejected;
             const postPublish = r.status === "Rejected Post Publish";
             return (
               <Fragment key={r.id}>
                 <TableRow
                   className={cn(canExpand && "cursor-pointer")}
-                  onClick={() =>
-                    canExpand && setExpanded(isExpanded ? null : r.id)
-                  }
+                  onClick={() => canExpand && setExpanded(isExpanded ? null : r.id)}
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -694,7 +672,12 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [customVariables, setCustomVariables] = useState<string[]>([]);
 
   const sanitizeVarName = (raw: string) =>
-    raw.toLowerCase().trim().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    raw
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "");
 
   const insertAtCursor = (token: string) => {
     const el = bodyRef.current;
@@ -723,8 +706,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
-    const resolvedDomain: DomainType =
-      domain === "Other" ? "Operations & Appointments" : domain;
+    const resolvedDomain: DomainType = domain === "Other" ? "Operations & Appointments" : domain;
     return inferCategoryRules(subCategory, resolvedDomain);
   }, [subCategory, domain]);
 
@@ -758,8 +740,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (!mailOwner || !/@(grofers|zomato)\.com$/i.test(mailOwner))
       missing.push("Mail Owner Email (internal)");
     if (!team) missing.push("Team");
-    if (team === "Other" && !customTeam.trim())
-      missing.push("Custom Team Name");
+    if (team === "Other" && !customTeam.trim()) missing.push("Custom Team Name");
     if (!analyst || !/@(grofers|zomato)\.com$/i.test(analyst))
       missing.push("Analyst POC Email (internal)");
     if (!purpose.trim()) missing.push("Purpose of Mail");
@@ -767,28 +748,17 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (subCategory === "Other" && !customSubCategory.trim())
       missing.push("Custom Sub-Category Name");
     if (!domain) missing.push("Domain");
-    if (domain === "Other" && !customDomain.trim())
-      missing.push("Custom Domain Name");
+    if (domain === "Other" && !customDomain.trim()) missing.push("Custom Domain Name");
     if (!subject) missing.push("Subject Line");
     if (!body) missing.push("Body Text");
-    if (
-      attachmentConfig.type === "formula" &&
-      !(attachmentConfig.formulaSpec ?? "").trim()
-    )
+    if (attachmentConfig.type === "formula" && !(attachmentConfig.formulaSpec ?? "").trim())
       missing.push("Formula Attachment Specification");
     if (!frequency) missing.push("Frequency");
     if (!scheduleDeadline) missing.push("Schedule Deadline");
-    if (cta === "Direct Link" && !ctaModuleRoute)
-      missing.push("Target Portal Module Route");
-    if (
-      sentTo.includes("Targeted Vendor IDs (Upload File)") &&
-      !vendorListName
-    )
+    if (cta === "Direct Link" && !ctaModuleRoute) missing.push("Target Portal Module Route");
+    if (sentTo.includes("Targeted Vendor IDs (Upload File)") && !vendorListName)
       missing.push("Vendor ID list file");
-    if (
-      sentTo.includes("Targeted Manufacturer IDs (Upload File)") &&
-      !mfrListName
-    )
+    if (sentTo.includes("Targeted Manufacturer IDs (Upload File)") && !mfrListName)
       missing.push("Manufacturer ID list file");
 
     if (missing.length > 0 || !inferred) {
@@ -797,12 +767,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       );
       return;
     }
-    const excelMatch =
-      domain === "Other"
-        ? null
-        : lookupExcelActionRequired(subCategory, domain);
-    const resolvedActionRequired =
-      excelMatch?.actionRequired ?? actionRequired ?? false;
+    const excelMatch = domain === "Other" ? null : lookupExcelActionRequired(subCategory, domain);
+    const resolvedActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
@@ -821,11 +787,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       subject,
       body,
       inlineSqlChart: chartQuery || undefined,
-      formulaFlags:
-        attachmentConfig.type === "formula" ? ["Formula Attachment"] : ["None"],
+      formulaFlags: attachmentConfig.type === "formula" ? ["Formula Attachment"] : ["None"],
       subCategory: subCategory as SubCategoryPurpose,
-      customSubCategory:
-        subCategory === "Other" ? customSubCategory.trim() : undefined,
+      customSubCategory: subCategory === "Other" ? customSubCategory.trim() : undefined,
       domain: domain as DomainType | "Other",
       customDomain: domain === "Other" ? customDomain.trim() : undefined,
       customCategory: customCategory.trim() || undefined,
@@ -840,9 +804,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       frequency,
       scheduleDeadline,
       analystPoc: analyst,
-      whatsapp: showWhatsApp
-        ? { message: waMessage, frequency: waFreq, cta: waCta }
-        : undefined,
+      whatsapp: showWhatsApp ? { message: waMessage, frequency: waFreq, cta: waCta } : undefined,
       preflightChecks: preflight,
       actionRequired: resolvedActionRequired,
       status: "Pending",
@@ -887,20 +849,15 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             placeholder="Auto-fetched once a Template ID is entered"
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
-            ℹ️ Will be auto-fetched from Apollo Service based on the Template ID
-            entered above.
+            ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above.
           </p>
         </FormRow>
         <FormRow label="Submitted By">
           <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
             <div className="flex items-center gap-2 text-sm">
               <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="font-medium text-foreground">
-                {AUTH_SUBMITTER_NAME}
-              </span>
-              <span className="text-muted-foreground">
-                ({AUTH_SUBMITTER_EMAIL})
-              </span>
+              <span className="font-medium text-foreground">{AUTH_SUBMITTER_NAME}</span>
+              <span className="text-muted-foreground">({AUTH_SUBMITTER_EMAIL})</span>
             </div>
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
               Authenticated
@@ -918,7 +875,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             placeholder="owner.name@grofers.com"
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Email ID of the accountable process owner or manager. Must end in @grofers.com or @zomato.com.
+            Email ID of the accountable process owner or manager. Must end in @grofers.com or
+            @zomato.com.
           </p>
         </FormRow>
         <FormRow label="Send Approval Request Copy To (CC Emails)">
@@ -928,7 +886,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             allowedDomains={["grofers.com", "zomato.com"]}
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Approval notifications, status updates, and sign-off requests will be routed to these internal reviewers.
+            Approval notifications, status updates, and sign-off requests will be routed to these
+            internal reviewers.
           </p>
         </FormRow>
         <FormRow label="Team" required>
@@ -1015,7 +974,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             </>
           );
         })()}
-
       </section>
 
       {/* Comms Categorization - Inference engine */}
@@ -1023,8 +981,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         <div>
           <h3 className="text-sm font-semibold">Comms Categorization</h3>
           <p className="text-xs text-muted-foreground">
-            Pick a purpose and domain — category, priority, channels, and
-            expiry are inferred automatically.
+            Pick a purpose and domain — category, priority, channels, and expiry are inferred
+            automatically.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -1061,10 +1019,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             )}
           </FormRow>
           <FormRow label="Domain" required>
-            <Select
-              value={domain}
-              onValueChange={(v) => setDomain(v as DomainType | "Other")}
-            >
+            <Select value={domain} onValueChange={(v) => setDomain(v as DomainType | "Other")}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Select domain" />
               </SelectTrigger>
@@ -1097,8 +1052,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               placeholder="Leave blank to use the system-inferred category"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Only fill this if the inferred category below does not describe
-              this communication. The approver reviews the custom name.
+              Only fill this if the inferred category below does not describe this communication.
+              The approver reviews the custom name.
             </p>
           </FormRow>
         </div>
@@ -1125,8 +1080,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           <h3 className="text-sm font-semibold">Template Editor</h3>
           <p className="text-xs text-muted-foreground">
             Use Liquid variables like{" "}
-            <code className="rounded bg-muted px-1">{"{{vendor_name}}"}</code>{" "}
-            — detected variables highlight below.
+            <code className="rounded bg-muted px-1">{"{{vendor_name}}"}</code> — detected variables
+            highlight below.
           </p>
         </div>
         <FormRow label="Subject line" required>
@@ -1160,7 +1115,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               </Button>
               {customVarInput && (
                 <span className="font-mono text-[11px] text-muted-foreground">
-                  → <code className="rounded bg-background px-1">{`{{${sanitizeVarName(customVarInput) || "…"}}}`}</code>
+                  →{" "}
+                  <code className="rounded bg-background px-1">{`{{${sanitizeVarName(customVarInput) || "…"}}}`}</code>
                 </span>
               )}
               {customVariables.length > 0 && (
@@ -1229,7 +1185,13 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             <div className="mt-2 space-y-2">
               <div>
                 <Label className="text-xs">Target Portal Module Route *</Label>
-                <Select value={ctaModuleRoute} onValueChange={(v) => { setCtaModuleRoute(v); setCtaDest(v); }}>
+                <Select
+                  value={ctaModuleRoute}
+                  onValueChange={(v) => {
+                    setCtaModuleRoute(v);
+                    setCtaDest(v);
+                  }}
+                >
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Select module route" />
                   </SelectTrigger>
@@ -1280,7 +1242,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         <section className="space-y-3 rounded-xl border border-border bg-card p-5">
           <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
-            Segment includes Low Tech vendors. A WhatsApp variant is required per Vendor Delivery Profiles.
+            Segment includes Low Tech vendors. A WhatsApp variant is required per Vendor Delivery
+            Profiles.
           </div>
           <WhatsAppBubble
             message={waMessage}
@@ -1315,9 +1278,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         <Button
           onClick={submit}
           className={
-            audienceCount > 1000
-              ? "bg-cat-amber text-white hover:bg-cat-amber/90"
-              : undefined
+            audienceCount > 1000 ? "bg-cat-amber text-white hover:bg-cat-amber/90" : undefined
           }
         >
           {audienceCount > 1000 ? "Request Admin Approval" : "Submit Request"}
@@ -1376,8 +1337,7 @@ function EmailPillInput({
     setDraft("");
   };
 
-  const remove = (email: string) =>
-    onChange(values.filter((e) => e !== email));
+  const remove = (email: string) => onChange(values.filter((e) => e !== email));
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -1403,9 +1363,7 @@ function EmailPillInput({
               onMouseLeave={() => setErrorIdx(null)}
               className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium",
-                valid
-                  ? "bg-primary/10 text-primary"
-                  : "bg-cat-red-soft text-cat-red",
+                valid ? "bg-primary/10 text-primary" : "bg-cat-red-soft text-cat-red",
               )}
             >
               {!valid && <AlertTriangle className="h-3 w-3" />}
@@ -1427,11 +1385,7 @@ function EmailPillInput({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKey}
           onBlur={() => draft && commit(draft)}
-          placeholder={
-            values.length === 0
-              ? "Type an email and press Enter or comma"
-              : ""
-          }
+          placeholder={values.length === 0 ? "Type an email and press Enter or comma" : ""}
           className="flex-1 min-w-[140px] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
       </div>
@@ -1501,9 +1455,7 @@ function InferredRulesPanel({
               : "bg-cat-green-soft text-cat-green",
           )}
         >
-          {rules.unsubscribe === "LOCKED_DISABLED"
-            ? "Unsubscribe: Locked"
-            : "Unsubscribe: Allowed"}
+          {rules.unsubscribe === "LOCKED_DISABLED" ? "Unsubscribe: Locked" : "Unsubscribe: Allowed"}
         </Badge>
         {excelMatch && (
           <Badge
@@ -1522,14 +1474,14 @@ function InferredRulesPanel({
       {excelMatch ? (
         <p className="text-[11px] text-muted-foreground">
           🔒 Matched {excelMatch.matchedCount} master-sheet communication
-          {excelMatch.matchedCount === 1 ? "" : "s"} (e.g. “{excelMatch.sampleTitle}”)
-          — action flag inherited, not editable.
+          {excelMatch.matchedCount === 1 ? "" : "s"} (e.g. “{excelMatch.sampleTitle}”) — action flag
+          inherited, not editable.
         </p>
       ) : (
         <div className="space-y-2 rounded-md border border-border bg-background p-3">
           <p className="text-xs font-medium text-foreground">
-            ❓ Is an operational action required from the vendor/manufacturer for
-            this communication?
+            ❓ Is an operational action required from the vendor/manufacturer for this
+            communication?
           </p>
           <div className="flex items-center gap-4">
             {[
@@ -1552,15 +1504,14 @@ function InferredRulesPanel({
             ))}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Custom category — not found in the master sheet, so this flag drives
-            the vendor-side action banner.
+            Custom category — not found in the master sheet, so this flag drives the vendor-side
+            action banner.
           </p>
         </div>
       )}
     </div>
   );
 }
-
 
 // ---------- Smart attachment ----------
 function SmartAttachment({
@@ -1621,9 +1572,7 @@ function SmartAttachment({
           <span className="font-medium">
             {value.fileName ?? "Drag & drop a file, or click to browse"}
           </span>
-          <span className="text-[10px]">
-            Auto-detects .pdf / .xlsx extension
-          </span>
+          <span className="text-[10px]">Auto-detects .pdf / .xlsx extension</span>
           <input
             type="file"
             className="hidden"
@@ -1638,9 +1587,7 @@ function SmartAttachment({
       {value.type === "query" && (
         <Input
           value={value.queryKey ?? ""}
-          onChange={(e) =>
-            onChange({ type: "query", queryKey: e.target.value })
-          }
+          onChange={(e) => onChange({ type: "query", queryKey: e.target.value })}
           placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
         />
       )}
@@ -1653,14 +1600,12 @@ function SmartAttachment({
           </Label>
           <Input
             value={value.formulaSpec ?? ""}
-            onChange={(e) =>
-              onChange({ type: "formula", formulaSpec: e.target.value })
-            }
+            onChange={(e) => onChange({ type: "formula", formulaSpec: e.target.value })}
             placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx or formula_script_name.py"
           />
           <p className="text-[11px] text-muted-foreground">
-            The formula file or script that generates the attachment at send
-            time. Reviewed by the approver before publishing.
+            The formula file or script that generates the attachment at send time. Reviewed by the
+            approver before publishing.
           </p>
         </div>
       )}
@@ -1723,12 +1668,8 @@ function InlineSqlChartPreview({ label }: { label: string }) {
   return (
     <div className="mt-2 rounded-lg border border-border bg-background p-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-mono text-[11px] text-muted-foreground">
-          {label}
-        </span>
-        <span className="text-[10px] text-muted-foreground">
-          Live SQL preview · sample data
-        </span>
+        <span className="font-mono text-[11px] text-muted-foreground">{label}</span>
+        <span className="text-[10px] text-muted-foreground">Live SQL preview · sample data</span>
       </div>
       <svg viewBox="0 0 210 80" className="w-full">
         {bars.map((b, i) => {
@@ -1782,11 +1723,7 @@ function TriplePreviewPane({
                   : "text-muted-foreground hover:bg-muted",
               )}
             >
-              {k === "email"
-                ? "Email"
-                : k === "whatsapp"
-                  ? "WhatsApp"
-                  : "PartnersBiz Dashboard"}
+              {k === "email" ? "Email" : k === "whatsapp" ? "WhatsApp" : "PartnersBiz Dashboard"}
             </button>
           ))}
         </div>
@@ -1820,12 +1757,9 @@ function TriplePreviewPane({
       {tab === "whatsapp" && (
         <div className="mx-auto max-w-md rounded-2xl bg-[#ECE5DD] p-3">
           <div className="ml-auto max-w-full space-y-1 rounded-2xl rounded-tr-sm bg-[#DCF8C6] p-3 shadow-sm">
-            <div className="text-[10px] font-semibold text-[#075E54]">
-              #{templateId}
-            </div>
+            <div className="text-[10px] font-semibold text-[#075E54]">#{templateId}</div>
             <p className="whitespace-pre-wrap text-[13px] leading-snug text-[#111]">
-              {s(waMessage) ||
-                <span className="text-muted-foreground">(empty)</span>}
+              {s(waMessage) || <span className="text-muted-foreground">(empty)</span>}
             </p>
           </div>
         </div>
@@ -1839,12 +1773,8 @@ function TriplePreviewPane({
               PartnersBiz Notification
             </span>
           </div>
-          <div className="text-sm font-semibold">
-            {s(subject) || "(empty)"}
-          </div>
-          <p className="mt-1 text-[12px] text-muted-foreground line-clamp-2">
-            {s(body)}
-          </p>
+          <div className="text-sm font-semibold">{s(subject) || "(empty)"}</div>
+          <p className="mt-1 text-[12px] text-muted-foreground line-clamp-2">{s(body)}</p>
         </div>
       )}
     </div>
@@ -1878,32 +1808,33 @@ function GovernanceInterception({
       {overAudience && (
         <div className="rounded-lg border border-cat-amber/50 bg-cat-amber-soft p-3 text-[12px] leading-relaxed text-cat-amber">
           <span className="mr-1">🚨</span>
-          <span className="font-semibold uppercase tracking-wider">Governance Interception:</span>{" "}
-          Target audience ({audienceCount.toLocaleString("en-IN")}) exceeds the
-          1,000 recipient threshold. Direct dispatch is locked. Submission will
-          route to Comms-Admin for approval.
+          <span className="font-semibold uppercase tracking-wider">
+            Governance Interception:
+          </span>{" "}
+          Target audience ({audienceCount.toLocaleString("en-IN")}) exceeds the 1,000 recipient
+          threshold. Direct dispatch is locked. Submission will route to Comms-Admin for approval.
         </div>
       )}
       {freqOverflow && (
         <div className="rounded-lg border border-yellow-400/60 bg-yellow-100/70 p-3 text-[12px] leading-relaxed text-yellow-900 dark:bg-yellow-500/10 dark:text-yellow-200">
           <span className="mr-1">⚠️</span>
           <span className="font-semibold uppercase tracking-wider">Frequency Cap Notice:</span>{" "}
-          Target segment has reached max weekly frequency limit (3 non-P1
-          comms/week). This broadcast will be queued for next week's window.
+          Target segment has reached max weekly frequency limit (3 non-P1 comms/week). This
+          broadcast will be queued for next week's window.
         </div>
       )}
       {waInvalid && (
         <div className="rounded-lg border border-cat-red/50 bg-cat-red-soft p-3 text-[12px] leading-relaxed text-cat-red">
           <span className="mr-1">🛑</span>
-          <span className="font-semibold uppercase tracking-wider">WhatsApp Registry Block:</span>{" "}
-          Template not registered on Meta WhatsApp API. WhatsApp channel
-          disabled for this drop.
+          <span className="font-semibold uppercase tracking-wider">
+            WhatsApp Registry Block:
+          </span>{" "}
+          Template not registered on Meta WhatsApp API. WhatsApp channel disabled for this drop.
         </div>
       )}
     </div>
   );
 }
-
 
 function FormRow({
   label,
@@ -1925,13 +1856,7 @@ function FormRow({
   );
 }
 
-function FileField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function FileField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const handle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1964,7 +1889,6 @@ function FileField({
     </label>
   );
 }
-
 
 function FrequencyPickerLight({
   values,
@@ -2057,12 +1981,7 @@ function ApproverView() {
   const selected = pending.find((r) => r.id === selectedId) ?? null;
 
   if (selected) {
-    return (
-      <RequestDetail
-        request={selected}
-        onBack={() => setSelectedId(null)}
-      />
-    );
+    return <RequestDetail request={selected} onBack={() => setSelectedId(null)} />;
   }
 
   return (
@@ -2075,60 +1994,57 @@ function ApproverView() {
             {pending.length} request{pending.length === 1 ? "" : "s"} waiting for review.
           </p>
         </div>
-      <div className="rounded-xl border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Template Name</TableHead>
-              <TableHead>Submitted By</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead>Submitted At</TableHead>
-              <TableHead>Time Waiting</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pending.map((r) => (
-              <TableRow
-                key={r.id}
-                className="cursor-pointer"
-                onClick={() => setSelectedId(r.id)}
-              >
-                <TableCell className="font-medium">{r.templateName}</TableCell>
-                <TableCell className="text-sm">
-                  <div className="font-medium text-foreground">{r.submittedBy}</div>
-                  <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    CCs: {r.approvalCcEmails ?? [].length > 0 ? r.approvalCcEmails ?? [].join(", ") : "None"}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {r.team || "—"}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {new Date(r.submittedAt).toLocaleString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]">
-                    <Clock className="h-3 w-3" /> {timeWaiting(r.submittedAt)}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-            {pending.length === 0 && (
+        <div className="rounded-xl border border-border bg-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                  No pending requests.
-                </TableCell>
+                <TableHead>Template Name</TableHead>
+                <TableHead>Submitted By</TableHead>
+                <TableHead>Team</TableHead>
+                <TableHead>Submitted At</TableHead>
+                <TableHead>Time Waiting</TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {pending.map((r) => (
+                <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelectedId(r.id)}>
+                  <TableCell className="font-medium">{r.templateName}</TableCell>
+                  <TableCell className="text-sm">
+                    <div className="font-medium text-foreground">{r.submittedBy}</div>
+                    <div className="text-[11px] text-muted-foreground">{r.primaryEmail}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      CCs:{" "}
+                      {(r.approvalCcEmails ?? [].length > 0)
+                        ? (r.approvalCcEmails ?? [].join(", "))
+                        : "None"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.team || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(r.submittedAt).toLocaleString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]">
+                      <Clock className="h-3 w-3" /> {timeWaiting(r.submittedAt)}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {pending.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                    No pending requests.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
@@ -2142,10 +2058,30 @@ const TEMPLATE_BOUNCERS: {
   contact: string;
   reason: string;
 }[] = [
-  { vendor: "Aashirvaad Foods", vendorId: "V-8821", contact: "scm-lead@aashirvaad.co", reason: "550 Mailbox Full" },
-  { vendor: "Sunfeast Retail", vendorId: "V-4410", contact: "ops@sunfeast-retail.in", reason: "550 Mailbox Not Found" },
-  { vendor: "Bingo Snacks Co.", vendorId: "V-6612", contact: "finance@bingosnacks.in", reason: "Domain Firewall Block" },
-  { vendor: "Mangaldeep Traders", vendorId: "V-3320", contact: "accounts@mangaldeep.in", reason: "550 Mailbox Full" },
+  {
+    vendor: "Aashirvaad Foods",
+    vendorId: "V-8821",
+    contact: "scm-lead@aashirvaad.co",
+    reason: "550 Mailbox Full",
+  },
+  {
+    vendor: "Sunfeast Retail",
+    vendorId: "V-4410",
+    contact: "ops@sunfeast-retail.in",
+    reason: "550 Mailbox Not Found",
+  },
+  {
+    vendor: "Bingo Snacks Co.",
+    vendorId: "V-6612",
+    contact: "finance@bingosnacks.in",
+    reason: "Domain Firewall Block",
+  },
+  {
+    vendor: "Mangaldeep Traders",
+    vendorId: "V-3320",
+    contact: "accounts@mangaldeep.in",
+    reason: "550 Mailbox Full",
+  },
 ];
 
 function tplHash(s: string): number {
@@ -2207,10 +2143,7 @@ function TemplateDeliverabilityCard({ templateId }: { templateId: string }) {
 
       <div className="grid grid-cols-3 gap-3">
         {stats.map((s) => (
-          <div
-            key={s.label}
-            className="rounded-md border border-border bg-background p-3"
-          >
+          <div key={s.label} className="rounded-md border border-border bg-background p-3">
             <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               {s.label}
             </div>
@@ -2233,20 +2166,13 @@ function TemplateDeliverabilityCard({ templateId }: { templateId: string }) {
           </div>
           <ul className="divide-y divide-border">
             {bouncers.map((b) => (
-              <li
-                key={b.vendorId}
-                className="flex items-center justify-between px-3 py-2 text-xs"
-              >
+              <li key={b.vendorId} className="flex items-center justify-between px-3 py-2 text-xs">
                 <div className="flex flex-col">
                   <span className="font-medium text-foreground">
                     {b.vendor}
-                    <span className="ml-2 text-[10px] text-muted-foreground">
-                      {b.vendorId}
-                    </span>
+                    <span className="ml-2 text-[10px] text-muted-foreground">{b.vendorId}</span>
                   </span>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {b.contact}
-                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{b.contact}</span>
                 </div>
                 <span className="rounded-md bg-cat-red-soft px-2 py-0.5 text-[10px] font-semibold text-cat-red">
                   {b.reason}
@@ -2259,8 +2185,6 @@ function TemplateDeliverabilityCard({ templateId }: { templateId: string }) {
     </div>
   );
 }
-
-
 
 function formatDeadline(iso?: string): string {
   if (!iso) return "—";
@@ -2292,11 +2216,7 @@ function ReasonChecklist({
             key={c}
             className="flex cursor-pointer items-start gap-2 rounded p-1.5 text-[13px] hover:bg-muted/50"
           >
-            <Checkbox
-              checked={checked}
-              onCheckedChange={() => onToggle(c)}
-              className="mt-0.5"
-            />
+            <Checkbox checked={checked} onCheckedChange={() => onToggle(c)} className="mt-0.5" />
             <span className="leading-snug">{c}</span>
           </label>
         );
@@ -2305,13 +2225,7 @@ function ReasonChecklist({
   );
 }
 
-function RequestDetail({
-  request,
-  onBack,
-}: {
-  request: TemplateRequest;
-  onBack: () => void;
-}) {
+function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: () => void }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonCats, setReasonCats] = useState<RejectionReasonCategory[]>([]);
@@ -2320,13 +2234,9 @@ function RequestDetail({
   const [holdComments, setHoldComments] = useState("");
 
   const toggleReason = (c: RejectionReasonCategory) =>
-    setReasonCats((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
-    );
+    setReasonCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const toggleHold = (c: RejectionReasonCategory) =>
-    setHoldCats((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
-    );
+    setHoldCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
 
   const approve = () => {
     approveRequest(request.id);
@@ -2365,16 +2275,12 @@ function RequestDetail({
 
   // ID list resolution
   const sentToLower = request.sentTo.map((s) => s.toLowerCase());
-  const vendorFieldValue = sentToLower.some((s) =>
-    s.includes("all vendors on partnersbiz"),
-  )
+  const vendorFieldValue = sentToLower.some((s) => s.includes("all vendors on partnersbiz"))
     ? "All Vendors Directory (Auto-fetched from DB)"
     : request.vendorListName && request.vendorListName !== "-"
       ? `📎 ${request.vendorListName}`
       : "Not Applicable";
-  const mfrFieldValue = sentToLower.some((s) =>
-    s.includes("all manufacturers on partnersbiz"),
-  )
+  const mfrFieldValue = sentToLower.some((s) => s.includes("all manufacturers on partnersbiz"))
     ? "All Manufacturers Directory (Auto-fetched from DB)"
     : request.manufacturerListName && request.manufacturerListName !== "-"
       ? `📎 ${request.manufacturerListName}`
@@ -2385,9 +2291,7 @@ function RequestDetail({
     (request.approvalCcEmails ?? []).length > 0
       ? (request.approvalCcEmails ?? []).join(", ")
       : "None";
-  const purposeValue = request.purpose?.trim()
-    ? request.purpose
-    : request.purposeCustomText || "—";
+  const purposeValue = request.purpose?.trim() ? request.purpose : request.purposeCustomText || "—";
   const teamValue = `${request.team || "—"}${
     request.customTeam ? ` (Custom: ${request.customTeam})` : ""
   }`;
@@ -2407,9 +2311,8 @@ function RequestDetail({
       ? `${request.cta} → Route: ${request.ctaModuleRoute ?? "—"}`
       : request.cta;
   const queryParamsValue = request.ctaQueryParams || "None";
-  const attachmentValue = request.attachment && request.attachment !== "None"
-    ? request.attachment
-    : "No Attachment";
+  const attachmentValue =
+    request.attachment && request.attachment !== "None" ? request.attachment : "No Attachment";
   const attachmentSpecValue =
     request.attachmentConfig?.formulaSpec ||
     request.attachmentConfig?.s3Path ||
@@ -2442,9 +2345,7 @@ function RequestDetail({
             <Badge
               className={cn(
                 "hover:bg-inherit",
-                actionRequiredYes
-                  ? "bg-cat-red text-white"
-                  : "bg-slate-200 text-slate-700",
+                actionRequiredYes ? "bg-cat-red text-white" : "bg-slate-200 text-slate-700",
               )}
             >
               {actionRequiredYes ? "⚡ Action Required: YES" : "Action Required: NO"}
@@ -2456,7 +2357,11 @@ function RequestDetail({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <DetailField label="Submitted By" value={`${request.submittedBy} (${request.primaryEmail})`} full />
+          <DetailField
+            label="Submitted By"
+            value={`${request.submittedBy} (${request.primaryEmail})`}
+            full
+          />
           <DetailField label="Mail Owner" value={request.mailOwner || "—"} />
           <DetailField label="Team" value={teamValue} />
           <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
@@ -2472,9 +2377,7 @@ function RequestDetail({
             value={actionRequiredYes ? "Yes" : "No"}
           />
           <DetailField label="Subject line" value={request.subject} full />
-          {request.commType && (
-            <DetailField label="Comm type" value={request.commType} />
-          )}
+          {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
           <DetailField label="Attachment Detailed Spec" value={attachmentSpecValue} />
           <DetailField label="Target Portal CTA Route" value={ctaValue} />
@@ -2486,9 +2389,7 @@ function RequestDetail({
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Purpose of Mail
           </div>
-          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">
-            {purposeValue}
-          </p>
+          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">{purposeValue}</p>
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2516,7 +2417,6 @@ function RequestDetail({
             🔒 Inherited from mail category type, not editable here
           </p>
         </div>
-
 
         {request.whatsapp && (
           <div className="mt-5">
@@ -2570,9 +2470,7 @@ function RequestDetail({
             <div className="space-y-1.5">
               <Label className="text-[13px]">
                 Reason for Rejection / Additional Notes
-                {reasonCats.includes("Other") && (
-                  <span className="ml-0.5 text-cat-red">*</span>
-                )}
+                {reasonCats.includes("Other") && <span className="ml-0.5 text-cat-red">*</span>}
               </Label>
               <Textarea
                 value={reason}
@@ -2635,16 +2533,7 @@ function RequestDetail({
   );
 }
 
-
-function DetailField({
-  label,
-  value,
-  full,
-}: {
-  label: string;
-  value: string;
-  full?: boolean;
-}) {
+function DetailField({ label, value, full }: { label: string; value: string; full?: boolean }) {
   return (
     <div className={cn("rounded-lg border border-border bg-muted/40 p-3", full && "sm:col-span-2")}>
       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -2708,11 +2597,7 @@ const AUTO_MATCH_POOL: Omit<ClubbingMatch, "match">[] = [
   {
     templateName: "PO Extension Approved",
     templateId: "APOLLO-100234",
-    reasons: [
-      "Same vendor cohort",
-      "Same category",
-      "Overlapping send window",
-    ],
+    reasons: ["Same vendor cohort", "Same category", "Overlapping send window"],
   },
   {
     templateName: "Weekly Fill Rate Digest",
@@ -2726,11 +2611,7 @@ const AUTO_MATCH_POOL: Omit<ClubbingMatch, "match">[] = [
   {
     templateName: "Daily PO Reminder",
     templateId: "APOLLO-100455",
-    reasons: [
-      "Same send window",
-      "Overlapping recipients",
-      "Similar CTA",
-    ],
+    reasons: ["Same send window", "Overlapping recipients", "Similar CTA"],
   },
 ];
 
@@ -2776,9 +2657,7 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
   if (!match) return null;
 
   const strong = match.match >= 80;
-  const label = strong
-    ? "Good chance of clubbing"
-    : "Medium chance of clubbing";
+  const label = strong ? "Good chance of clubbing" : "Medium chance of clubbing";
 
   const quality = getContentQuality(requestId);
   const rework = quality.score < 9;
@@ -2787,21 +2666,12 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
     <div
       className={cn(
         "rounded-xl border p-5 shadow-sm",
-        strong
-          ? "border-amber-500/40 bg-amber-500/5"
-          : "border-border bg-card",
+        strong ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-card",
       )}
     >
       <header className="mb-3 flex items-center gap-2">
-        <Layers
-          className={cn(
-            "h-4 w-4",
-            strong ? "text-amber-600" : "text-muted-foreground",
-          )}
-        />
-        <h3 className="text-base font-semibold text-foreground">
-          Clubbing Match
-        </h3>
+        <Layers className={cn("h-4 w-4", strong ? "text-amber-600" : "text-muted-foreground")} />
+        <h3 className="text-base font-semibold text-foreground">Clubbing Match</h3>
       </header>
 
       <p
@@ -2816,34 +2686,24 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-sm text-foreground">
           Content Quality Score:{" "}
-          <span className="font-semibold tabular-nums">
-            {quality.score.toFixed(1)}/10
-          </span>
+          <span className="font-semibold tabular-nums">{quality.score.toFixed(1)}/10</span>
         </span>
         {rework ? (
-          <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">
-            Needs Rework
-          </Badge>
+          <Badge className="bg-cat-red-soft text-cat-red hover:bg-cat-red-soft">Needs Rework</Badge>
         ) : (
           <Badge className="bg-cat-green-soft text-cat-green hover:bg-cat-green-soft">
             Publish ready
           </Badge>
         )}
         {rework && quality.reason && (
-          <span className="text-xs text-muted-foreground">
-            — {quality.reason}
-          </span>
+          <span className="text-xs text-muted-foreground">— {quality.reason}</span>
         )}
       </div>
 
       <div className="rounded-lg border border-border bg-background p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-foreground">
-            {match.templateName}
-          </span>
-          <span className="font-mono text-[11px] text-muted-foreground">
-            {match.templateId}
-          </span>
+          <span className="font-medium text-foreground">{match.templateName}</span>
+          <span className="font-mono text-[11px] text-muted-foreground">{match.templateId}</span>
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {match.reasons.map((r) => (
@@ -2864,9 +2724,6 @@ function ClubbingMatchPanel({ requestId }: { requestId: string }) {
   );
 }
 
-
-
-
 // ---------- Published feed (post-publish confirmation loop) ----------
 
 function PublishedFeed() {
@@ -2877,7 +2734,7 @@ function PublishedFeed() {
   const flagTarget = logs.find((l) => l.id === flagId) ?? null;
   const detailTarget = logs.find((l) => l.id === detailId) ?? null;
   const detailRequest = detailTarget
-    ? requests.find((r) => r.id === detailTarget.requestId) ?? null
+    ? (requests.find((r) => r.id === detailTarget.requestId) ?? null)
     : null;
   const pendingCount = logs.filter((l) => l.status === "Pending Review").length;
 
@@ -2887,8 +2744,8 @@ function PublishedFeed() {
         <div>
           <h2 className="text-base font-semibold">Published Templates</h2>
           <p className="text-xs text-muted-foreground">
-            Post-publish activity from Submitters. Click any entry to view full
-            details, then acknowledge or flag after review.
+            Post-publish activity from Submitters. Click any entry to view full details, then
+            acknowledge or flag after review.
           </p>
         </div>
         {pendingCount > 0 && (
@@ -2908,14 +2765,14 @@ function PublishedFeed() {
             >
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="text-sm text-foreground">
-                  <span className="font-semibold">{l.submitterName}</span>{" "}
-                  published{" "}
+                  <span className="font-semibold">{l.submitterName}</span> published{" "}
                   <span className="font-semibold">{l.templateName}</span> to{" "}
                   <span className="font-medium">{l.segment}</span>, scheduled for{" "}
                   <span className="font-medium">{l.scheduledFor}</span>.
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {l.templateId} · published {timeWaiting(l.publishedAt)} ago · click to view details
+                  {l.templateId} · published {timeWaiting(l.publishedAt)} ago · click to view
+                  details
                 </p>
                 {l.status === "Flagged" && (
                   <div className="mt-2 rounded-lg border border-cat-red/30 bg-cat-red-soft/40 p-2 text-xs">
@@ -2972,10 +2829,7 @@ function PublishedFeed() {
         }}
       />
 
-      <FlagForReviewDialog
-        log={flagTarget}
-        onClose={() => setFlagId(null)}
-      />
+      <FlagForReviewDialog log={flagTarget} onClose={() => setFlagId(null)} />
     </section>
   );
 }
@@ -2999,8 +2853,7 @@ function PublishedDetailDialog({
         <DialogHeader>
           <DialogTitle>{log.templateName}</DialogTitle>
           <DialogDescription>
-            {log.templateId} · published by {log.submitterName} ·{" "}
-            {timeWaiting(log.publishedAt)} ago
+            {log.templateId} · published by {log.submitterName} · {timeWaiting(log.publishedAt)} ago
           </DialogDescription>
         </DialogHeader>
 
@@ -3022,10 +2875,7 @@ function PublishedDetailDialog({
                   <DetailRow label="Category" value={cfg.label} />
                   <DetailRow label="Priority" value={request.priority} />
                   <DetailRow label="Subject" value={request.subject} />
-                  <DetailRow
-                    label="Frequency"
-                    value={request.frequency}
-                  />
+                  <DetailRow label="Frequency" value={request.frequency} />
                   <DetailRow label="Attachment" value={request.attachment} />
                   <DetailRow label="CTA" value={request.cta} />
                   <DetailRow
@@ -3034,7 +2884,11 @@ function PublishedDetailDialog({
                   />
                   <DetailRow
                     label="Approval CCs"
-                    value={(request.approvalCcEmails ?? []).length > 0 ? (request.approvalCcEmails ?? []).join(", ") : "None"}
+                    value={
+                      (request.approvalCcEmails ?? []).length > 0
+                        ? (request.approvalCcEmails ?? []).join(", ")
+                        : "None"
+                    }
                   />
                   <DetailRow label="Team" value={request.team} />
                 </div>
@@ -3070,9 +2924,7 @@ function PublishedDetailDialog({
               </div>
               <p className="mt-1 text-foreground">{log.flagReason}</p>
               {log.flaggedAt && (
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Flagged at {log.flaggedAt}
-                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Flagged at {log.flaggedAt}</p>
               )}
             </div>
           )}
@@ -3121,13 +2973,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FlagForReviewDialog({
-  log,
-  onClose,
-}: {
-  log: PublishLog | null;
-  onClose: () => void;
-}) {
+function FlagForReviewDialog({ log, onClose }: { log: PublishLog | null; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const [reasonCat, setReasonCat] = useState<RejectionCategory | "">("");
 
@@ -3161,9 +3007,8 @@ function FlagForReviewDialog({
           <DialogDescription>
             {log ? (
               <>
-                Flagging <span className="font-medium">{log.templateName}</span>{" "}
-                will reject the linked request post-publish and notify the
-                submitter.
+                Flagging <span className="font-medium">{log.templateName}</span> will reject the
+                linked request post-publish and notify the submitter.
               </>
             ) : (
               "Provide a rejection reason."
@@ -3175,20 +3020,13 @@ function FlagForReviewDialog({
             <Label className="text-[13px]">
               Reason for Rejection<span className="ml-0.5 text-cat-red">*</span>
             </Label>
-            <Textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={4}
-            />
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={4} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-[13px]">
               Reason Category<span className="ml-0.5 text-cat-red">*</span>
             </Label>
-            <Select
-              value={reasonCat}
-              onValueChange={(v) => setReasonCat(v as RejectionCategory)}
-            >
+            <Select value={reasonCat} onValueChange={(v) => setReasonCat(v as RejectionCategory)}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
