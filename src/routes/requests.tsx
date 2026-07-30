@@ -2605,11 +2605,13 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           ) : null}
           {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
-          <DetailField label="Attachment Detailed Spec" value={attachmentSpecValue} />
-          <DetailField label="Target Portal CTA Route" value={ctaValue} />
+          <DetailField label="Target Portal CTA Route" value={ctaValue} full />
           <DetailField label="Query Parameters" value={queryParamsValue} />
-          <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} full />
+          <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} />
         </div>
+
+        <AttachmentInspectionCard items={attachmentItems} />
+
 
         <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
