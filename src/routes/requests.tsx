@@ -780,14 +780,17 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (sentTo.includes("Targeted Manufacturer IDs (Upload File)") && !mfrListName)
       missing.push("Manufacturer ID list file");
 
+    const excelMatch = domain === "Other" ? null : lookupExcelActionRequired(subCategory, domain);
+    const resolvedActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
+    if (resolvedActionRequired && !expectedActionType.trim())
+      missing.push("Expected Action from Audience");
+
     if (missing.length > 0 || !inferred) {
       toast.error(
         `⚠️ Please complete the following required fields: ${missing.join(", ") || "Sub-Category and Domain"}`,
       );
       return;
     }
-    const excelMatch = domain === "Other" ? null : lookupExcelActionRequired(subCategory, domain);
-    const resolvedActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
