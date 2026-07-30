@@ -358,8 +358,18 @@ function setRequests(next: TemplateRequest[]) {
 
 export function addRequest(r: TemplateRequest) {
   hydrateStoreFromStorage();
-  setRequests([r, ...REQUESTS]);
+  const attachmentConfig = normalizeAttachmentConfig(r.attachmentConfig);
+  const derivedNames = attachmentNamesFromConfig(attachmentConfig);
+  const hasAttachments = (attachmentConfig.items ?? []).length > 0;
+  const normalized: TemplateRequest = {
+    ...r,
+    attachmentConfig,
+    emailAttachmentsName: derivedNames,
+    attachment: hasAttachments ? r.attachment : "None",
+  };
+  setRequests([normalized, ...REQUESTS]);
 }
+
 
 const CATEGORY_LABEL: Record<CategoryId, FeatureCategory> = {
   action_required: "Reminders",
