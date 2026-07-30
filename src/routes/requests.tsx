@@ -1513,42 +1513,160 @@ function InferredRulesPanel({
   );
 }
 
-// ---------- Smart attachment ----------
+// ---------- Full PartnersBiz support ticket taxonomy ----------
+export const TICKET_TAXONOMY: Record<string, string[]> = {
+  "Purchase Order": [
+    "Need PO Copy (Response time ~3 Days)",
+    "PO Header Amendment (Response time ~2 Days)",
+    "PO Item Amendment (Response time ~2 Days)",
+    "Vendor Outage (Response time ~2 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  "GRN & Discrepancy Note": [
+    "Need GRN Copy (Response time ~2 Days)",
+    "Need DN details (Response time ~1 Day)",
+    "DN Action - Request Return / Liquidation (Response time ~1 Day)",
+    "Mismatch in DN Stock Returned (Response time ~3 Days)",
+    "Require Proof for DN (Response time ~2 Days)",
+    "Update Courier Details for DN (Response time ~3 Days)",
+    "GRN Pending (Response time ~2 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  Payment: [
+    "Need Payment Advice (Response time ~1 Day)",
+    "Understand My Payment Advice (Response time ~2 Days)",
+    "Payment Pending against an Invoice (Response time ~1 Day)",
+    "Short Payment (Response time ~1 Day)",
+    "Reconciliation Request (Response time ~2 Days)",
+    "Request Ledger (Response time ~2 Days)",
+    "Debit Note Workings (Response time ~3 Days)",
+    "Update Bank Details (Response time ~2 Days)",
+    "TDS Certificate (Response time ~3 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  Assortment: [
+    "Update product images & videos (Response time ~2 Days)",
+    "Update category of product (Response time ~2 Days)",
+    "Update dimensions (Response time ~2 Days)",
+    "Update Shelf Life (Response time ~2 Days)",
+    "Update product name (Response time ~2 Days)",
+    "Group/Ungroup PIDs (Response time ~2 Days)",
+    "Update product attributes (Response time ~2 Days)",
+    "Change brand logo (Response time ~2 Days)",
+    "Update case size (inner/outer) (Response time ~2 Days)",
+    "Update HSN code (Response time ~2 Days)",
+    "Others (Response time ~4 Days)",
+  ],
+  Returns: [
+    "Need POD (Response time ~1 Day)",
+    "Update RTV Details (Response time ~1 Day)",
+    "Discrepancy Form (Response time ~3 Days)",
+    "Need PRN Details (Response time ~3 Days)",
+    "Mismatch in debit notes (Response time ~3 Days)",
+    "Others (Response time ~3 Days)",
+  ],
+  Onboarding: [
+    "Warehouse details needed (Response time ~4 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  "Login Issues": ["Not receiving OTP (Response time ~1 Day)", "Other"],
+  "Fees & Charges": ["Dispute Charge (Response time ~2 Days)", "Other"],
+  "Marketing & Brand Fund Invoices": [
+    "Data Request - Sales (Response time ~3 Days)",
+    "Data Request - Distributor wise invoices (Response time ~3 Days)",
+    "Data Request - Invoice Copy (Response time ~3 Days)",
+    "Update Brand Fund Communication Email (Response time ~2 Days)",
+    "Brand Fund/ Marketing Invoice Issue (Response time ~2 Days)",
+    "Other (Response time ~4 Days)",
+  ],
+  Other: ["Other (Response time ~4 Days)"],
+};
+
+// ---------- Smart attachment (multi-source engine) ----------
+const ATTACHMENT_ICON: Record<AttachmentItem["type"], string> = {
+  static: "📄",
+  query: "🗄️",
+  formula: "☁️",
+};
+
+function attachmentUid(): string {
+  return `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+type AttachmentTabKey = "none" | "static" | "query" | "formula";
+
 function SmartAttachment({
   value,
   onChange,
+  queryDraft,
+  onQueryDraftChange,
+  formulaDraft,
+  onFormulaDraftChange,
 }: {
   value: AttachmentConfig;
   onChange: (v: AttachmentConfig) => void;
+  queryDraft: string;
+  onQueryDraftChange: (v: string) => void;
+  formulaDraft: string;
+  onFormulaDraftChange: (v: string) => void;
 }) {
-  const tabs: Array<{
-    key: AttachmentConfig["type"];
-    label: string;
-    icon: typeof Ban;
-  }> = [
+  const items = value.items ?? [];
+  const [tab, setTab] = useState<AttachmentTabKey>(items.length === 0 ? "none" : "static");
+
+  const tabs: Array<{ key: AttachmentTabKey; label: string; icon: typeof Ban }> = [
     { key: "none", label: "No Attachment", icon: Ban },
     { key: "static", label: "Static Upload", icon: FileUp },
     { key: "query", label: "SQL Query Output", icon: Database },
     { key: "formula", label: "Dynamic Formula Attachment", icon: Cloud },
   ];
 
-  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if (f) onChange({ type: "static", fileName: f.name });
+  const commit = (next: AttachmentItem[]) => {
+    const primary = next[next.length - 1];
+    onChange({
+      ...value,
+      items: next,
+      type: next.length === 0 ? "none" : (primary?.type ?? "static"),
+      fileName: next.find((i) => i.type === "static")?.name,
+      queryKey: next.find((i) => i.type === "query")?.name,
+      formulaSpec: next.find((i) => i.type === "formula")?.name,
+    });
   };
+
+  const addFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const next = [...items];
+    Array.from(files).forEach((f) => {
+      next.push({
+        id: attachmentUid(),
+        type: "static",
+        name: f.name,
+        size: `${Math.max(1, Math.round(f.size / 1024))} KB`,
+      });
+    });
+    commit(next);
+  };
+
+  const addText = (type: "query" | "formula", raw: string) => {
+    const name = raw.trim();
+    if (!name) return;
+    commit([...items, { id: attachmentUid(), type, name }]);
+    if (type === "query") onQueryDraftChange("");
+    else onFormulaDraftChange("");
+  };
+
+  const remove = (id: string) => commit(items.filter((i) => i.id !== id));
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">
         {tabs.map((t) => {
-          const on = value.type === t.key;
+          const on = tab === t.key;
           const Icon = t.icon;
           return (
             <button
               key={t.key}
               type="button"
-              onClick={() => onChange({ type: t.key })}
+              onClick={() => setTab(t.key)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 on
@@ -1562,56 +1680,114 @@ function SmartAttachment({
         })}
       </div>
 
-      {value.type === "static" && (
+      {tab === "none" && (
+        <p className="text-[11px] text-muted-foreground">
+          No attachment will ship with this communication. Switch tabs to add one or more sources —
+          adding a source never clears the ones already configured.
+        </p>
+      )}
+
+      {tab === "static" && (
         <label
           onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
+          onDrop={(e) => {
+            e.preventDefault();
+            addFiles(e.dataTransfer.files);
+          }}
           className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border bg-muted/30 px-3 py-6 text-center text-xs text-muted-foreground hover:bg-muted/50"
         >
           <FileUp className="h-5 w-5" />
-          <span className="font-medium">
-            {value.fileName ?? "Drag & drop a file, or click to browse"}
-          </span>
-          <span className="text-[10px]">Auto-detects .pdf / .xlsx extension</span>
+          <span className="font-medium">Drag &amp; drop files, or click to browse</span>
+          <span className="text-[10px]">Multiple files supported · .pdf / .xlsx / .csv</span>
           <input
             type="file"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onChange({ type: "static", fileName: f.name });
+              addFiles(e.target.files);
+              e.target.value = "";
             }}
           />
         </label>
       )}
 
-      {value.type === "query" && (
-        <Input
-          value={value.queryKey ?? ""}
-          onChange={(e) => onChange({ type: "query", queryKey: e.target.value })}
-          placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
-        />
+      {tab === "query" && (
+        <div className="flex items-start gap-2">
+          <Input
+            value={queryDraft}
+            onChange={(e) => onQueryDraftChange(e.target.value)}
+            placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0"
+            onClick={() => addText("query", queryDraft)}
+          >
+            + Add SQL Query
+          </Button>
+        </div>
       )}
 
-      {value.type === "formula" && (
+      {tab === "formula" && (
         <div className="space-y-1">
-          <Label className="text-xs">
-            Formula Attachment Specification
-            <span className="ml-0.5 text-cat-red">*</span>
-          </Label>
-          <Input
-            value={value.formulaSpec ?? ""}
-            onChange={(e) => onChange({ type: "formula", formulaSpec: e.target.value })}
-            placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx or formula_script_name.py"
-          />
+          <Label className="text-xs">Formula Attachment Specification</Label>
+          <div className="flex items-start gap-2">
+            <Input
+              value={formulaDraft}
+              onChange={(e) => onFormulaDraftChange(e.target.value)}
+              placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0"
+              onClick={() => addText("formula", formulaDraft)}
+            >
+              + Add Formula Spec
+            </Button>
+          </div>
           <p className="text-[11px] text-muted-foreground">
-            The formula file or script that generates the attachment at send time. Reviewed by the
-            approver before publishing.
+            The formula file or script that generates the attachment at send time.
           </p>
         </div>
       )}
+
+      <div className="rounded-lg border border-border bg-muted/30 p-3">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Configured Attachments ({items.length})
+        </div>
+        {items.length === 0 ? (
+          <p className="mt-1 text-xs text-muted-foreground">No attachments configured yet.</p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {items.map((item) => (
+              <span
+                key={item.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs"
+              >
+                <span>{ATTACHMENT_ICON[item.type]}</span>
+                <span className="font-medium">{item.name}</span>
+                {item.size && <span className="text-[10px] text-muted-foreground">{item.size}</span>}
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.name}`}
+                  onClick={() => remove(item.id)}
+                  className="text-muted-foreground hover:text-cat-red"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
 
 // ---------- Liquid variable pills ----------
 function extractLiquidVars(text: string): string[] {
