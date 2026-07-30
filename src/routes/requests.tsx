@@ -1185,10 +1185,32 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       {/* Smart attachment + CTA + Frequency */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Attachment">
-          <SmartAttachment value={attachmentConfig} onChange={setAttachmentConfig} />
+          <SmartAttachment
+            value={attachmentConfig}
+            onChange={setAttachmentConfig}
+            queryDraft={attQueryDraft}
+            onQueryDraftChange={setAttQueryDraft}
+            formulaDraft={attFormulaDraft}
+            onFormulaDraftChange={setAttFormulaDraft}
+          />
         </FormRow>
         <FormRow label="Call to Action">
-          <Select value={cta} onValueChange={(v) => setCta(v as CtaOption)}>
+          <Select
+            value={cta}
+            onValueChange={(v) => {
+              const next = v as CtaOption;
+              setCta(next);
+              if (next !== "Direct Link") {
+                setCtaModuleRoute("");
+                setCtaQueryParams("");
+                setCtaDest("");
+              }
+              if (next !== "Autofilled Help & Support Ticket") {
+                setTicketCategory("");
+                setTicketSubcategory("");
+              }
+            }}
+          >
             <SelectTrigger className="h-9">
               <SelectValue />
             </SelectTrigger>
@@ -1233,6 +1255,63 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               </div>
             </div>
           )}
+          {cta === "Autofilled Help & Support Ticket" && (
+            <div className="mt-2 space-y-2">
+              <div>
+                <Label className="text-xs">
+                  Ticket Category <span className="text-cat-red">*</span>
+                </Label>
+                <Select
+                  value={ticketCategory}
+                  onValueChange={(v) => {
+                    setTicketCategory(v);
+                    setTicketSubcategory("");
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select ticket category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(TICKET_TAXONOMY).map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">
+                  Ticket Subcategory <span className="text-cat-red">*</span>
+                </Label>
+                <Select
+                  value={ticketSubcategory}
+                  onValueChange={setTicketSubcategory}
+                  disabled={!ticketCategory}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue
+                      placeholder={
+                        ticketCategory ? "Select subcategory" : "Select a category first"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(TICKET_TAXONOMY[ticketCategory] ?? []).map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                ℹ️ Autofills vendor ticket category to eliminate mistagged tickets and support SLA
+                rejections.
+              </p>
+            </div>
+          )}
+
         </FormRow>
         <FormRow label="Frequency of the mail to be sent" required>
           <Select value={frequency} onValueChange={(v) => setFrequency(v as FrequencyOption)}>
