@@ -822,7 +822,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       subCategory: subCategory as SubCategoryPurpose,
       customSubCategory:
         subCategory === "Other" ? customSubCategory.trim() : undefined,
-      domain,
+      domain: domain as DomainType | "Other",
       customDomain: domain === "Other" ? customDomain.trim() : undefined,
       customCategory: customCategory.trim() || undefined,
       categoryId: inferred.categoryId,
