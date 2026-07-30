@@ -325,6 +325,7 @@ const CATEGORY_LABEL: Record<CategoryId, FeatureCategory> = {
   reports_analytics: "Reports & Analytics",
   daily_ops: "Daily Ops Updates",
   account_access: "Account & Access",
+  reminders: "Reminders",
 };
 
 /**

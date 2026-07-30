@@ -665,6 +665,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
   const [subCategoryCustomText, setSubCategoryCustomText] = useState("");
   const [domain, setDomain] = useState<DomainType | "">("");
+  const [actionRequired, setActionRequired] = useState<boolean | null>(null);
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
   });
@@ -818,6 +819,10 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         ? { message: waMessage, frequency: waFreq, cta: waCta }
         : undefined,
       preflightChecks: preflight,
+      actionRequired:
+        lookupExcelActionRequired(subCategory, domain)?.actionRequired ??
+        actionRequired ??
+        false,
       status: "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
@@ -1059,7 +1064,13 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             <div className="text-[11px] text-muted-foreground">
               🔒 Inherited from mail category type, not editable here
             </div>
-            <InferredRulesPanel rules={inferred} />
+            <InferredRulesPanel
+              rules={inferred}
+              subCategory={subCategory}
+              domain={domain}
+              actionRequired={actionRequired}
+              onActionRequiredChange={setActionRequired}
+            />
           </>
         )}
       </section>
