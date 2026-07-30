@@ -652,9 +652,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
   const [team, setTeam] = useState<string>("");
+  const [customTeam, setCustomTeam] = useState("");
   const [mailOwner, setMailOwner] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [purposeCustomText, setPurposeCustomText] = useState("");
   const [sentTo, setSentTo] = useState<string[]>([]);
   const [vendorListName, setVendorListName] = useState("");
   const [mfrListName, setMfrListName] = useState("");
@@ -662,10 +662,11 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [body, setBody] = useState(
     "Hi {{vendor_name}}, your PO {{po_number}} of {{amount_due}} is due on {{due_date}}.",
   );
-  const [formulaFlags, setFormulaFlags] = useState<string[]>([]);
   const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
-  const [subCategoryCustomText, setSubCategoryCustomText] = useState("");
-  const [domain, setDomain] = useState<DomainType | "">("");
+  const [customSubCategory, setCustomSubCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [domain, setDomain] = useState<DomainType | "Other" | "">("");
+  const [customDomain, setCustomDomain] = useState("");
   const [actionRequired, setActionRequired] = useState<boolean | null>(null);
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
