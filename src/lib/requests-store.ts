@@ -70,14 +70,49 @@ export type SequenceTier = "FYI" | "Standard" | "Critical";
 
 export type AttachmentSourceType = "none" | "static" | "query" | "s3" | "formula";
 
+/** A single configured attachment source (static file, SQL query, or formula spec). */
+export interface AttachmentItem {
+  id: string;
+  type: "static" | "query" | "formula";
+  /** e.g. "Access Control Layer.pdf", "rebate_query.sql", "s3://.../script.py" */
+  name: string;
+  size?: string;
+}
+
 export interface AttachmentConfig {
+  /** Legacy single-source discriminator, retained for backward compatibility. */
   type: AttachmentSourceType;
   queryKey?: string;
   s3Path?: string;
   fileName?: string;
   /** Path or script reference for a dynamic formula-generated attachment. */
   formulaSpec?: string;
+  /** Multi-source attachment engine — the source of truth going forward. */
+  items?: AttachmentItem[];
 }
+
+/** Comma-joined attachment names, or "No Attachment" when nothing is configured. */
+export function attachmentNamesFromConfig(cfg?: AttachmentConfig): string {
+  const items = cfg?.items ?? [];
+  if (items.length > 0) return items.map((i) => i.name).join(", ");
+  const legacy = cfg?.fileName || cfg?.queryKey || cfg?.s3Path || cfg?.formulaSpec;
+  return legacy || "No Attachment";
+}
+
+/** Normalises legacy single-source configs into the multi-item shape. */
+export function normalizeAttachmentConfig(cfg?: AttachmentConfig): AttachmentConfig {
+  if (!cfg) return { type: "none", items: [] };
+  if (cfg.items && cfg.items.length > 0) return { ...cfg, items: cfg.items };
+  const legacyName = cfg.fileName || cfg.queryKey || cfg.s3Path || cfg.formulaSpec;
+  if (!legacyName || cfg.type === "none") return { ...cfg, items: [] };
+  const type: AttachmentItem["type"] =
+    cfg.type === "query" ? "query" : cfg.type === "static" ? "static" : "formula";
+  return {
+    ...cfg,
+    items: [{ id: `att-legacy-${cfg.type}`, type, name: legacyName }],
+  };
+}
+
 
 export interface PreflightChecks {
   audienceCount: number;
