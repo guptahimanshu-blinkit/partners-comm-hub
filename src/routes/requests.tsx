@@ -1392,15 +1392,20 @@ function InferredRulesPanel({
   domain,
   actionRequired,
   onActionRequiredChange,
+  expectedActionType,
+  onExpectedActionTypeChange,
 }: {
   rules: InferredRules;
   subCategory: string;
   domain: string;
   actionRequired: boolean | null;
   onActionRequiredChange: (v: boolean) => void;
+  expectedActionType: string;
+  onExpectedActionTypeChange: (v: string) => void;
 }) {
   const cfg = CATEGORY_CONFIG[rules.categoryId];
   const excelMatch = lookupExcelActionRequired(subCategory, domain);
+  const effectiveActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
 
   return (
     <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
