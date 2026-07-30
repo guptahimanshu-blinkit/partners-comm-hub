@@ -942,8 +942,21 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
                   {t}
                 </SelectItem>
               ))}
+              <SelectItem value="Other">Other</SelectItem>
             </SelectContent>
           </Select>
+          {team === "Other" && (
+            <div className="mt-2">
+              <Label className="text-xs">
+                Specify Custom Name<span className="ml-0.5 text-cat-red">*</span>
+              </Label>
+              <Input
+                value={customTeam}
+                onChange={(e) => setCustomTeam(e.target.value)}
+                placeholder="e.g. Dark Store Logistics"
+              />
+            </div>
+          )}
         </FormRow>
         <FormRow label="Analyst POC Email" required>
           <Input
