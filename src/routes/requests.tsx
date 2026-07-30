@@ -2298,6 +2298,13 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
             label="Action Required from Vendor"
             value={actionRequiredYes ? "Yes" : "No"}
           />
+          {actionRequiredYes && (
+            <DetailField
+              label="Expected Vendor Action"
+              value={request.expectedActionType || "Action required — detail not specified"}
+              full
+            />
+          )}
           <DetailField label="Subject line" value={request.subject} full />
           {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
