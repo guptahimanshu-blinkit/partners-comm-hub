@@ -648,7 +648,11 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
 // ------- Form -------
 function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [templateId, setTemplateId] = useState("");
-  const [templateName, setTemplateName] = useState("");
+  // Apollo Service auto-fetch simulation — derived from the Template ID.
+  const templateName = useMemo(
+    () => (templateId.trim() ? `Apollo Template · ${templateId.trim()}` : ""),
+    [templateId],
+  );
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
   const [team, setTeam] = useState<string>("");
