@@ -810,7 +810,26 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setTemplateId(e.target.value)}
             placeholder="Paste the Template ID copied from Apollo"
           />
+          {apolloTemplate && (
+            <div className="mt-3 space-y-2">
+              <p className="text-[11px] text-muted-foreground">
+                ℹ️ Live template design auto-fetched from Apollo Service
+              </p>
+              <ApolloPreviewControls
+                channel={previewChannel}
+                onChannelChange={setPreviewChannel}
+                sampleDataEnabled={previewSample}
+                onSampleDataChange={setPreviewSample}
+              />
+              <ApolloEmailPreview
+                templateId={templateId}
+                sampleDataEnabled={previewSample}
+                selectedChannel={previewChannel}
+              />
+            </div>
+          )}
         </FormRow>
+
         <FormRow label="Template Name">
           <Input
             value={templateName}
