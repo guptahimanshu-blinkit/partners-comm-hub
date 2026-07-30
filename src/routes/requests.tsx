@@ -2306,6 +2306,16 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
             />
           )}
           <DetailField label="Subject line" value={request.subject} full />
+          <DetailField
+            label="Inline SQL Chart Binding"
+            value={request.inlineSqlChart || "None"}
+            full
+          />
+          {request.inlineSqlChart ? (
+            <div className="sm:col-span-2">
+              <InlineSqlChartPreview label={request.inlineSqlChart} />
+            </div>
+          ) : null}
           {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
           <DetailField label="Attachment Detailed Spec" value={attachmentSpecValue} />
