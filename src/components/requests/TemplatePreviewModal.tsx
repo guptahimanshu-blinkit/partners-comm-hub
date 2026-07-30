@@ -77,10 +77,7 @@ export function TemplatePreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="max-w-[min(1120px,95vw)] gap-0 overflow-hidden p-0"
-      >
+      <DialogContent className="max-w-[min(1120px,95vw)] gap-0 overflow-hidden p-0 [&>button]:hidden">
         {/* Top bar */}
         <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3">
           <div className="min-w-0">
