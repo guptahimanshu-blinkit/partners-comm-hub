@@ -174,6 +174,8 @@ export interface TemplateRequest {
   mailOwner: string;
   approvalCcEmails?: string[];
   team: string;
+  /** Free-text team name when `team === 'Other'`. */
+  customTeam?: string;
   purpose: string;
   purposeCustomText?: string;
   sentTo: string[];
@@ -186,7 +188,13 @@ export interface TemplateRequest {
   formulaFlags: string[];
   subCategory?: SubCategoryPurpose;
   subCategoryCustomText?: string;
-  domain?: DomainType;
+  /** Free-text sub-category when `subCategory === 'Other'`. */
+  customSubCategory?: string;
+  domain?: DomainType | "Other";
+  /** Free-text domain when `domain === 'Other'`. */
+  customDomain?: string;
+  /** Free-text category override when the inferred category is not applicable. */
+  customCategory?: string;
   commType?: CommTypeOption;
   categoryId: CategoryId;
   priority: PriorityLevel;
