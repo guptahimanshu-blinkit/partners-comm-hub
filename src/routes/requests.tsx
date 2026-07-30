@@ -28,6 +28,7 @@ import {
   ApolloPreviewControls,
   type PreviewChannel,
 } from "@/components/requests/ApolloEmailPreview";
+import { TemplatePreviewModal } from "@/components/requests/TemplatePreviewModal";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -640,14 +641,17 @@ function CheckTemplateButton({
   templateId,
   variant = "outline",
   label = "Check Template",
+  subject,
+  bodyHtml,
 }: {
   templateId: string;
   variant?: "outline" | "default";
   label?: string;
+  subject?: string;
+  bodyHtml?: string;
 }) {
   const [open, setOpen] = useState(false);
   const id = templateId.trim();
-  const url = apolloTemplateUrl(id);
 
   return (
     <>
@@ -664,33 +668,14 @@ function CheckTemplateButton({
         <ExternalLink className="h-3.5 w-3.5" />
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Opening Apollo Service</DialogTitle>
-            <DialogDescription>
-              Opening Apollo Service for Template ID: <span className="font-mono">{id}</span>…
-            </DialogDescription>
-          </DialogHeader>
-          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-[11px] break-all text-muted-foreground">
-            {url}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              className="gap-1.5"
-              onClick={() => {
-                window.open(url, "_blank", "noopener,noreferrer");
-                setOpen(false);
-              }}
-            >
-              Launch Apollo <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TemplatePreviewModal
+        open={open}
+        onOpenChange={setOpen}
+        templateId={id}
+        subject={subject}
+        bodyHtml={bodyHtml}
+        apolloUrl={apolloTemplateUrl(id)}
+      />
     </>
   );
 }
@@ -701,8 +686,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   // Apollo Service auto-fetch simulation — the whole payload is fetched by Template ID.
   const apolloTemplate = useMemo(() => lookupApolloTemplate(templateId), [templateId]);
   const templateName = apolloTemplate?.templateName ?? "";
-  const [previewChannel, setPreviewChannel] = useState<PreviewChannel>("email");
-  const [previewSample, setPreviewSample] = useState(true);
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
   const [team, setTeam] = useState<string>("");
@@ -878,22 +861,10 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             <CheckTemplateButton templateId={templateId} />
           </div>
           {apolloTemplate && (
-            <div className="mt-3 space-y-2">
-              <p className="text-[11px] text-muted-foreground">
-                ℹ️ Live template design auto-fetched from Apollo Service
-              </p>
-              <ApolloPreviewControls
-                channel={previewChannel}
-                onChannelChange={setPreviewChannel}
-                sampleDataEnabled={previewSample}
-                onSampleDataChange={setPreviewSample}
-              />
-              <ApolloEmailPreview
-                templateId={templateId}
-                sampleDataEnabled={previewSample}
-                selectedChannel={previewChannel}
-              />
-            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              ℹ️ Live template design auto-fetched from Apollo Service — use “Check Template” for the
+              full Desktop / Tablet / Mobile preview.
+            </p>
           )}
         </FormRow>
 
@@ -2256,7 +2227,9 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
               <CheckTemplateButton
                 templateId={request.templateId}
                 variant="default"
-                label="Check Template on Apollo"
+                label="Check Template & Device Preview"
+                subject={request.subject}
+                bodyHtml={request.body}
               />
             </div>
           </div>
