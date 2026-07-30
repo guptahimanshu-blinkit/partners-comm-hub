@@ -2438,7 +2438,17 @@ function RequestDetail({
               <span>By {request.submittedBy}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              className={cn(
+                "hover:bg-inherit",
+                actionRequiredYes
+                  ? "bg-cat-red text-white"
+                  : "bg-slate-200 text-slate-700",
+              )}
+            >
+              {actionRequiredYes ? "⚡ Action Required: YES" : "Action Required: NO"}
+            </Badge>
             <CategoryTag id={request.categoryId} />
             <PriorityTag p={request.priority} />
             <StatusTag status={request.status} />
@@ -2448,24 +2458,56 @@ function RequestDetail({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DetailField label="Submitted By" value={`${request.submittedBy} (${request.primaryEmail})`} full />
           <DetailField label="Mail Owner" value={request.mailOwner || "—"} />
-          <DetailField label="Team" value={request.team || "—"} />
+          <DetailField label="Team" value={teamValue} />
           <DetailField label="Analyst POC" value={request.analystPoc || "—"} />
           <DetailField label="Approval CCs" value={ccValue} full />
           <DetailField label="Mail sent to" value={request.sentTo.join(", ") || "—"} />
           <DetailField label="Vendor ID list" value={vendorFieldValue} />
           <DetailField label="Manufacturer ID list" value={mfrFieldValue} />
-          <DetailField label="Purpose" value={purposeValue} full />
           <DetailField label="Sub-Category Purpose" value={subCategoryValue} />
-          <DetailField label="Domain" value={request.domain || "—"} />
+          <DetailField label="Domain" value={domainValue} />
+          <DetailField label="Inferred / Custom Category" value={categoryValue} />
+          <DetailField
+            label="Action Required from Vendor"
+            value={actionRequiredYes ? "Yes" : "No"}
+          />
           <DetailField label="Subject line" value={request.subject} full />
           {request.commType && (
             <DetailField label="Comm type" value={request.commType} />
           )}
-          <DetailField label="Attachment" value={attachmentValue} />
-          <DetailField label="Email Attachments" value={request.emailAttachmentsName && request.emailAttachmentsName !== "-" ? request.emailAttachmentsName : "No attachment"} />
-          <DetailField label="Call to Action" value={ctaValue} full />
-          <DetailField label="Frequency" value={frequencyValue} full />
-          <DetailField label="Formula / Table flags" value={request.formulaFlags.join(", ") || "—"} full />
+          <DetailField label="Attachment Type" value={attachmentValue} />
+          <DetailField label="Attachment Detailed Spec" value={attachmentSpecValue} />
+          <DetailField label="Target Portal CTA Route" value={ctaValue} />
+          <DetailField label="Query Parameters" value={queryParamsValue} />
+          <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} full />
+        </div>
+
+        <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Purpose of Mail
+          </div>
+          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">
+            {purposeValue}
+          </p>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Liquid Template Body
+            </div>
+            <pre className="mt-1 whitespace-pre-wrap font-mono text-[12px] leading-relaxed">
+              {request.body || "—"}
+            </pre>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/40 p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Sample Data Preview
+            </div>
+            <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed">
+              {fillSample(request.body || "")}
+            </p>
+          </div>
         </div>
 
         <div className="mt-5">
@@ -2475,9 +2517,6 @@ function RequestDetail({
           </p>
         </div>
 
-        <div className="mt-5">
-          <TemplateDeliverabilityCard templateId={request.templateId} />
-        </div>
 
         {request.whatsapp && (
           <div className="mt-5">
