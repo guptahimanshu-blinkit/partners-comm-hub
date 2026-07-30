@@ -2323,24 +2323,28 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">{purposeValue}</p>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Liquid Template Body
-            </div>
-            <pre className="mt-1 whitespace-pre-wrap font-mono text-[12px] leading-relaxed">
-              {request.body || "—"}
-            </pre>
+        <div className="mt-3 space-y-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Apollo Template Preview
           </div>
-          <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Sample Data Preview
-            </div>
-            <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed">
-              {fillSample(request.body || "")}
-            </p>
-          </div>
+          <p className="text-[11px] text-muted-foreground">
+            ℹ️ Live template design auto-fetched from Apollo Service
+          </p>
+          <ApolloPreviewControls
+            channel={detailChannel}
+            onChannelChange={setDetailChannel}
+            sampleDataEnabled={detailSample}
+            onSampleDataChange={setDetailSample}
+          />
+          <ApolloEmailPreview
+            templateId={request.templateId}
+            subject={request.subject}
+            bodyHtml={request.body}
+            sampleDataEnabled={detailSample}
+            selectedChannel={detailChannel}
+          />
         </div>
+
 
         <div className="mt-5">
           <InheritedPanel categoryId={request.categoryId} priority={request.priority} />
