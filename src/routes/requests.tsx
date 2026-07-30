@@ -757,6 +757,39 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 
 
   const submit = () => {
+    // 1) Auto-commit any uncommitted attachment draft text before auditing.
+    const committedItems: AttachmentItem[] = [...(attachmentConfig.items ?? [])];
+    if (attQueryDraft.trim())
+      committedItems.push({ id: attachmentUid(), type: "query", name: attQueryDraft.trim() });
+    if (attFormulaDraft.trim())
+      committedItems.push({ id: attachmentUid(), type: "formula", name: attFormulaDraft.trim() });
+    const finalAttachmentConfig: AttachmentConfig = {
+      ...attachmentConfig,
+      items: committedItems,
+      type: committedItems.length === 0 ? "none" : (committedItems[0].type as "static"),
+    };
+    if (committedItems.length !== (attachmentConfig.items ?? []).length) {
+      setAttachmentConfig(finalAttachmentConfig);
+      setAttQueryDraft("");
+      setAttFormulaDraft("");
+    }
+    const finalAttachmentOption: AttachmentOption =
+      committedItems.length === 0
+        ? "None"
+        : /\.(xlsx|xls|csv)$/i.test(committedItems[0].name)
+          ? "Excel Export"
+          : "PDF";
+
+    // 2) CTA-specific hard gates.
+    if (cta === "Autofilled Help & Support Ticket" && (!ticketCategory || !ticketSubcategory)) {
+      toast.error("⚠️ Please complete required fields: Ticket Category & Subcategory");
+      return;
+    }
+    if (cta === "Direct Link" && !ctaModuleRoute) {
+      toast.error("⚠️ Please complete required fields: Target Portal Module Route");
+      return;
+    }
+
     const missing: string[] = [];
     if (!templateId) missing.push("Template ID");
     if (!mailOwner || !/@(grofers|zomato)\.com$/i.test(mailOwner))
@@ -773,11 +806,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (domain === "Other" && !customDomain.trim()) missing.push("Custom Domain Name");
     if (!subject) missing.push("Subject Line");
     if (!body) missing.push("Body Text");
-    if (attachmentConfig.type === "formula" && !(attachmentConfig.formulaSpec ?? "").trim())
-      missing.push("Formula Attachment Specification");
     if (!frequency) missing.push("Frequency");
     if (!scheduleDeadline) missing.push("Schedule Deadline");
-    if (cta === "Direct Link" && !ctaModuleRoute) missing.push("Target Portal Module Route");
     if (sentTo.includes("Targeted Vendor IDs (Upload File)") && !vendorListName)
       missing.push("Vendor ID list file");
     if (sentTo.includes("Targeted Manufacturer IDs (Upload File)") && !mfrListName)
@@ -794,6 +824,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       );
       return;
     }
+
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
