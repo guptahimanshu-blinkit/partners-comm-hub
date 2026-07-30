@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Monitor, Tablet, Smartphone, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ApolloEmailPreview } from "@/components/requests/ApolloEmailPreview";
 
@@ -78,6 +78,7 @@ export function TemplatePreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[min(1120px,95vw)] gap-0 overflow-hidden p-0 [&>button]:hidden">
+        <DialogTitle className="sr-only">Apollo template device preview</DialogTitle>
         {/* Top bar */}
         <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3">
           <div className="min-w-0">
