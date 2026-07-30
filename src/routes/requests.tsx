@@ -2163,6 +2163,9 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
   const [holdOpen, setHoldOpen] = useState(false);
   const [holdCats, setHoldCats] = useState<RejectionReasonCategory[]>([]);
   const [holdComments, setHoldComments] = useState("");
+  const [detailChannel, setDetailChannel] = useState<PreviewChannel>("email");
+  const [detailSample, setDetailSample] = useState(true);
+
 
   const toggleReason = (c: RejectionReasonCategory) =>
     setReasonCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
