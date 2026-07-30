@@ -869,11 +869,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Template ID" required>
-          <Input
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value)}
-            placeholder="Paste the Template ID copied from Apollo"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              placeholder="Paste the Template ID copied from Apollo"
+            />
+            <CheckTemplateButton templateId={templateId} />
+          </div>
           {apolloTemplate && (
             <div className="mt-3 space-y-2">
               <p className="text-[11px] text-muted-foreground">
@@ -903,8 +906,11 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             placeholder="Auto-fetched once a Template ID is entered"
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
-            ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above.
+            {templateId.trim()
+              ? `ℹ️ Auto-fetched from Apollo Service for Template ID: ${templateId.trim()}`
+              : "ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above."}
           </p>
+
         </FormRow>
         <FormRow label="Submitted By">
           <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
