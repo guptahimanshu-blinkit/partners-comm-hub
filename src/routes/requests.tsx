@@ -704,6 +704,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [domain, setDomain] = useState<DomainType | "Other" | "">("");
   const [customDomain, setCustomDomain] = useState("");
   const [actionRequired, setActionRequired] = useState<boolean | null>(null);
+  const [expectedActionType, setExpectedActionType] = useState("");
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
   });
@@ -779,14 +780,17 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (sentTo.includes("Targeted Manufacturer IDs (Upload File)") && !mfrListName)
       missing.push("Manufacturer ID list file");
 
+    const excelMatch = domain === "Other" ? null : lookupExcelActionRequired(subCategory, domain);
+    const resolvedActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
+    if (resolvedActionRequired && !expectedActionType.trim())
+      missing.push("Expected Action from Audience");
+
     if (missing.length > 0 || !inferred) {
       toast.error(
         `⚠️ Please complete the following required fields: ${missing.join(", ") || "Sub-Category and Domain"}`,
       );
       return;
     }
-    const excelMatch = domain === "Other" ? null : lookupExcelActionRequired(subCategory, domain);
-    const resolvedActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
@@ -825,6 +829,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       whatsapp: showWhatsApp ? { message: waMessage, frequency: waFreq, cta: waCta } : undefined,
       preflightChecks: preflight,
       actionRequired: resolvedActionRequired,
+      expectedActionType: resolvedActionRequired ? expectedActionType.trim() : undefined,
       status: "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
@@ -1100,6 +1105,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               domain={domain}
               actionRequired={actionRequired}
               onActionRequiredChange={setActionRequired}
+              expectedActionType={expectedActionType}
+              onExpectedActionTypeChange={setExpectedActionType}
             />
           </>
         )}
@@ -1385,15 +1392,20 @@ function InferredRulesPanel({
   domain,
   actionRequired,
   onActionRequiredChange,
+  expectedActionType,
+  onExpectedActionTypeChange,
 }: {
   rules: InferredRules;
   subCategory: string;
   domain: string;
   actionRequired: boolean | null;
   onActionRequiredChange: (v: boolean) => void;
+  expectedActionType: string;
+  onExpectedActionTypeChange: (v: string) => void;
 }) {
   const cfg = CATEGORY_CONFIG[rules.categoryId];
   const excelMatch = lookupExcelActionRequired(subCategory, domain);
+  const effectiveActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
 
   return (
     <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
@@ -1480,7 +1492,24 @@ function InferredRulesPanel({
           </p>
         </div>
       )}
+
+      {effectiveActionRequired && (
+        <div className="space-y-1.5 rounded-md border border-cat-red/40 bg-background p-3">
+          <Label className="text-xs font-medium">
+            Expected Action from Audience <span className="text-cat-red">*</span>
+          </Label>
+          <Input
+            value={expectedActionType}
+            onChange={(e) => onExpectedActionTypeChange(e.target.value)}
+            placeholder="e.g. Acknowledge PO cancellation, Reconcile statement, Upload missing GRN"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Specify the exact operational step required from the vendor or manufacturer.
+          </p>
+        </div>
+      )}
     </div>
+
   );
 }
 
@@ -2269,6 +2298,13 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
             label="Action Required from Vendor"
             value={actionRequiredYes ? "Yes" : "No"}
           />
+          {actionRequiredYes && (
+            <DetailField
+              label="Expected Vendor Action"
+              value={request.expectedActionType || "Action required — detail not specified"}
+              full
+            />
+          )}
           <DetailField label="Subject line" value={request.subject} full />
           {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
