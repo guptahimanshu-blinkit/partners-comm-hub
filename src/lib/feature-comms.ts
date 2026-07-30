@@ -253,3 +253,118 @@ export function unreadCountByTab(comms: FeatureComm[], tab: SidebarTab): number 
 export function totalUnread(comms: FeatureComm[]): number {
   return comms.filter((c) => !c.isRead).length;
 }
+
+/* -------- Excel master-sheet lookup (58 comms) -------- */
+
+/**
+ * Workdesk purposes → the Excel master-sheet sub-categories they cover.
+ * Used to answer "is an operational action required?" without asking the
+ * submitter when the comm already exists in the master sheet.
+ */
+const PURPOSE_TO_EXCEL_SUBCATS: Record<string, string[]> = {
+  Reports: [
+    "Fill Rate",
+    "LQI",
+    "Forecast",
+    "Sales Report",
+    "Score",
+    "Catalog Health",
+    "PO Snapshot",
+    "Adherence",
+  ],
+  Announcements: ["Advisory", "Welcome", "Reactivation", "Slot Availability", "PO Release", "PO Extension"],
+  "Defect Flow Communications": [
+    "PO Cancellation",
+    "PO Revision",
+    "RTV",
+    "Near Expiry PO",
+    "Appointment Cancellation",
+    "Missed Appointment",
+    "WH Closure",
+    "MDM Rejection",
+    "MDM Query",
+    "Image Rework",
+    "Invoice Rejected",
+    "Payment On Hold",
+    "TDS Dispute",
+    "Debit Note",
+  ],
+};
+
+export interface ExcelActionMatch {
+  actionRequired: boolean;
+  matchedCount: number;
+  sampleTitle: string;
+}
+
+/**
+ * Returns the master-sheet answer for a (purpose × domain) pair, or null when
+ * the combination is custom/unknown and the submitter must decide.
+ */
+export function lookupExcelActionRequired(
+  subCategory: string,
+  domain: string,
+): ExcelActionMatch | null {
+  const subcats = PURPOSE_TO_EXCEL_SUBCATS[subCategory];
+  if (!subcats) return null;
+  const matches = ALL_SEEDS.filter(
+    (s) => s.domain === domain && subcats.includes(s.subCategory),
+  );
+  if (matches.length === 0) return null;
+  const yes = matches.filter((m) => m.actionRequired).length;
+  return {
+    actionRequired: yes * 2 >= matches.length,
+    matchedCount: matches.length,
+    sampleTitle: matches[0].title,
+  };
+}
+
+/* -------- Live injection (Workdesk approval → PartnersBiz portal) -------- */
+
+const DOMAIN_TO_TAB: Record<FeatureDomain, SidebarTab> = {
+  "Operations & Appointments": "PO Summary",
+  "Finance & Payments": "Invoices",
+  "Assortment / MDM": "Assortment",
+  "Warehouse Ops": "Fees & Charges",
+  Monetization: "Report Requests",
+  "Product / Process Launch": "Admin",
+};
+
+export interface InjectedCommInput {
+  title: string;
+  description: string;
+  actionRequired: boolean;
+  domain: FeatureDomain;
+  subCategory: string;
+  category: FeatureCategory;
+  priority: FeaturePriority;
+  actionCta: string;
+  sidebarTab?: SidebarTab;
+  id?: string;
+}
+
+/** Appends a live notification to the vendor-facing portal store. */
+export function addFeatureComm(input: InjectedCommInput): FeatureComm {
+  hydrate();
+  const comm: FeatureComm = {
+    id: input.id ?? `FC-LIVE-${Date.now().toString(36).toUpperCase()}`,
+    title: input.title,
+    description: input.description,
+    actionRequired: input.actionRequired,
+    domain: input.domain,
+    subCategory: input.subCategory,
+    category: input.category,
+    sidebarTab: input.sidebarTab ?? DOMAIN_TO_TAB[input.domain] ?? "PO Summary",
+    isRead: false,
+    priority: input.priority,
+    actionCta: input.actionCta,
+    timestamp: new Date().toISOString(),
+  };
+  if (COMMS.some((c) => c.id === comm.id)) return comm;
+  setComms([comm, ...COMMS]);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("pbc_store_updated", { detail: comm }));
+  }
+  return comm;
+}
+
