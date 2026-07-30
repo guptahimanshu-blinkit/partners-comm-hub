@@ -845,7 +845,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       subject,
       body,
       inlineSqlChart: chartQuery || undefined,
-      formulaFlags: attachmentConfig.type === "formula" ? ["Formula Attachment"] : ["None"],
+      formulaFlags: committedItems.some((i) => i.type === "formula")
+        ? ["Formula Attachment"]
+        : ["None"],
       subCategory: subCategory as SubCategoryPurpose,
       customSubCategory: subCategory === "Other" ? customSubCategory.trim() : undefined,
       domain: domain as DomainType | "Other",
@@ -853,12 +855,15 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       customCategory: customCategory.trim() || undefined,
       categoryId: inferred.categoryId,
       priority: inferred.priority,
-      attachment: attachmentOption,
-      attachmentConfig,
+      attachment: finalAttachmentOption,
+      attachmentConfig: finalAttachmentConfig,
       cta,
       ctaDestination: cta === "Direct Link" ? ctaDest : undefined,
       ctaModuleRoute: cta === "Direct Link" ? ctaModuleRoute : undefined,
       ctaQueryParams: cta === "Direct Link" ? ctaQueryParams : undefined,
+      ticketCategory: cta === "Autofilled Help & Support Ticket" ? ticketCategory : undefined,
+      ticketSubcategory: cta === "Autofilled Help & Support Ticket" ? ticketSubcategory : undefined,
+
       frequency,
       scheduleDeadline,
       analystPoc: analyst,
