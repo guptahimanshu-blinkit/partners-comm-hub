@@ -1045,24 +1045,25 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               </SelectContent>
             </Select>
             {subCategory === "Other" && (
-              <>
-                <Textarea
-                  className="mt-2"
-                  value={subCategoryCustomText}
-                  onChange={(e) => setSubCategoryCustomText(e.target.value)}
-                  rows={2}
-                  placeholder="Describe the custom category"
+              <div className="mt-2 space-y-2">
+                <Label className="text-xs">
+                  Specify Custom Name<span className="ml-0.5 text-cat-red">*</span>
+                </Label>
+                <Input
+                  value={customSubCategory}
+                  onChange={(e) => setCustomSubCategory(e.target.value)}
+                  placeholder="e.g. Dark Store Replenishment Alerts"
                 />
-                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                <div className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
                   ⚠️ Custom Category — Requires Manual Governance Review
                 </div>
-              </>
+              </div>
             )}
           </FormRow>
           <FormRow label="Domain" required>
             <Select
               value={domain}
-              onValueChange={(v) => setDomain(v as DomainType)}
+              onValueChange={(v) => setDomain(v as DomainType | "Other")}
             >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Select domain" />
@@ -1073,8 +1074,32 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
                     {d}
                   </SelectItem>
                 ))}
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
+            {domain === "Other" && (
+              <div className="mt-2">
+                <Label className="text-xs">
+                  Specify Custom Name<span className="ml-0.5 text-cat-red">*</span>
+                </Label>
+                <Input
+                  value={customDomain}
+                  onChange={(e) => setCustomDomain(e.target.value)}
+                  placeholder="e.g. Quick Commerce Logistics"
+                />
+              </div>
+            )}
+          </FormRow>
+          <FormRow label="Category (override)">
+            <Input
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="Leave blank to use the system-inferred category"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Only fill this if the inferred category below does not describe
+              this communication. The approver reviews the custom name.
+            </p>
           </FormRow>
         </div>
 
