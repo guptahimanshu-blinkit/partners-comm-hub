@@ -874,11 +874,18 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             placeholder="Paste the Template ID copied from Apollo"
           />
         </FormRow>
-        <FormRow label="Template Name" required>
+        <FormRow label="Template Name">
           <Input
             value={templateName}
-            onChange={(e) => setTemplateName(e.target.value)}
+            readOnly
+            tabIndex={-1}
+            className="cursor-not-allowed bg-muted/60 text-muted-foreground"
+            placeholder="Auto-fetched once a Template ID is entered"
           />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            ℹ️ Will be auto-fetched from Apollo Service based on the Template ID
+            entered above.
+          </p>
         </FormRow>
         <FormRow label="Submitted By">
           <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
