@@ -72,13 +72,15 @@ export type DomainType =
 
 export type SequenceTier = "FYI" | "Standard" | "Critical";
 
-export type AttachmentSourceType = "none" | "static" | "query" | "s3";
+export type AttachmentSourceType = "none" | "static" | "query" | "s3" | "formula";
 
 export interface AttachmentConfig {
   type: AttachmentSourceType;
   queryKey?: string;
   s3Path?: string;
   fileName?: string;
+  /** Path or script reference for a dynamic formula-generated attachment. */
+  formulaSpec?: string;
 }
 
 export interface PreflightChecks {
