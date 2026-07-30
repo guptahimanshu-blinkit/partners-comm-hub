@@ -829,6 +829,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       whatsapp: showWhatsApp ? { message: waMessage, frequency: waFreq, cta: waCta } : undefined,
       preflightChecks: preflight,
       actionRequired: resolvedActionRequired,
+      expectedActionType: resolvedActionRequired ? expectedActionType.trim() : undefined,
       status: "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
@@ -1104,6 +1105,8 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
               domain={domain}
               actionRequired={actionRequired}
               onActionRequiredChange={setActionRequired}
+              expectedActionType={expectedActionType}
+              onExpectedActionTypeChange={setExpectedActionType}
             />
           </>
         )}
