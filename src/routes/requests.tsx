@@ -1905,7 +1905,79 @@ function SmartAttachment({
 }
 
 
+// ---------- Approver: multi-attachment inspection ----------
+function AttachmentInspectionCard({ items }: { items: AttachmentItem[] }) {
+  const [active, setActive] = useState<AttachmentItem | null>(null);
+
+  const typeLabel = (t: AttachmentItem["type"]) =>
+    t === "static" ? "Static Upload" : t === "query" ? "SQL Query Output" : "Dynamic Formula Spec";
+
+  const metadata = (item: AttachmentItem) => {
+    if (item.type === "query")
+      return `-- ${item.name}\nSELECT vendor_id, po_number, amount_due\nFROM finance.pending_rebates\nWHERE status = 'PENDING'\n  AND send_date = CURRENT_DATE;`;
+    if (item.type === "formula")
+      return `# ${item.name}\nsource: s3 formula runner\nexecution: send-time (T-15 min)\noutput: xlsx (per-vendor sliced)\nowner: comms-automation@grofers.com`;
+    return `file: ${item.name}\nsize: ${item.size ?? "412 KB"}\nuploaded_by: Himanshu Gupta\nchecksum: sha256:9f2c…a71b\nretention: 90 days`;
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Attachments &amp; Specifications ({items.length})
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-1 text-[13px] text-muted-foreground">No Attachments Configured</p>
+      ) : (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActive(item)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:border-primary hover:bg-primary/10"
+            >
+              <span>{ATTACHMENT_ICON[item.type]}</span>
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Attachment Inspection: {active?.name}</DialogTitle>
+            <DialogDescription>
+              {active ? `${typeLabel(active.type)} · ${active.name}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-cat-green/40 bg-cat-green-soft px-3 py-2 text-xs font-medium text-cat-green">
+              ✅ Security Cleared · No Malware Detected
+            </div>
+            <pre className="max-h-56 overflow-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-[11px] leading-relaxed">
+              {active ? metadata(active) : ""}
+            </pre>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() =>
+                toast.success(
+                  `Simulated download started — ${active?.name ?? "attachment"} (sandboxed preview)`,
+                )
+              }
+            >
+              Simulate Download / View Script
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ---------- Liquid variable pills ----------
+
 function extractLiquidVars(text: string): string[] {
   const out = new Set<string>();
   const re = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
