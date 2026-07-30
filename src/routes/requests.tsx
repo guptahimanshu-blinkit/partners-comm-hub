@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, useRef, type KeyboardEvent } from "react";
+import { Fragment, useMemo, useState, type KeyboardEvent } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   PlusCircle,
