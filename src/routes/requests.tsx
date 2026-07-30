@@ -2510,20 +2510,17 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
   }`;
   const ctaValue =
     request.cta === "Direct Link"
-      ? `${request.cta} → Route: ${request.ctaModuleRoute ?? "—"}`
-      : request.cta;
+      ? `Direct Link ➔ Route: ${request.ctaModuleRoute || "—"} | Query: ${request.ctaQueryParams || "None"}`
+      : request.cta === "Autofilled Help & Support Ticket"
+        ? `Autofilled Support Ticket ➔ Category: ${request.ticketCategory || "—"} | Subcategory: ${request.ticketSubcategory || "—"}`
+        : request.cta;
   const queryParamsValue = request.ctaQueryParams || "None";
   const attachmentValue =
     request.attachment && request.attachment !== "None" ? request.attachment : "No Attachment";
-  const attachmentSpecValue =
-    request.attachmentConfig?.formulaSpec ||
-    request.attachmentConfig?.s3Path ||
-    request.attachmentConfig?.queryKey ||
-    request.attachmentConfig?.fileName ||
-    (request.emailAttachmentsName && request.emailAttachmentsName !== "-"
-      ? request.emailAttachmentsName
-      : "Not applicable");
+  const attachmentItems: AttachmentItem[] =
+    normalizeAttachmentConfig(request.attachmentConfig).items ?? [];
   const actionRequiredYes = request.actionRequired === true;
+
 
   return (
     <div className="space-y-5">
