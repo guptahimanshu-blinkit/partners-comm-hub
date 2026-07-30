@@ -2418,6 +2418,12 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           </p>
         </div>
 
+        {(request.status === "Approved" || request.status === "Published") && (
+          <div className="mt-5">
+            <TemplateDeliverabilityCard templateId={request.templateId} />
+          </div>
+        )}
+
         {request.whatsapp && (
           <div className="mt-5">
             <WhatsAppBubble
