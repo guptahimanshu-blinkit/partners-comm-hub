@@ -19,6 +19,12 @@ import {
   PauseCircle,
 } from "lucide-react";
 import { lookupExcelActionRequired } from "@/lib/feature-comms";
+import { lookupApolloTemplate } from "@/lib/mock-data";
+import {
+  ApolloEmailPreview,
+  ApolloPreviewControls,
+  type PreviewChannel,
+} from "@/components/requests/ApolloEmailPreview";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -626,11 +632,11 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
 // ------- Form -------
 function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [templateId, setTemplateId] = useState("");
-  // Apollo Service auto-fetch simulation — derived from the Template ID.
-  const templateName = useMemo(
-    () => (templateId.trim() ? `Apollo Template · ${templateId.trim()}` : ""),
-    [templateId],
-  );
+  // Apollo Service auto-fetch simulation — the whole payload is fetched by Template ID.
+  const apolloTemplate = useMemo(() => lookupApolloTemplate(templateId), [templateId]);
+  const templateName = apolloTemplate?.templateName ?? "";
+  const [previewChannel, setPreviewChannel] = useState<PreviewChannel>("email");
+  const [previewSample, setPreviewSample] = useState(true);
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
   const [team, setTeam] = useState<string>("");
@@ -640,10 +646,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [sentTo, setSentTo] = useState<string[]>([]);
   const [vendorListName, setVendorListName] = useState("");
   const [mfrListName, setMfrListName] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState(
-    "Hi {{vendor_name}}, your PO {{po_number}} of {{amount_due}} is due on {{due_date}}.",
-  );
+  // Subject + body are auto-fetched from Apollo and are not editable here.
+  const subject = apolloTemplate?.subject ?? "";
+  const body = apolloTemplate?.bodyHtml ?? "";
   const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
   const [customSubCategory, setCustomSubCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -667,42 +672,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [waCta, setWaCta] = useState("");
   const [waMetaId, setWaMetaId] = useState("");
   const [audienceCount, setAudienceCount] = useState(450);
-  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
-  const [customVarInput, setCustomVarInput] = useState("");
-  const [customVariables, setCustomVariables] = useState<string[]>([]);
-
-  const sanitizeVarName = (raw: string) =>
-    raw
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_]/g, "_")
-      .replace(/_+/g, "_")
-      .replace(/^_|_$/g, "");
-
-  const insertAtCursor = (token: string) => {
-    const el = bodyRef.current;
-    if (!el) {
-      setBody((prev) => prev + token);
-      return;
-    }
-    const start = el.selectionStart ?? body.length;
-    const end = el.selectionEnd ?? body.length;
-    const next = body.slice(0, start) + token + body.slice(end);
-    setBody(next);
-    requestAnimationFrame(() => {
-      const pos = start + token.length;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
-  };
-
-  const addCustomVariable = () => {
-    const clean = sanitizeVarName(customVarInput);
-    if (!clean) return;
-    insertAtCursor(`{{${clean}}}`);
-    setCustomVariables((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
-    setCustomVarInput("");
-  };
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
@@ -839,7 +808,26 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setTemplateId(e.target.value)}
             placeholder="Paste the Template ID copied from Apollo"
           />
+          {apolloTemplate && (
+            <div className="mt-3 space-y-2">
+              <p className="text-[11px] text-muted-foreground">
+                ℹ️ Live template design auto-fetched from Apollo Service
+              </p>
+              <ApolloPreviewControls
+                channel={previewChannel}
+                onChannelChange={setPreviewChannel}
+                sampleDataEnabled={previewSample}
+                onSampleDataChange={setPreviewSample}
+              />
+              <ApolloEmailPreview
+                templateId={templateId}
+                sampleDataEnabled={previewSample}
+                selectedChannel={previewChannel}
+              />
+            </div>
+          )}
         </FormRow>
+
         <FormRow label="Template Name">
           <Input
             value={templateName}
@@ -1074,77 +1062,24 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         )}
       </section>
 
-      {/* Template Editor with liquid variables + triple preview */}
+      {/* Apollo auto-fetched template — read only */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <div>
-          <h3 className="text-sm font-semibold">Template Editor</h3>
+          <h3 className="text-sm font-semibold">Template Design (Auto-fetched)</h3>
           <p className="text-xs text-muted-foreground">
-            Use Liquid variables like{" "}
-            <code className="rounded bg-muted px-1">{"{{vendor_name}}"}</code> — detected variables
-            highlight below.
+            Content and design are authored in Apollo. Enter the Template ID above to load the live
+            design — nothing is editable here.
           </p>
         </div>
         <FormRow label="Subject line" required>
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Input
+            value={subject}
+            readOnly
+            tabIndex={-1}
+            className="cursor-not-allowed bg-muted/60 text-muted-foreground"
+            placeholder="Auto-fetched once a Template ID is entered"
+          />
           <LiquidVarPills text={subject} />
-        </FormRow>
-        <FormRow label="Body">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-2">
-              <Input
-                value={customVarInput}
-                onChange={(e) => setCustomVarInput(e.target.value)}
-                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addCustomVariable();
-                  }
-                }}
-                placeholder="Type variable name..."
-                className="h-8 max-w-[240px] text-xs"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={addCustomVariable}
-                disabled={!sanitizeVarName(customVarInput)}
-                className="h-8"
-              >
-                + Add Variable
-              </Button>
-              {customVarInput && (
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  →{" "}
-                  <code className="rounded bg-background px-1">{`{{${sanitizeVarName(customVarInput) || "…"}}}`}</code>
-                </span>
-              )}
-              {customVariables.length > 0 && (
-                <div className="flex w-full flex-wrap items-center gap-1 border-t border-border/60 pt-2">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Quick insert
-                  </span>
-                  {customVariables.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => insertAtCursor(`{{${v}}}`)}
-                      className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-amber-700 hover:bg-amber-500/25"
-                    >
-                      {`{{${v}}}`}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Textarea
-              ref={bodyRef}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={5}
-            />
-            <LiquidVarPills text={body} />
-          </div>
         </FormRow>
         <FormRow label="Inline SQL Chart binding (optional)">
           <Input
@@ -1154,13 +1089,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           />
           {chartQuery && <InlineSqlChartPreview label={chartQuery} />}
         </FormRow>
-
-        <TriplePreviewPane
-          subject={subject}
-          body={body}
-          waMessage={waMessage || body.slice(0, 300)}
-          templateId={templateId || "PMT-04"}
-        />
       </section>
 
       {/* Smart attachment + CTA + Frequency */}
@@ -1691,96 +1619,6 @@ function InlineSqlChartPreview({ label }: { label: string }) {
   );
 }
 
-// ---------- Triple preview pane ----------
-function TriplePreviewPane({
-  subject,
-  body,
-  waMessage,
-  templateId,
-}: {
-  subject: string;
-  body: string;
-  waMessage: string;
-  templateId: string;
-}) {
-  const [tab, setTab] = useState<"email" | "whatsapp" | "dashboard">("email");
-  const [sample, setSample] = useState(true);
-  const s = (t: string) => (sample ? fillSample(t) : t);
-
-  return (
-    <div className="rounded-lg border border-border bg-muted/20 p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1">
-          {(["email", "whatsapp", "dashboard"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setTab(k)}
-              className={cn(
-                "rounded-md px-3 py-1 text-xs font-medium capitalize",
-                tab === k
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              {k === "email" ? "Email" : k === "whatsapp" ? "WhatsApp" : "PartnersBiz Dashboard"}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={sample}
-            onChange={(e) => setSample(e.target.checked)}
-            className="h-3.5 w-3.5"
-          />
-          Toggle Sample Data
-        </label>
-      </div>
-
-      {tab === "email" && (
-        <div className="mx-auto max-w-lg rounded-md border border-border bg-background p-4 text-sm shadow-sm">
-          <div className="border-b border-border pb-2">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Subject
-            </div>
-            <div className="font-semibold">
-              {s(subject) || <span className="text-muted-foreground">(empty)</span>}
-            </div>
-          </div>
-          <p className="whitespace-pre-wrap pt-3 text-[13px] leading-relaxed">
-            {s(body) || <span className="text-muted-foreground">(empty)</span>}
-          </p>
-        </div>
-      )}
-
-      {tab === "whatsapp" && (
-        <div className="mx-auto max-w-md rounded-2xl bg-[#ECE5DD] p-3">
-          <div className="ml-auto max-w-full space-y-1 rounded-2xl rounded-tr-sm bg-[#DCF8C6] p-3 shadow-sm">
-            <div className="text-[10px] font-semibold text-[#075E54]">#{templateId}</div>
-            <p className="whitespace-pre-wrap text-[13px] leading-snug text-[#111]">
-              {s(waMessage) || <span className="text-muted-foreground">(empty)</span>}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {tab === "dashboard" && (
-        <div className="mx-auto max-w-md rounded-lg border border-border bg-background p-4 shadow-sm">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-primary" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              PartnersBiz Notification
-            </span>
-          </div>
-          <div className="text-sm font-semibold">{s(subject) || "(empty)"}</div>
-          <p className="mt-1 text-[12px] text-muted-foreground line-clamp-2">{s(body)}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ---------- Real-time active governance interception ----------
 function GovernanceInterception({
   audienceCount,
@@ -2232,6 +2070,8 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
   const [holdOpen, setHoldOpen] = useState(false);
   const [holdCats, setHoldCats] = useState<RejectionReasonCategory[]>([]);
   const [holdComments, setHoldComments] = useState("");
+  const [detailChannel, setDetailChannel] = useState<PreviewChannel>("email");
+  const [detailSample, setDetailSample] = useState(true);
 
   const toggleReason = (c: RejectionReasonCategory) =>
     setReasonCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -2392,23 +2232,26 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">{purposeValue}</p>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Liquid Template Body
-            </div>
-            <pre className="mt-1 whitespace-pre-wrap font-mono text-[12px] leading-relaxed">
-              {request.body || "—"}
-            </pre>
+        <div className="mt-3 space-y-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Apollo Template Preview
           </div>
-          <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Sample Data Preview
-            </div>
-            <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed">
-              {fillSample(request.body || "")}
-            </p>
-          </div>
+          <p className="text-[11px] text-muted-foreground">
+            ℹ️ Live template design auto-fetched from Apollo Service
+          </p>
+          <ApolloPreviewControls
+            channel={detailChannel}
+            onChannelChange={setDetailChannel}
+            sampleDataEnabled={detailSample}
+            onSampleDataChange={setDetailSample}
+          />
+          <ApolloEmailPreview
+            templateId={request.templateId}
+            subject={request.subject}
+            bodyHtml={request.body}
+            sampleDataEnabled={detailSample}
+            selectedChannel={detailChannel}
+          />
         </div>
 
         <div className="mt-5">
