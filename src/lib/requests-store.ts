@@ -232,6 +232,10 @@ export interface TemplateRequest {
   ctaDestination?: string;
   ctaModuleRoute?: string;
   ctaQueryParams?: string;
+  /** Support-ticket taxonomy bound to the "Autofilled Help & Support Ticket" CTA. */
+  ticketCategory?: string;
+  ticketSubcategory?: string;
+
   frequency: FrequencyOption;
   scheduleDeadline: string;
   analystPoc: string;
