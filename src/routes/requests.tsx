@@ -646,10 +646,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [sentTo, setSentTo] = useState<string[]>([]);
   const [vendorListName, setVendorListName] = useState("");
   const [mfrListName, setMfrListName] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState(
-    "Hi {{vendor_name}}, your PO {{po_number}} of {{amount_due}} is due on {{due_date}}.",
-  );
+  // Subject + body are auto-fetched from Apollo and are not editable here.
+  const subject = apolloTemplate?.subject ?? "";
+  const body = apolloTemplate?.bodyHtml ?? "";
   const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
   const [customSubCategory, setCustomSubCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
