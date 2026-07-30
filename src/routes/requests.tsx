@@ -1017,15 +1017,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           );
         })()}
 
-        <FormRow label="Does this include any formula generated attachment or table in mail body">
-          <MultiSelect
-            options={FORMULA_OPTIONS}
-            values={formulaFlags}
-            onChange={setFormulaFlags}
-            max={2}
-            placeholder="Pick options"
-          />
-        </FormRow>
       </section>
 
       {/* Comms Categorization - Inference engine */}
