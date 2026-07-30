@@ -686,8 +686,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   // Apollo Service auto-fetch simulation — the whole payload is fetched by Template ID.
   const apolloTemplate = useMemo(() => lookupApolloTemplate(templateId), [templateId]);
   const templateName = apolloTemplate?.templateName ?? "";
-  const [previewChannel, setPreviewChannel] = useState<PreviewChannel>("email");
-  const [previewSample, setPreviewSample] = useState(true);
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
   const [team, setTeam] = useState<string>("");
@@ -2230,6 +2228,8 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
                 templateId={request.templateId}
                 variant="default"
                 label="Check Template & Device Preview"
+                subject={request.subject}
+                bodyHtml={request.body}
               />
             </div>
           </div>
