@@ -2418,7 +2418,7 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           </p>
         </div>
 
-        {(request.status === "Approved" || request.status === "Published") && (
+        {request.status === "Approved" && (
           <div className="mt-5">
             <TemplateDeliverabilityCard templateId={request.templateId} />
           </div>
