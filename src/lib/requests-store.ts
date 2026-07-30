@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CategoryId } from "./mock-data";
-import {
-  addFeatureComm,
-  type FeatureCategory,
-  type FeatureDomain,
-} from "./feature-comms";
+import { addFeatureComm, type FeatureCategory, type FeatureDomain } from "./feature-comms";
 
 export type RequestStatus =
   | "Pending"
@@ -72,13 +68,15 @@ export type DomainType =
 
 export type SequenceTier = "FYI" | "Standard" | "Critical";
 
-export type AttachmentSourceType = "none" | "static" | "query" | "s3";
+export type AttachmentSourceType = "none" | "static" | "query" | "s3" | "formula";
 
 export interface AttachmentConfig {
   type: AttachmentSourceType;
   queryKey?: string;
   s3Path?: string;
   fileName?: string;
+  /** Path or script reference for a dynamic formula-generated attachment. */
+  formulaSpec?: string;
 }
 
 export interface PreflightChecks {
@@ -128,9 +126,7 @@ export function inferCategoryRules(
     };
   }
 
-  const isActionable =
-    subCategory === "Defect Flow Communications" ||
-    subCategory === "Campaigns";
+  const isActionable = subCategory === "Defect Flow Communications" || subCategory === "Campaigns";
 
   if (isActionable) {
     const categoryId: CategoryId =
@@ -145,8 +141,7 @@ export function inferCategoryRules(
     };
   }
 
-  const categoryId: CategoryId =
-    subCategory === "Reports" ? "reports_analytics" : "daily_ops";
+  const categoryId: CategoryId = subCategory === "Reports" ? "reports_analytics" : "daily_ops";
   return {
     categoryId,
     priority: "P3",
@@ -172,6 +167,8 @@ export interface TemplateRequest {
   mailOwner: string;
   approvalCcEmails?: string[];
   team: string;
+  /** Free-text team name when `team === 'Other'`. */
+  customTeam?: string;
   purpose: string;
   purposeCustomText?: string;
   sentTo: string[];
@@ -184,7 +181,13 @@ export interface TemplateRequest {
   formulaFlags: string[];
   subCategory?: SubCategoryPurpose;
   subCategoryCustomText?: string;
-  domain?: DomainType;
+  /** Free-text sub-category when `subCategory === 'Other'`. */
+  customSubCategory?: string;
+  domain?: DomainType | "Other";
+  /** Free-text domain when `domain === 'Other'`. */
+  customDomain?: string;
+  /** Free-text category override when the inferred category is not applicable. */
+  customCategory?: string;
   commType?: CommTypeOption;
   categoryId: CategoryId;
   priority: PriorityLevel;
@@ -294,13 +297,11 @@ function hydrateStoreFromStorage(force = false) {
 }
 
 let REQUESTS: TemplateRequest[] = g.__PB_REQUESTS ?? (g.__PB_REQUESTS = seed());
-const listeners: Set<() => void> =
-  g.__PB_REQ_LISTENERS ?? (g.__PB_REQ_LISTENERS = new Set());
+const listeners: Set<() => void> = g.__PB_REQ_LISTENERS ?? (g.__PB_REQ_LISTENERS = new Set());
 
 function emit() {
   listeners.forEach((l) => l());
 }
-
 
 export function getRequests(): TemplateRequest[] {
   hydrateStoreFromStorage();
@@ -361,19 +362,13 @@ export function approveRequest(id: string) {
   const target = REQUESTS.find((r) => r.id === id);
   setRequests(
     REQUESTS.map((r) =>
-      r.id === id
-        ? { ...r, status: "Approved" as const, approvedAt: nowStamp() }
-        : r,
+      r.id === id ? { ...r, status: "Approved" as const, approvedAt: nowStamp() } : r,
     ),
   );
   if (target) injectApprovedRequestNotification(target);
 }
 
-export function rejectRequest(
-  id: string,
-  categories: RejectionReasonCategory[],
-  comments: string,
-) {
+export function rejectRequest(id: string, categories: RejectionReasonCategory[], comments: string) {
   hydrateStoreFromStorage();
   setRequests(
     REQUESTS.map((r) =>
@@ -390,11 +385,7 @@ export function rejectRequest(
   );
 }
 
-export function holdRequest(
-  id: string,
-  categories: RejectionReasonCategory[],
-  comments: string,
-) {
+export function holdRequest(id: string, categories: RejectionReasonCategory[], comments: string) {
   hydrateStoreFromStorage();
   setRequests(
     REQUESTS.map((r) =>
@@ -410,7 +401,6 @@ export function holdRequest(
     ),
   );
 }
-
 
 export function useRequests(): TemplateRequest[] {
   const [, setTick] = useState(0);
@@ -444,14 +434,11 @@ export interface PublishLog {
   flaggedAt?: string;
 }
 
-let PUBLISH_LOGS: PublishLog[] =
-  g.__PB_PUBLISH_LOGS ?? (g.__PB_PUBLISH_LOGS = seedPublishLogs());
-const logListeners: Set<() => void> =
-  g.__PB_LOG_LISTENERS ?? (g.__PB_LOG_LISTENERS = new Set());
+let PUBLISH_LOGS: PublishLog[] = g.__PB_PUBLISH_LOGS ?? (g.__PB_PUBLISH_LOGS = seedPublishLogs());
+const logListeners: Set<() => void> = g.__PB_LOG_LISTENERS ?? (g.__PB_LOG_LISTENERS = new Set());
 function emitLogs() {
   logListeners.forEach((l) => l());
 }
-
 
 export function getPublishLogs(): PublishLog[] {
   hydrateStoreFromStorage();
@@ -474,9 +461,7 @@ export function acknowledgeLog(id: string) {
   hydrateStoreFromStorage();
   const log = PUBLISH_LOGS.find((l) => l.id === id);
   setPublishLogs(
-    PUBLISH_LOGS.map((l) =>
-      l.id === id ? { ...l, status: "Acknowledged" as const } : l,
-    ),
+    PUBLISH_LOGS.map((l) => (l.id === id ? { ...l, status: "Acknowledged" as const } : l)),
   );
   if (log) {
     const req = REQUESTS.find((r) => r.id === log.requestId);
@@ -487,12 +472,7 @@ export function acknowledgeLog(id: string) {
   }
 }
 
-
-export function flagLog(
-  id: string,
-  reason: string,
-  category: RejectionCategory,
-) {
+export function flagLog(id: string, reason: string, category: RejectionCategory) {
   hydrateStoreFromStorage();
   const log = PUBLISH_LOGS.find((l) => l.id === id);
   setPublishLogs(
@@ -524,7 +504,6 @@ export function flagLog(
     );
   }
 }
-
 
 export function usePublishLogs(): PublishLog[] {
   const [, setTick] = useState(0);
@@ -561,11 +540,7 @@ export interface VendorActionTelemetry {
   templateName: string;
   campaignId: string;
   poInvoiceNo: string;
-  actionType:
-    | "Acknowledged & Stopped"
-    | "Reconciled Statement"
-    | "Disputed"
-    | "Snoozed";
+  actionType: "Acknowledged & Stopped" | "Reconciled Statement" | "Disputed" | "Snoozed";
   statusTransition: string;
   clearedRiskFlag: string;
   channel: "PartnersBiz Portal" | "Email" | "WhatsApp";
@@ -760,9 +735,6 @@ export function useVendorTelemetry(): VendorActionTelemetry[] {
   return VENDOR_TELEMETRY;
 }
 
-
-
-
 function seedPublishLogs(): PublishLog[] {
   return [
     {
@@ -797,8 +769,7 @@ function seedPublishLogs(): PublishLog[] {
       submitterName: "Priya Nair",
       publishedAt: iso(2400),
       status: "Flagged",
-      flagReason:
-        "Overlaps with the daily PO reminder already going out — please consolidate.",
+      flagReason: "Overlaps with the daily PO reminder already going out — please consolidate.",
       flagCategory: "Clubbing Conflict",
       flaggedAt: "14 Jul 2026, 11:20 AM",
     },
@@ -866,16 +837,12 @@ function remindersFor(priority: PriorityLevel): number {
   return priority === "P1" ? 2 : priority === "P2" ? 1 : 0;
 }
 
-function computeCampaignStatus(
-  isOnce: boolean,
-  scheduledFor: string,
-): CampaignStatus {
+function computeCampaignStatus(isOnce: boolean, scheduledFor: string): CampaignStatus {
   if (!isOnce) return "Running";
   const parsed = Date.parse(scheduledFor.replace(",", ""));
   if (Number.isNaN(parsed)) return "Scheduled";
   return parsed <= Date.now() ? "Running" : "Scheduled";
 }
-
 
 export function deriveCampaign(
   req: TemplateRequest,
@@ -919,8 +886,7 @@ export function deriveCampaign(
   };
 }
 
-let CAMPAIGNS: Campaign[] =
-  g.__PB_CAMPAIGNS ?? (g.__PB_CAMPAIGNS = seedCampaigns());
+let CAMPAIGNS: Campaign[] = g.__PB_CAMPAIGNS ?? (g.__PB_CAMPAIGNS = seedCampaigns());
 const campaignListeners: Set<() => void> =
   g.__PB_CMP_LISTENERS ?? (g.__PB_CMP_LISTENERS = new Set());
 function emitCampaigns() {
@@ -932,7 +898,6 @@ function setCampaigns(next: Campaign[]) {
   writeStoredArray(STORAGE_KEYS.campaigns, next);
   emitCampaigns();
 }
-
 
 export function getCampaigns(): Campaign[] {
   hydrateStoreFromStorage();
@@ -977,7 +942,6 @@ export function incrementCampaignGoal(id: string, delta = 1) {
   setCampaigns(next);
 }
 
-
 export function useCampaigns(): Campaign[] {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -1011,8 +975,7 @@ function seedCampaigns(): Campaign[] {
     name: "Appointment Slot Confirmation — South",
     categoryId: "daily_ops",
     priority: "P2",
-    purpose:
-      "Confirm booked inbound appointment slots for South zone vendors each morning.",
+    purpose: "Confirm booked inbound appointment slots for South zone vendors each morning.",
     commType: "High frequency",
     channels: ["Email", "Dashboard"],
     segment: "Tech Enabled Vendors",
@@ -1040,8 +1003,7 @@ function seedCampaigns(): Campaign[] {
     name: "GST Filing Reminder — Q2",
     categoryId: "reminders",
     priority: "P2",
-    purpose:
-      "Remind vendors about the upcoming Q2 GST filing deadline via email and WhatsApp.",
+    purpose: "Remind vendors about the upcoming Q2 GST filing deadline via email and WhatsApp.",
     commType: "Pre emptive",
     channels: ["Email", "WhatsApp", "Dashboard"],
     segment: "All vendors",
@@ -1062,8 +1024,7 @@ function seedCampaigns(): Campaign[] {
     submitterName: "Nikhil Rao",
     requestApprovedAt: "17 Jul 2026, 01:10 PM",
     publishedAt: iso(720),
-    failureNote:
-      "3 WhatsApp deliveries bounced (invalid numbers). Retry queued.",
+    failureNote: "3 WhatsApp deliveries bounced (invalid numbers). Retry queued.",
   });
 
   list.push({
@@ -1073,8 +1034,7 @@ function seedCampaigns(): Campaign[] {
     name: "Weekend Store Closure Alert",
     categoryId: "daily_ops",
     priority: "P2",
-    purpose:
-      "One-off WhatsApp alert to Low Tech vendors about weekend DC closure windows.",
+    purpose: "One-off WhatsApp alert to Low Tech vendors about weekend DC closure windows.",
     commType: "High frequency",
     channels: ["WhatsApp"],
     segment: "Low Tech Vendors",
@@ -1144,10 +1104,8 @@ export interface ActionItem {
   attachmentName?: string;
 }
 
-let ACTIONS: ActionItem[] =
-  g.__PB_ACTIONS ?? (g.__PB_ACTIONS = seedActionItems());
-const actionListeners: Set<() => void> =
-  g.__PB_ACT_LISTENERS ?? (g.__PB_ACT_LISTENERS = new Set());
+let ACTIONS: ActionItem[] = g.__PB_ACTIONS ?? (g.__PB_ACTIONS = seedActionItems());
+const actionListeners: Set<() => void> = g.__PB_ACT_LISTENERS ?? (g.__PB_ACT_LISTENERS = new Set());
 function emitActions() {
   actionListeners.forEach((l) => l());
 }
@@ -1176,20 +1134,11 @@ export function useActionItems(): ActionItem[] {
   return ACTIONS;
 }
 
-export function resolveActionItem(
-  id: string,
-  action: "accept" | "dispute" | "snooze",
-): void {
+export function resolveActionItem(id: string, action: "accept" | "dispute" | "snooze"): void {
   hydrateStoreFromStorage();
   const nextStatus: ActionItemStatus =
-    action === "accept"
-      ? "accepted"
-      : action === "dispute"
-        ? "disputed"
-        : "snoozed";
-  setActions(
-    ACTIONS.map((a) => (a.id === id ? { ...a, status: nextStatus } : a)),
-  );
+    action === "accept" ? "accepted" : action === "dispute" ? "disputed" : "snoozed";
+  setActions(ACTIONS.map((a) => (a.id === id ? { ...a, status: nextStatus } : a)));
 }
 
 function seedActionItems(): ActionItem[] {
@@ -1292,7 +1241,6 @@ function seedActionItems(): ActionItem[] {
     },
   ];
 }
-
 
 export function nowStamp(): string {
   const d = new Date();
@@ -1419,15 +1367,13 @@ function seed(): TemplateRequest[] {
       team: "Finance",
       analystPoc: "analyst@grofers.com",
       scheduleDeadline: "2026-08-15T09:30",
-      purpose:
-        "Notify vendors when payment is placed on hold due to invoice mismatch.",
+      purpose: "Notify vendors when payment is placed on hold due to invoice mismatch.",
       sentTo: ["Tech Enabled Vendors"],
       emailAttachmentsName: "invoice_ref.pdf",
       vendorListName: "vendors_finance.csv",
       manufacturerListName: "mfrs_finance.csv",
       subject: "Action needed: Payment on hold for {{po_number}}",
-      body:
-        "Hi {{vendor_name}}, invoice against {{po_number}} of {{amount_due}} is on hold pending debit-note reconciliation. Please respond by {{due_date}} to release payment.",
+      body: "Hi {{vendor_name}}, invoice against {{po_number}} of {{amount_due}} is on hold pending debit-note reconciliation. Please respond by {{due_date}} to release payment.",
       inlineSqlChart: "invoice_hold_ageing_by_vendor.sql",
       formulaFlags: ["None"],
       subCategory: "Defect Flow Communications",
@@ -1531,8 +1477,7 @@ function seed(): TemplateRequest[] {
       vendorListName: "vendors_north.csv",
       manufacturerListName: "-",
       subject: "Your weekly fill rate digest — {{vendor_name}}",
-      body:
-        "Hi {{vendor_name}}, your weekly fill rate scorecard is attached. Trend chart below highlights top defect SKUs. Review by {{due_date}}.",
+      body: "Hi {{vendor_name}}, your weekly fill rate scorecard is attached. Trend chart below highlights top defect SKUs. Review by {{due_date}}.",
       inlineSqlChart: "fill_rate_trend_by_vendor.sql",
       formulaFlags: ["Formula Attachment"],
       subCategory: "Reports",
@@ -1603,8 +1548,7 @@ const sg = globalThis as unknown as SyncGlobal;
 
 const SYNC_STORAGE_KEY = "pbcc_synced_notifs_v1";
 
-let SYNCED_NOTIFS: AppNotification[] =
-  sg.__PB_SYNC_NOTIFS ?? (sg.__PB_SYNC_NOTIFS = []);
+let SYNCED_NOTIFS: AppNotification[] = sg.__PB_SYNC_NOTIFS ?? (sg.__PB_SYNC_NOTIFS = []);
 const syncListeners: Set<() => void> =
   sg.__PB_SYNC_LISTENERS ?? (sg.__PB_SYNC_LISTENERS = new Set());
 
@@ -1670,9 +1614,10 @@ export function syncCampaignToNotifications(c: Campaign): AppNotification | null
     timestamp: nowShortStamp(),
     relativeTime: nowRelative(),
     priority: c.priority,
-    cta: c.categoryId === "action_required" || c.categoryId === "finance_payments"
-      ? "view_details"
-      : "view_details",
+    cta:
+      c.categoryId === "action_required" || c.categoryId === "finance_payments"
+        ? "view_details"
+        : "view_details",
     read: false,
     expired: false,
     audience,
@@ -1787,9 +1732,7 @@ export function acknowledgeVendorNotification(
   // Mark the synced notification as read (if present in the sync feed).
   const idx = SYNCED_NOTIFS.findIndex((n) => n.id === notification.id);
   if (idx >= 0) {
-    SYNCED_NOTIFS = SYNCED_NOTIFS.map((n) =>
-      n.id === notification.id ? { ...n, read: true } : n,
-    );
+    SYNCED_NOTIFS = SYNCED_NOTIFS.map((n) => (n.id === notification.id ? { ...n, read: true } : n));
     sg.__PB_SYNC_NOTIFS = SYNCED_NOTIFS;
     persistSync();
     emitSync();
@@ -1817,12 +1760,7 @@ function attachmentFromConfig(
   fallbackName?: string,
 ): NotificationAttachment | undefined {
   if (!cfg || cfg.type === "none") return undefined;
-  const name =
-    cfg.fileName ||
-    cfg.queryKey ||
-    cfg.s3Path ||
-    fallbackName ||
-    "attachment.pdf";
+  const name = cfg.fileName || cfg.queryKey || cfg.s3Path || fallbackName || "attachment.pdf";
   const lower = name.toLowerCase();
   const type: AttachmentType =
     lower.endsWith(".xlsx") || lower.endsWith(".xls") || lower.endsWith(".csv")
@@ -1842,10 +1780,7 @@ export function syncPublishToNotifications(
   if (SYNCED_NOTIFS.some((n) => n.id === id)) return null;
 
   const audience = categoryToAudience(req.categoryId);
-  const attachment = attachmentFromConfig(
-    req.attachmentConfig,
-    req.emailAttachmentsName,
-  );
+  const attachment = attachmentFromConfig(req.attachmentConfig, req.emailAttachmentsName);
 
   const notif: AppNotification = {
     id,
@@ -1861,10 +1796,7 @@ export function syncPublishToNotifications(
     timestamp: nowShortStamp(),
     relativeTime: nowRelative(),
     priority: req.priority,
-    cta:
-      req.cta === "Autofilled Help & Support Ticket"
-        ? "raise_ticket"
-        : "view_details",
+    cta: req.cta === "Autofilled Help & Support Ticket" ? "raise_ticket" : "view_details",
     read: false,
     expired: false,
     audience,
@@ -1873,9 +1805,7 @@ export function syncPublishToNotifications(
       { label: "Segment", value: log.segment },
       { label: "Scheduled for", value: log.scheduledFor },
       { label: "Submitter", value: log.submitterName },
-      ...(req.inlineSqlChart
-        ? [{ label: "Inline chart", value: req.inlineSqlChart }]
-        : []),
+      ...(req.inlineSqlChart ? [{ label: "Inline chart", value: req.inlineSqlChart }] : []),
     ],
     attachment,
     linkedTemplateId: req.templateId,
@@ -1888,4 +1818,3 @@ export function syncPublishToNotifications(
   emitSync();
   return notif;
 }
-
