@@ -217,6 +217,8 @@ export interface TemplateRequest {
   holdComments?: string;
   /** Operational action expected from the vendor/manufacturer. */
   actionRequired?: boolean;
+  /** Exact operational step expected from the audience when actionRequired is true. */
+  expectedActionType?: string;
 }
 
 // HMR-safe singletons: keep state on globalThis so hot reloads and any

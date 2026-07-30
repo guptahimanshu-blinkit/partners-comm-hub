@@ -704,6 +704,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [domain, setDomain] = useState<DomainType | "Other" | "">("");
   const [customDomain, setCustomDomain] = useState("");
   const [actionRequired, setActionRequired] = useState<boolean | null>(null);
+  const [expectedActionType, setExpectedActionType] = useState("");
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
   });
