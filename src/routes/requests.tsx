@@ -79,6 +79,8 @@ import {
   isValidEmail,
   inferCategoryRules,
   REJECTION_REASON_CATEGORIES,
+  normalizeAttachmentConfig,
+
   type InferredRules,
   type SubCategoryPurpose,
   type DomainType,
