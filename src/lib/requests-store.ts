@@ -1810,8 +1810,9 @@ function attachmentFromConfig(
   cfg?: AttachmentConfig,
   fallbackName?: string,
 ): NotificationAttachment | undefined {
-  if (!cfg || cfg.type === "none") return undefined;
-  const first = (cfg.items ?? [])[0]?.name;
+  const first = (cfg?.items ?? [])[0]?.name;
+  if (!cfg || (cfg.type === "none" && !first)) return undefined;
+
   const name =
     first || cfg.fileName || cfg.queryKey || cfg.s3Path || fallbackName || "attachment.pdf";
 
