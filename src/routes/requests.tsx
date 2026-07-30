@@ -969,31 +969,17 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             Must end in @grofers.com or @zomato.com.
           </p>
         </FormRow>
-        <FormRow label="Purpose of the mailer" required>
-          <Select value={purpose} onValueChange={setPurpose}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select purpose" />
-            </SelectTrigger>
-            <SelectContent>
-              {PURPOSE_OPTIONS.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="mt-1 text-[11px] italic text-muted-foreground">
-            (Note: Preset purpose options are pending confirmation from Category Team. Current options shown for layout demonstration.)
-          </p>
-          {purpose === "Other / Custom Purpose" && (
-            <Textarea
-              className="mt-2"
-              value={purposeCustomText}
-              onChange={(e) => setPurposeCustomText(e.target.value)}
-              rows={3}
-              placeholder="Describe the custom purpose"
-            />
-          )}
+        <FormRow label="Purpose of Mail" required>
+          <Textarea
+            value={purpose}
+            onChange={(e) => setPurpose(e.target.value.slice(0, 1000))}
+            rows={4}
+            maxLength={1000}
+            placeholder="Describe in your own words why this communication is being sent, what the vendor should understand from it, and any business context the approver needs."
+          />
+          <div className="mt-1 text-right text-[11px] text-muted-foreground">
+            {purpose.length}/1000 characters
+          </div>
         </FormRow>
         <FormRow label="Mail will be sent to" required>
           <MultiSelect
