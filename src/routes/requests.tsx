@@ -747,19 +747,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   };
 
   const attachmentOption: AttachmentOption = useMemo(() => {
-    if (attachmentConfig.type === "none") return "None";
-    const name = (
-      attachmentConfig.fileName ||
-      attachmentConfig.queryKey ||
-      attachmentConfig.s3Path ||
-      attachmentConfig.formulaSpec ||
-      ""
-    ).toLowerCase();
+    const items = attachmentConfig.items ?? [];
+    if (items.length === 0) return "None";
+    const name = items[0].name.toLowerCase();
     if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv"))
       return "Excel Export";
-    if (name.endsWith(".pdf")) return "PDF";
     return "PDF";
   }, [attachmentConfig]);
+
 
   const submit = () => {
     const missing: string[] = [];
