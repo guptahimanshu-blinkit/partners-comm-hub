@@ -2385,25 +2385,40 @@ function RequestDetail({
     (request.approvalCcEmails ?? []).length > 0
       ? (request.approvalCcEmails ?? []).join(", ")
       : "None";
-  const purposeValue = `${request.purpose || "—"}${
-    request.purpose === "Other / Custom Purpose" && request.purposeCustomText
-      ? ` · Custom Purpose: ${request.purposeCustomText}`
-      : ""
+  const purposeValue = request.purpose?.trim()
+    ? request.purpose
+    : request.purposeCustomText || "—";
+  const teamValue = `${request.team || "—"}${
+    request.customTeam ? ` (Custom: ${request.customTeam})` : ""
   }`;
   const subCategoryValue = `${request.subCategory || "—"}${
-    request.subCategory === "Other" && request.subCategoryCustomText
-      ? ` · Custom Category: ${request.subCategoryCustomText}`
+    request.customSubCategory || request.subCategoryCustomText
+      ? ` (Custom: ${request.customSubCategory ?? request.subCategoryCustomText})`
       : ""
+  }`;
+  const domainValue = `${request.domain || "—"}${
+    request.customDomain ? ` (Custom: ${request.customDomain})` : ""
+  }`;
+  const categoryValue = `${CATEGORY_CONFIG[request.categoryId].label}${
+    request.customCategory ? ` (Custom: ${request.customCategory})` : ""
   }`;
   const ctaValue =
     request.cta === "Direct Link"
-      ? `${request.cta} → Route: ${request.ctaModuleRoute ?? "—"}${
-          request.ctaQueryParams ? ` ${request.ctaQueryParams}` : ""
-        }`
+      ? `${request.cta} → Route: ${request.ctaModuleRoute ?? "—"}`
       : request.cta;
+  const queryParamsValue = request.ctaQueryParams || "None";
   const attachmentValue = request.attachment && request.attachment !== "None"
     ? request.attachment
     : "No Attachment";
+  const attachmentSpecValue =
+    request.attachmentConfig?.formulaSpec ||
+    request.attachmentConfig?.s3Path ||
+    request.attachmentConfig?.queryKey ||
+    request.attachmentConfig?.fileName ||
+    (request.emailAttachmentsName && request.emailAttachmentsName !== "-"
+      ? request.emailAttachmentsName
+      : "Not applicable");
+  const actionRequiredYes = request.actionRequired === true;
 
   return (
     <div className="space-y-5">
