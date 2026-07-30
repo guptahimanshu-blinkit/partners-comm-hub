@@ -1,10 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import {
-  APOLLO_SAMPLE_DATA,
-  lookupApolloTemplate,
-  type ApolloBannerTheme,
-} from "@/lib/mock-data";
+import { APOLLO_SAMPLE_DATA, lookupApolloTemplate, type ApolloBannerTheme } from "@/lib/mock-data";
 
 export type PreviewChannel = "email" | "whatsapp" | "dashboard";
 

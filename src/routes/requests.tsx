@@ -673,8 +673,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [waMetaId, setWaMetaId] = useState("");
   const [audienceCount, setAudienceCount] = useState(450);
 
-
-
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
     const resolvedDomain: DomainType = domain === "Other" ? "Operations & Appointments" : domain;
@@ -1092,7 +1090,6 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           {chartQuery && <InlineSqlChartPreview label={chartQuery} />}
         </FormRow>
       </section>
-
 
       {/* Smart attachment + CTA + Frequency */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
@@ -2076,7 +2073,6 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
   const [detailChannel, setDetailChannel] = useState<PreviewChannel>("email");
   const [detailSample, setDetailSample] = useState(true);
 
-
   const toggleReason = (c: RejectionReasonCategory) =>
     setReasonCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const toggleHold = (c: RejectionReasonCategory) =>
@@ -2257,7 +2253,6 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
             selectedChannel={detailChannel}
           />
         </div>
-
 
         <div className="mt-5">
           <InheritedPanel categoryId={request.categoryId} priority={request.priority} />
