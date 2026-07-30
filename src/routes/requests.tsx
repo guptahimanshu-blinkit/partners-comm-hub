@@ -17,6 +17,9 @@ import {
   FileUp,
   Ban,
   PauseCircle,
+  Search,
+  ExternalLink,
+
 } from "lucide-react";
 import { lookupExcelActionRequired } from "@/lib/feature-comms";
 import { lookupApolloTemplate } from "@/lib/mock-data";
@@ -630,7 +633,70 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
 }
 
 // ------- Form -------
+const apolloTemplateUrl = (templateId: string) =>
+  `https://apollo.internal.blinkit.com/templates/${encodeURIComponent(templateId.trim())}`;
+
+function CheckTemplateButton({
+  templateId,
+  variant = "outline",
+  label = "Check Template",
+}: {
+  templateId: string;
+  variant?: "outline" | "default";
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = templateId.trim();
+  const url = apolloTemplateUrl(id);
+
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant={variant}
+        disabled={!id}
+        className="shrink-0 gap-1.5 whitespace-nowrap"
+        onClick={() => setOpen(true)}
+      >
+        <Search className="h-3.5 w-3.5" />
+        {label}
+        <ExternalLink className="h-3.5 w-3.5" />
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Opening Apollo Service</DialogTitle>
+            <DialogDescription>
+              Opening Apollo Service for Template ID: <span className="font-mono">{id}</span>…
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-[11px] break-all text-muted-foreground">
+            {url}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="gap-1.5"
+              onClick={() => {
+                window.open(url, "_blank", "noopener,noreferrer");
+                setOpen(false);
+              }}
+            >
+              Launch Apollo <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function NewRequestForm({ onDone }: { onDone: () => void }) {
+
   const [templateId, setTemplateId] = useState("");
   // Apollo Service auto-fetch simulation — the whole payload is fetched by Template ID.
   const apolloTemplate = useMemo(() => lookupApolloTemplate(templateId), [templateId]);
@@ -803,11 +869,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Template ID" required>
-          <Input
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value)}
-            placeholder="Paste the Template ID copied from Apollo"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              placeholder="Paste the Template ID copied from Apollo"
+            />
+            <CheckTemplateButton templateId={templateId} />
+          </div>
           {apolloTemplate && (
             <div className="mt-3 space-y-2">
               <p className="text-[11px] text-muted-foreground">
@@ -837,8 +906,11 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             placeholder="Auto-fetched once a Template ID is entered"
           />
           <p className="mt-1 text-[11px] text-muted-foreground">
-            ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above.
+            {templateId.trim()
+              ? `ℹ️ Auto-fetched from Apollo Service for Template ID: ${templateId.trim()}`
+              : "ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above."}
           </p>
+
         </FormRow>
         <FormRow label="Submitted By">
           <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
@@ -2176,11 +2248,19 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           <div>
             <h2 className="text-lg font-semibold">{request.templateName}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{request.templateId}</span>
+              <span>Template ID: {request.templateId}</span>
               <span>·</span>
               <span>By {request.submittedBy}</span>
             </div>
+            <div className="mt-2">
+              <CheckTemplateButton
+                templateId={request.templateId}
+                variant="default"
+                label="Check Template on Apollo"
+              />
+            </div>
           </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <Badge
               className={cn(
