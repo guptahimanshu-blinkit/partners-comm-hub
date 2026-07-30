@@ -1492,7 +1492,24 @@ function InferredRulesPanel({
           </p>
         </div>
       )}
+
+      {effectiveActionRequired && (
+        <div className="space-y-1.5 rounded-md border border-cat-red/40 bg-background p-3">
+          <Label className="text-xs font-medium">
+            Expected Action from Audience <span className="text-cat-red">*</span>
+          </Label>
+          <Input
+            value={expectedActionType}
+            onChange={(e) => onExpectedActionTypeChange(e.target.value)}
+            placeholder="e.g. Acknowledge PO cancellation, Reconcile statement, Upload missing GRN"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Specify the exact operational step required from the vendor or manufacturer.
+          </p>
+        </div>
+      )}
     </div>
+
   );
 }
 
