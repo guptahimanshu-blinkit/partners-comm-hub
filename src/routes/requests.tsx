@@ -1645,12 +1645,24 @@ function SmartAttachment({
         />
       )}
 
-      {value.type === "s3" && (
-        <Input
-          value={value.s3Path ?? ""}
-          onChange={(e) => onChange({ type: "s3", s3Path: e.target.value })}
-          placeholder="s3://reports/{mfr_id}_Q2.pdf"
-        />
+      {value.type === "formula" && (
+        <div className="space-y-1">
+          <Label className="text-xs">
+            Formula Attachment Specification
+            <span className="ml-0.5 text-cat-red">*</span>
+          </Label>
+          <Input
+            value={value.formulaSpec ?? ""}
+            onChange={(e) =>
+              onChange({ type: "formula", formulaSpec: e.target.value })
+            }
+            placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx or formula_script_name.py"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            The formula file or script that generates the attachment at send
+            time. Reviewed by the approver before publishing.
+          </p>
+        </div>
       )}
     </div>
   );
