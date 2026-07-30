@@ -709,12 +709,18 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [expectedActionType, setExpectedActionType] = useState("");
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
+    items: [],
   });
+  const [attQueryDraft, setAttQueryDraft] = useState("");
+  const [attFormulaDraft, setAttFormulaDraft] = useState("");
   const [chartQuery, setChartQuery] = useState("");
   const [cta, setCta] = useState<CtaOption>("None");
   const [ctaDest, setCtaDest] = useState("");
   const [ctaModuleRoute, setCtaModuleRoute] = useState("");
   const [ctaQueryParams, setCtaQueryParams] = useState("");
+  const [ticketCategory, setTicketCategory] = useState("");
+  const [ticketSubcategory, setTicketSubcategory] = useState("");
+
   const [frequency, setFrequency] = useState<FrequencyOption>("Once");
   const [scheduleDeadline, setScheduleDeadline] = useState("");
   const [approvalCcEmails, setApprovalCcEmails] = useState<string[]>([]);
