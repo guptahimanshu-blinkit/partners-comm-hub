@@ -19,6 +19,12 @@ import {
   PauseCircle,
 } from "lucide-react";
 import { lookupExcelActionRequired } from "@/lib/feature-comms";
+import { lookupApolloTemplate } from "@/lib/mock-data";
+import {
+  ApolloEmailPreview,
+  ApolloPreviewControls,
+  type PreviewChannel,
+} from "@/components/requests/ApolloEmailPreview";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
