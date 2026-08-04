@@ -12,6 +12,7 @@ import {
   BarChart3,
   ClipboardCheck,
   Megaphone,
+  Paperclip,
   FileText,
   Receipt,
   IndianRupee,
