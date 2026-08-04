@@ -12,6 +12,7 @@ import {
   BarChart3,
   ClipboardCheck,
   Megaphone,
+  Paperclip,
   FileText,
   Receipt,
   IndianRupee,
@@ -118,6 +119,12 @@ const NAV: NavItem[] = [
     to: "/campaigns",
     label: "Campaigns",
     icon: Megaphone,
+    roles: ["internal_ops"],
+  },
+  {
+    to: "/attachment-flow",
+    label: "Dynamic Attachment",
+    icon: Paperclip,
     roles: ["internal_ops"],
   },
 
