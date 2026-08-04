@@ -120,6 +120,12 @@ const NAV: NavItem[] = [
     icon: Megaphone,
     roles: ["internal_ops"],
   },
+  {
+    to: "/attachment-flow",
+    label: "Dynamic Attachment",
+    icon: Paperclip,
+    roles: ["internal_ops"],
+  },
 
   {
     to: "/help/my-tickets",
