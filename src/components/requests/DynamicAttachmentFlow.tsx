@@ -279,7 +279,7 @@ export function useDynamicAttachmentBlockers() {
 
 export function DynamicAttachmentSections() {
   const f = useFlow();
-  const showTargetedUpload = f.b1Audience.some((a) => a.startsWith("Targeted"));
+  
 
   return (
     <div className="space-y-6">
