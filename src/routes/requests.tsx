@@ -1261,7 +1261,24 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         </FormRow>
       </section>
 
+      <DynamicAttachmentSetup
+        mode={attachmentMode}
+        onModeChange={(m) => {
+          setAttachmentMode(m);
+          if (m === "dynamic_pdf") {
+            setSentTo([]);
+            setVendorListName("");
+            setMfrListName("");
+          }
+        }}
+        pdfConfig={pdfConfig}
+        onPdfConfigChange={setPdfConfig}
+        tableConfigs={tableConfigs}
+        onTableConfigsChange={setTableConfigs}
+      />
+
       {/* Smart attachment + CTA + Frequency */}
+
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Attachment">
           <SmartAttachment
