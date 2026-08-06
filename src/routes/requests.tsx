@@ -22,7 +22,6 @@ import {
 
 } from "lucide-react";
 import { lookupApolloTemplate } from "@/lib/mock-data";
-import { lookupApolloTemplate } from "@/lib/mock-data";
 import {
   ApolloEmailPreview,
   ApolloPreviewControls,
