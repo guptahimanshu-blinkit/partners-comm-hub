@@ -3609,7 +3609,19 @@ function DynamicTablesPreviewCard({ request }: { request: TemplateRequest }) {
 }
 
 
-function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: () => void }) {
+function RequestDetail({
+  request,
+  onBack,
+  onOpenRequest,
+}: {
+  request: TemplateRequest;
+  onBack: () => void;
+  onOpenRequest?: (id: string) => void;
+}) {
+  const allRequests = useRequests();
+  const parent = request.parentId
+    ? (allRequests.find((r) => r.id === request.parentId) ?? null)
+    : null;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonCats, setReasonCats] = useState<RejectionReasonCategory[]>([]);
