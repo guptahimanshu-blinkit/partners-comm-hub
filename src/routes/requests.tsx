@@ -1049,7 +1049,11 @@ function NewRequestForm({
       purpose,
       sentTo,
       emailAttachmentsName:
-        committedItems.length > 0 ? committedItems.map((i) => i.name).join(", ") : "No Attachment",
+        attachmentMode === "dynamic_pdf"
+          ? `Dynamic PDFs · ${pdfConfig.queryName || "query pending"}`
+          : attachmentMode === "dynamic_tables"
+            ? `Dynamic Tables · ${tableConfigs.length} table(s)`
+            : "No Attachment",
 
       vendorListName: vendorListName || "-",
       manufacturerListName: mfrListName || "-",
