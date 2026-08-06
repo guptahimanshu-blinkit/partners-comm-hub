@@ -661,10 +661,12 @@ export function DynamicAttachmentSections() {
 function UploadButton({
   label,
   done,
+  doneLabel,
   onClick,
 }: {
   label: string;
   done: boolean;
+  doneLabel?: string;
   onClick: () => void;
 }) {
   return (
@@ -678,7 +680,7 @@ function UploadButton({
       )}
     >
       {done ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-      {done ? `${label} · uploaded` : label}
+      {done ? (doneLabel ?? `${label} · uploaded`) : label}
     </button>
   );
 }
