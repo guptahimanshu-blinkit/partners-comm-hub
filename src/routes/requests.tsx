@@ -3832,6 +3832,10 @@ function RequestDetail({
           <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} />
         </div>
 
+        <ActionDirectivesCard request={request} />
+        <DynamicPdfInspectionCard request={request} />
+        <DynamicTablesPreviewCard request={request} />
+
         <AttachmentInspectionCard items={attachmentItems} />
 
 
