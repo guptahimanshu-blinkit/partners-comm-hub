@@ -1117,6 +1117,7 @@ function NewRequestForm({
   };
 
   return (
+    <DynamicAttachmentProvider>
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onDone} className="gap-1">
