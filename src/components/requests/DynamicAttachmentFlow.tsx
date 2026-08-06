@@ -42,7 +42,7 @@ export interface AudienceGroup {
   id: string;
   entity: string;
   subType: string;
-  hasPdf: boolean;
+  pdfFiles: string[];
   hasTargetedList: boolean;
 }
 
@@ -79,7 +79,7 @@ const newGroup = (): AudienceGroup => ({
   id: `grp-${++gid}`,
   entity: "",
   subType: "",
-  hasPdf: false,
+  pdfFiles: [],
   hasTargetedList: false,
 });
 
@@ -129,7 +129,7 @@ function useFlowState() {
   const [attachmentType, setAttachmentType] = useState<AttachmentType>("none");
   const [b1Audience, setB1Audience] = useState<string[]>([]);
   const [b2AudienceGroups, setB2AudienceGroups] = useState<AudienceGroup[]>([
-    { id: "grp-1", entity: "", subType: "", hasPdf: false, hasTargetedList: false },
+    { id: "grp-1", entity: "", subType: "", pdfFiles: [], hasTargetedList: false },
   ]);
   const [blocks, setBlocks] = useState<AttachmentBlock[]>([
     {
@@ -151,7 +151,7 @@ function useFlowState() {
   const isPdf = attachmentType === "dynamic_pdf";
 
   const groupsDirty = b2AudienceGroups.some(
-    (g) => g.entity || g.subType || g.hasPdf || g.hasTargetedList,
+    (g) => g.entity || g.subType || g.pdfFiles.length > 0 || g.hasTargetedList,
   );
   const blocksDirty = blocks.some((b) => b.query.trim() || b.columns.length > 0);
 
@@ -204,8 +204,8 @@ function useFlowState() {
   const blockers = useMemo(() => {
     const out: string[] = [];
     if (isPdf) {
-      if (!b2AudienceGroups.every((g) => g.hasPdf && g.hasTargetedList))
-        out.push("Every audience group must be Ready (PDF + list uploaded).");
+      if (!b2AudienceGroups.every((g) => g.pdfFiles.length > 0 && g.hasTargetedList))
+        out.push("Every audience group must be Ready (at least 1 PDF + MFD list uploaded).");
     } else if (attachmentType !== "none") {
       if (!blocks.every((b) => b.checked && b.queryValid))
         out.push("Every attachment block needs a passing query check.");
@@ -377,7 +377,7 @@ export function DynamicAttachmentSections() {
           <div className="space-y-3">
             {f.b2AudienceGroups.map((g, i) => {
               const dup = f.duplicateOf[g.id];
-              const ready = g.hasPdf && g.hasTargetedList;
+              const ready = g.pdfFiles.length > 0 && g.hasTargetedList;
               return (
                 <div
                   key={g.id}
@@ -455,11 +455,38 @@ export function DynamicAttachmentSections() {
                   )}
 
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <UploadButton
-                      label="Upload PDF"
-                      done={g.hasPdf}
-                      onClick={() => f.patchGroup(g.id, { hasPdf: !g.hasPdf })}
-                    />
+                    <div className="space-y-1.5">
+                      <UploadButton
+                        label="Upload PDF set"
+                        done={g.pdfFiles.length > 0}
+                        doneLabel={`Upload PDF set · ${g.pdfFiles.length} file${g.pdfFiles.length === 1 ? "" : "s"}`}
+                        onClick={() =>
+                          f.patchGroup(g.id, {
+                            pdfFiles: [
+                              ...g.pdfFiles,
+                              `${(g.entity || "entity").toLowerCase()}_${(g.subType || "doc").toLowerCase()}_${g.pdfFiles.length + 1}.pdf`,
+                            ],
+                          })
+                        }
+                      />
+                      {g.pdfFiles.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+                          >
+                            {g.pdfFiles.length} file{g.pdfFiles.length === 1 ? "" : "s"} uploaded
+                          </span>
+                          <button
+                            type="button"
+                            className="text-[11px] text-muted-foreground underline hover:text-destructive"
+                            onClick={() => f.patchGroup(g.id, { pdfFiles: [] })}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <UploadButton
                       label="Upload MFD list"
                       done={g.hasTargetedList}
@@ -492,7 +519,7 @@ export function DynamicAttachmentSections() {
               <span className="font-medium text-foreground">{f.b2AudienceGroups.length}</span>{" "}
               group(s) configured,{" "}
               <span className="font-medium text-foreground">
-                {f.b2AudienceGroups.filter((g) => g.hasPdf && g.hasTargetedList).length}
+                {f.b2AudienceGroups.filter((g) => g.pdfFiles.length > 0 && g.hasTargetedList).length}
               </span>{" "}
               ready.
             </div>
@@ -634,10 +661,12 @@ export function DynamicAttachmentSections() {
 function UploadButton({
   label,
   done,
+  doneLabel,
   onClick,
 }: {
   label: string;
   done: boolean;
+  doneLabel?: string;
   onClick: () => void;
 }) {
   return (
@@ -651,7 +680,7 @@ function UploadButton({
       )}
     >
       {done ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-      {done ? `${label} · uploaded` : label}
+      {done ? (doneLabel ?? `${label} · uploaded`) : label}
     </button>
   );
 }
@@ -883,98 +912,84 @@ function AttachmentBlockCard({
   );
 }
 
-/* ---------------- Approver Dashboard (read-only live sync) ---------------- */
+/* ---------------- Approver-side attachment summary (bound to global flow state) ---------------- */
 
-export function DynamicAttachmentApproverDashboard() {
+export function DynamicAttachmentApproverSummary() {
   const f = useFlow();
   const groups = f.b2AudienceGroups;
-  const blocks = f.blocks;
+  const passed = f.blocks.filter((b) => b.checked && b.queryValid);
   const varsMapped = f.varChecked && f.varsRequired && f.varQueryChecked && f.varQueryValid;
-  const passed = blocks.filter((b) => b.checked && b.queryValid);
 
   return (
-    <section
-      className="rounded-xl border p-5"
-      style={{ borderColor: `${ACCENT}4D`, backgroundColor: `${ACCENT}0A` }}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold">Approver Dashboard (Live Sync Preview)</h3>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
-            Read-only mirror of the submitter form state.
-          </p>
+    <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Attachment Type (Live from submitter form)
         </div>
         <span
-          className="rounded-full px-3 py-1 text-[11px] font-semibold text-white"
+          className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
           style={{ backgroundColor: ACCENT }}
         >
-          Mode: {TYPE_LABEL[f.attachmentType]}
+          {TYPE_LABEL[f.attachmentType]}
         </span>
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-3 space-y-3">
         {f.attachmentType === "none" && (
-          <div className="rounded-lg border border-border bg-background p-3 text-[13px] text-muted-foreground">
-            No attachment configured for this communication.
-          </div>
+          <p className="text-[13px] text-muted-foreground">
+            No dynamic attachment configured for this communication.
+          </p>
         )}
 
         {f.attachmentType === "dynamic_pdf" && (
-          <div className="rounded-lg border border-border bg-background p-3">
-            <div className="text-[13px] font-medium">PDF Clearance Checklist</div>
-            <ul className="mt-2 space-y-1.5">
-              {groups.map((g, i) => {
-                const clear = g.hasPdf && g.hasTargetedList;
-                return (
-                  <li key={g.id} className="flex items-center gap-2 text-[13px]">
-                    {clear ? (
-                      <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span className={clear ? "" : "text-muted-foreground"}>
-                      {g.entity || "—"} · {g.subType || "—"}
+          <ul className="space-y-1.5">
+            {groups.map((g, i) => {
+              const clear = g.pdfFiles.length > 0 && g.hasTargetedList;
+              return (
+                <li key={g.id} className="flex flex-wrap items-center gap-2 text-[13px]">
+                  {clear ? (
+                    <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className={clear ? "font-medium" : "text-muted-foreground"}>
+                    {g.entity || "—"} ({g.subType || "—"} MFDs) — {g.pdfFiles.length} PDF
+                    {g.pdfFiles.length === 1 ? "" : "s"} attached
+                  </span>
+                  {!clear && (
+                    <span className="text-[11px] text-muted-foreground">
+                      (Group {i + 1} pending uploads)
                     </span>
-                    {!clear && (
-                      <span className="text-[11px] text-muted-foreground">
-                        (Group {i + 1} pending uploads)
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
 
         {f.attachmentType === "dynamic_attachment" && (
-          <div className="rounded-lg border border-border bg-background p-3 text-[13px]">
+          <p className="text-[13px]">
             {passed.length > 0 ? (
-              <span>
+              <>
                 <span className="font-medium">Data Export Configured:</span> Validated query
-                containing audience IDs attached.
+                attached.
                 {passed.length > 1 ? ` (${passed.length} exports)` : ""}
-              </span>
+              </>
             ) : (
               <span className="text-muted-foreground">
                 Awaiting a validated query with audience IDs.
               </span>
             )}
-          </div>
+          </p>
         )}
 
         {f.attachmentType === "dynamic_table" && (
           <div className="space-y-3">
             {passed.length === 0 && (
-              <div className="rounded-lg border border-border bg-background p-3 text-[13px] text-muted-foreground">
-                No validated table queries yet.
-              </div>
+              <p className="text-[13px] text-muted-foreground">No validated table queries yet.</p>
             )}
             {passed.map((b, i) => (
-              <div
-                key={b.id}
-                className="overflow-x-auto rounded-lg border border-border bg-background p-3"
-              >
+              <div key={b.id} className="overflow-x-auto rounded-lg border border-border bg-background p-3">
                 <div className="mb-2 text-[12px] font-medium text-muted-foreground">
                   Table preview · Block {i + 1}
                 </div>
@@ -998,10 +1013,7 @@ export function DynamicAttachmentApproverDashboard() {
                       {[1, 2].map((r) => (
                         <tr key={r}>
                           {b.columns.map((c) => (
-                            <td
-                              key={c.id}
-                              className="border border-border px-2 py-1 text-muted-foreground"
-                            >
+                            <td key={c.id} className="border border-border px-2 py-1 text-muted-foreground">
                               {`${c.field}_${r}`}
                             </td>
                           ))}
@@ -1025,13 +1037,6 @@ export function DynamicAttachmentApproverDashboard() {
           </span>
         )}
       </div>
-
-      <div
-        className="mt-4 border-t pt-3 text-[11px] text-muted-foreground"
-        style={{ borderColor: `${ACCENT}40` }}
-      >
-        Approver view syncs in real-time with the form above.
-      </div>
-    </section>
+    </div>
   );
 }

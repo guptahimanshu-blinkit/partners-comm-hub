@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, useRef, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, useRef, type KeyboardEvent } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   PlusCircle,
@@ -38,7 +38,7 @@ import { TemplatePreviewModal } from "@/components/requests/TemplatePreviewModal
 import {
   DynamicAttachmentProvider,
   DynamicAttachmentSections,
-  DynamicAttachmentApproverDashboard,
+  DynamicAttachmentApproverSummary,
 } from "@/components/requests/DynamicAttachmentFlow";
 import { toast } from "sonner";
 
@@ -277,6 +277,7 @@ function RequestsPage() {
 
   return (
     <AppShell>
+      <DynamicAttachmentProvider>
       <div className="workdesk mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
         <header className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Requests</h1>
@@ -285,6 +286,7 @@ function RequestsPage() {
 
         {internalRole === "Template Submitter" ? <SubmitterView /> : <ApproverView />}
       </div>
+      </DynamicAttachmentProvider>
     </AppShell>
   );
 }
@@ -924,6 +926,17 @@ function NewRequestForm({
   const personaChanged =
     isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
   const requiresReapproval = templateIdChanged || personaChanged;
+  const wasApproved = isEdit && src?.status === "Approved";
+  const warnedRef = useRef(false);
+  useEffect(() => {
+    if (wasApproved && requiresReapproval && !warnedRef.current) {
+      warnedRef.current = true;
+      toast.warning("Audience or Template ID changed. This request now requires a 2nd approval.");
+    }
+    if (!requiresReapproval) warnedRef.current = false;
+  }, [wasApproved, requiresReapproval]);
+
+
 
   const formTitle =
     intent.mode === "edit"
@@ -1123,7 +1136,6 @@ function NewRequestForm({
   };
 
   return (
-    <DynamicAttachmentProvider>
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onDone} className="gap-1">
@@ -1663,9 +1675,7 @@ function NewRequestForm({
         </Button>
       </div>
 
-      <DynamicAttachmentApproverDashboard />
       </div>
-    </DynamicAttachmentProvider>
 
   );
 }
@@ -3530,6 +3540,8 @@ function RequestDetail({
           <DetailField label="Query Parameters" value={queryParamsValue} />
           <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} />
         </div>
+
+        <DynamicAttachmentApproverSummary />
 
         <ActionDirectivesCard request={request} />
         <DynamicPdfInspectionCard request={request} />
