@@ -19,7 +19,11 @@ import {
   PauseCircle,
   Search,
   ExternalLink,
-
+  MoreVertical,
+  Pencil,
+  Copy,
+  CornerDownRight,
+  Lock,
 } from "lucide-react";
 import { lookupApolloTemplate } from "@/lib/mock-data";
 import {
@@ -60,12 +64,21 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
 import { colorClasses, type CategoryId } from "@/lib/mock-data";
 import {
   useRequests,
   addRequest,
+  updateRequest,
   approveRequest,
   rejectRequest,
   holdRequest,
@@ -530,10 +543,16 @@ function FrequencyPicker({
 }
 
 // ------- Submitter -------
+export type FormIntent =
+  | { mode: "new" }
+  | { mode: "edit"; source: TemplateRequest }
+  | { mode: "clone"; source: TemplateRequest; followUp: boolean };
+
 function SubmitterView() {
-  const [showForm, setShowForm] = useState(false);
+  const [intent, setIntent] = useState<FormIntent | null>(null);
   const requests = useRequests();
   const mine = requests; // prototype: submitter sees all as "own history"
+  const showForm = intent !== null;
 
   return (
     <div className="space-y-6">
@@ -541,28 +560,198 @@ function SubmitterView() {
       {!showForm && (
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold">My Requests</h2>
+            <h2 className="text-base font-semibold">Request Logs &amp; History</h2>
             <p className="text-xs text-muted-foreground">
-              Track approval status of submitted templates.
+              Root templates with their nested follow-ups. Use the ⋮ menu to edit or clone.
             </p>
           </div>
-          <Button onClick={() => setShowForm(true)} className="gap-2">
+          <Button onClick={() => setIntent({ mode: "new" })} className="gap-2">
             <PlusCircle className="h-4 w-4" /> New Request
           </Button>
         </div>
       )}
 
-      {showForm ? (
-        <NewRequestForm onDone={() => setShowForm(false)} />
+      {intent ? (
+        <NewRequestForm key={JSON.stringify(intent)} intent={intent} onDone={() => setIntent(null)} />
       ) : (
-        <MyRequestsTable requests={mine} />
+        <MyRequestsTable requests={mine} onIntent={setIntent} />
       )}
     </div>
   );
 }
 
-function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
+function RequestRowMenu({
+  request,
+  onIntent,
+}: {
+  request: TemplateRequest;
+  onIntent: (i: FormIntent) => void;
+}) {
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [isFollowUp, setIsFollowUp] = useState<"yes" | "no">("no");
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={`Actions for ${request.templateName}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onSelect={() => onIntent({ mode: "edit", source: request })}>
+            <Pencil className="mr-2 h-4 w-4" /> Edit Request
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setCloneOpen(true)}>
+            <Copy className="mr-2 h-4 w-4" /> Clone Template
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={cloneOpen} onOpenChange={setCloneOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Is this a follow-up template?</DialogTitle>
+            <DialogDescription>
+              Cloning “{request.templateName}”. Follow-ups stay nested under the original and are
+              hard-locked to the Follow-Up category.
+            </DialogDescription>
+          </DialogHeader>
+          <RadioGroup value={isFollowUp} onValueChange={(v) => setIsFollowUp(v as "yes" | "no")}>
+            <label className="flex items-start gap-2 rounded-md border border-border p-3 text-sm">
+              <RadioGroupItem value="yes" className="mt-0.5" />
+              <span>
+                <span className="font-medium">Yes — follow-up</span>
+                <span className="block text-xs text-muted-foreground">
+                  Nested under {request.templateName}. Only audience, attachments, Template ID,
+                  team, owner/analyst emails, purpose and subject are editable.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-md border border-border p-3 text-sm">
+              <RadioGroupItem value="no" className="mt-0.5" />
+              <span>
+                <span className="font-medium">No — independent template</span>
+                <span className="block text-xs text-muted-foreground">
+                  Creates a brand new root request with the cloned data.
+                </span>
+              </span>
+            </label>
+          </RadioGroup>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCloneOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setCloneOpen(false);
+                onIntent({ mode: "clone", source: request, followUp: isFollowUp === "yes" });
+              }}
+            >
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+
+function MyRequestsTable({
+  requests,
+  onIntent,
+}: {
+  requests: TemplateRequest[];
+  onIntent: (i: FormIntent) => void;
+}) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const roots = requests.filter((r) => !r.parentId);
+  const orphans = requests.filter((r) => r.parentId && !requests.some((p) => p.id === r.parentId));
+  const rootList = [...roots, ...orphans];
+
+  const renderRow = (r: TemplateRequest, depth: number) => {
+    const isExpanded = expanded === r.id;
+    const isRejected = r.status === "Rejected" || r.status === "Rejected Post Publish";
+    const canExpand = isRejected;
+    const postPublish = r.status === "Rejected Post Publish";
+    const children = requests.filter((c) => c.parentId === r.id);
+
+    return (
+      <Fragment key={r.id}>
+        <TableRow
+          className={cn(canExpand && "cursor-pointer", depth > 0 && "bg-muted/20")}
+          onClick={() => canExpand && setExpanded(isExpanded ? null : r.id)}
+        >
+          <TableCell className="font-medium">
+            <div
+              className="flex items-center gap-2"
+              style={{ paddingLeft: depth > 0 ? depth * 20 : undefined }}
+            >
+              {depth > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                  <CornerDownRight className="h-3 w-3" /> Follow-Up:
+                </span>
+              )}
+              <span>{r.templateName}</span>
+              {postPublish && (
+                <span className="inline-flex items-center rounded-full bg-cat-red-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-red">
+                  Flagged after scheduling
+                </span>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            <StatusTag status={r.status} />
+          </TableCell>
+          <TableCell className="text-sm text-muted-foreground">
+            {r.submittedAt.includes("T")
+              ? new Date(r.submittedAt).toLocaleString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : r.submittedAt}
+          </TableCell>
+          <TableCell className="w-10 text-right">
+            <RequestRowMenu request={r} onIntent={onIntent} />
+          </TableCell>
+        </TableRow>
+        {isExpanded && canExpand && (
+          <TableRow>
+            <TableCell colSpan={4} className="bg-muted/30">
+              <div className="space-y-2 p-2">
+                {postPublish && (
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
+                    Flagged after scheduling
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Reason Category:
+                  </span>
+                  <Badge variant="outline">{r.rejectionCategory}</Badge>
+                </div>
+                <p className="text-sm">{r.rejectionReason}</p>
+                <p className="text-xs text-muted-foreground">
+                  {postPublish ? "Flagged" : "Rejected"} at {r.rejectedAt}
+                </p>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+        {children.map((c) => renderRow(c, depth + 1))}
+      </Fragment>
+    );
+  };
+
   return (
     <div className="rounded-xl border border-border bg-card">
       <Table>
@@ -571,75 +760,15 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
             <TableHead>Template Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Submitted At</TableHead>
+            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {requests.map((r) => {
-            const isExpanded = expanded === r.id;
-            const isRejected = r.status === "Rejected" || r.status === "Rejected Post Publish";
-            const canExpand = isRejected;
-            const postPublish = r.status === "Rejected Post Publish";
-            return (
-              <Fragment key={r.id}>
-                <TableRow
-                  className={cn(canExpand && "cursor-pointer")}
-                  onClick={() => canExpand && setExpanded(isExpanded ? null : r.id)}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{r.templateName}</span>
-                      {postPublish && (
-                        <span className="inline-flex items-center rounded-full bg-cat-red-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-red">
-                          Flagged after scheduling
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusTag status={r.status} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {r.submittedAt.includes("T")
-                      ? new Date(r.submittedAt).toLocaleString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : r.submittedAt}
-                  </TableCell>
-                </TableRow>
-                {isExpanded && canExpand && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="bg-muted/30">
-                      <div className="space-y-2 p-2">
-                        {postPublish && (
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
-                            Flagged after scheduling
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Reason Category:
-                          </span>
-                          <Badge variant="outline">{r.rejectionCategory}</Badge>
-                        </div>
-                        <p className="text-sm">{r.rejectionReason}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {postPublish ? "Flagged" : "Rejected"} at {r.rejectedAt}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </Fragment>
-            );
-          })}
-        </TableBody>
+        <TableBody>{rootList.map((r) => renderRow(r, 0))}</TableBody>
       </Table>
     </div>
   );
 }
+
 
 // ------- Form -------
 const apolloTemplateUrl = (templateId: string) =>
@@ -688,68 +817,119 @@ function CheckTemplateButton({
   );
 }
 
-function NewRequestForm({ onDone }: { onDone: () => void }) {
+/** Core persona signature used to detect re-approval-worthy audience switches. */
+function personaSignature(sentTo: string[]): string {
+  return sentTo
+    .map((s) => {
+      const targeted = /targeted/i.test(s);
+      const persona = /manufactur/i.test(s) ? "manufacturer" : "vendor";
+      return `${targeted ? "targeted" : "all"}:${persona}`;
+    })
+    .sort()
+    .join("|");
+}
 
-  const [templateId, setTemplateId] = useState("");
+function NewRequestForm({
+  intent = { mode: "new" },
+  onDone,
+}: {
+  intent?: FormIntent;
+  onDone: () => void;
+}) {
+  const src = intent.mode === "new" ? null : intent.source;
+  const isEdit = intent.mode === "edit";
+  const isFollowUpClone = intent.mode === "clone" && intent.followUp;
+
+  const [templateId, setTemplateId] = useState(src?.templateId ?? "");
   // Apollo Service auto-fetch simulation — the whole payload is fetched by Template ID.
   const apolloTemplate = useMemo(() => lookupApolloTemplate(templateId), [templateId]);
-  const templateName = apolloTemplate?.templateName ?? "";
+  const sameTemplateAsSource = !!src && src.templateId.trim() === templateId.trim();
+  const templateName =
+    apolloTemplate?.templateName ?? (sameTemplateAsSource ? (src?.templateName ?? "") : "");
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
-  const [team, setTeam] = useState<string>("");
-  const [customTeam, setCustomTeam] = useState("");
-  const [mailOwner, setMailOwner] = useState("");
-  const [purpose, setPurpose] = useState("");
-  const [sentTo, setSentTo] = useState<string[]>([]);
-  const [vendorListName, setVendorListName] = useState("");
-  const [mfrListName, setMfrListName] = useState("");
+  const [team, setTeam] = useState<string>(src?.team ?? "");
+  const [customTeam, setCustomTeam] = useState(src?.customTeam ?? "");
+  const [mailOwner, setMailOwner] = useState(src?.mailOwner ?? "");
+  const [purpose, setPurpose] = useState(src?.purpose ?? "");
+  const [sentTo, setSentTo] = useState<string[]>(src?.sentTo ?? []);
+  const [vendorListName, setVendorListName] = useState(
+    src?.vendorListName && src.vendorListName !== "-" ? src.vendorListName : "",
+  );
+  const [mfrListName, setMfrListName] = useState(
+    src?.manufacturerListName && src.manufacturerListName !== "-" ? src.manufacturerListName : "",
+  );
   // Subject + body are auto-fetched from Apollo and are not editable here.
-  const subject = apolloTemplate?.subject ?? "";
-  const body = apolloTemplate?.bodyHtml ?? "";
-  const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
-  const [customSubCategory, setCustomSubCategory] = useState("");
-  const [customCategory, setCustomCategory] = useState("");
-  const [domain, setDomain] = useState<DomainType | "Other" | "">("");
-  const [customDomain, setCustomDomain] = useState("");
-  const [actionRequired, setActionRequired] = useState<boolean | null>(null);
-  const [expectedActionType, setExpectedActionType] = useState("");
-  const [followUpRequired, setFollowUpRequired] = useState<boolean | null>(null);
-  const [attachmentMode, setAttachmentMode] = useState<AttachmentMode>("none");
-  const [pdfConfig, setPdfConfig] = useState<PdfEntityConfig>(() => emptyPdfConfig());
-  const [tableConfigs, setTableConfigs] = useState<DynamicTableConfig[]>([
-    {
-      id: "tbl-initial",
-      queryId: "",
-      queryName: "",
-      selectedColumns: [],
-      conditionalRules: {},
-      hasSummaryRow: false,
-    },
-  ]);
+  const subject = apolloTemplate?.subject ?? (sameTemplateAsSource ? (src?.subject ?? "") : "");
+  const body = apolloTemplate?.bodyHtml ?? (sameTemplateAsSource ? (src?.body ?? "") : "");
+  const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">(src?.subCategory ?? "");
+  const [customSubCategory, setCustomSubCategory] = useState(src?.customSubCategory ?? "");
+  const [customCategory, setCustomCategory] = useState(src?.customCategory ?? "");
+  const [domain, setDomain] = useState<DomainType | "Other" | "">(src?.domain ?? "");
+  const [customDomain, setCustomDomain] = useState(src?.customDomain ?? "");
+  const [actionRequired, setActionRequired] = useState<boolean | null>(src?.actionRequired ?? null);
+  const [expectedActionType, setExpectedActionType] = useState(src?.expectedActionType ?? "");
+  const [followUpRequired, setFollowUpRequired] = useState<boolean | null>(
+    src?.followUpRequired ?? null,
+  );
+  const [attachmentMode, setAttachmentMode] = useState<AttachmentMode>(
+    src?.attachmentMode ?? "none",
+  );
+  const [pdfConfig, setPdfConfig] = useState<PdfEntityConfig>(
+    () => src?.pdfConfig ?? emptyPdfConfig(),
+  );
+  const [tableConfigs, setTableConfigs] = useState<DynamicTableConfig[]>(
+    src?.tableConfigs && src.tableConfigs.length > 0
+      ? src.tableConfigs
+      : [
+          {
+            id: "tbl-initial",
+            queryId: "",
+            queryName: "",
+            selectedColumns: [],
+            conditionalRules: {},
+            hasSummaryRow: false,
+          },
+        ],
+  );
 
-  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
-    type: "none",
-    items: [],
-  });
+  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>(
+    () => normalizeAttachmentConfig(src?.attachmentConfig) ?? { type: "none", items: [] },
+  );
   const [attQueryDraft, setAttQueryDraft] = useState("");
   const [attFormulaDraft, setAttFormulaDraft] = useState("");
-  const [chartQuery, setChartQuery] = useState("");
-  const [cta, setCta] = useState<CtaOption>("None");
-  const [ctaDest, setCtaDest] = useState("");
-  const [ctaModuleRoute, setCtaModuleRoute] = useState("");
-  const [ctaQueryParams, setCtaQueryParams] = useState("");
-  const [ticketCategory, setTicketCategory] = useState("");
-  const [ticketSubcategory, setTicketSubcategory] = useState("");
+  const [chartQuery, setChartQuery] = useState(src?.inlineSqlChart ?? "");
+  const [cta, setCta] = useState<CtaOption>(src?.cta ?? "None");
+  const [ctaDest, setCtaDest] = useState(src?.ctaDestination ?? "");
+  const [ctaModuleRoute, setCtaModuleRoute] = useState(src?.ctaModuleRoute ?? "");
+  const [ctaQueryParams, setCtaQueryParams] = useState(src?.ctaQueryParams ?? "");
+  const [ticketCategory, setTicketCategory] = useState(src?.ticketCategory ?? "");
+  const [ticketSubcategory, setTicketSubcategory] = useState(src?.ticketSubcategory ?? "");
 
-  const [frequency, setFrequency] = useState<FrequencyOption>("Once");
-  const [scheduleDeadline, setScheduleDeadline] = useState("");
-  const [approvalCcEmails, setApprovalCcEmails] = useState<string[]>([]);
-  const [analyst, setAnalyst] = useState("");
-  const [waMessage, setWaMessage] = useState("");
-  const [waFreq, setWaFreq] = useState<FrequencyOption[]>([]);
-  const [waCta, setWaCta] = useState("");
+  const [frequency, setFrequency] = useState<FrequencyOption>(src?.frequency ?? "Once");
+  const [scheduleDeadline, setScheduleDeadline] = useState(src?.scheduleDeadline ?? "");
+  const [approvalCcEmails, setApprovalCcEmails] = useState<string[]>(src?.approvalCcEmails ?? []);
+  const [analyst, setAnalyst] = useState(src?.analystPoc ?? "");
+  const [waMessage, setWaMessage] = useState(src?.whatsapp?.message ?? "");
+  const [waFreq, setWaFreq] = useState<FrequencyOption[]>(src?.whatsapp?.frequency ?? []);
+  const [waCta, setWaCta] = useState(src?.whatsapp?.cta ?? "");
   const [waMetaId, setWaMetaId] = useState("");
-  const [audienceCount, setAudienceCount] = useState(450);
+  const [audienceCount, setAudienceCount] = useState(src?.preflightChecks?.audienceCount ?? 450);
+
+  // ---- 2nd approval triggers (Edit flow) ----
+  const templateIdChanged = isEdit && !!src && src.templateId.trim() !== templateId.trim();
+  const personaChanged = isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
+  const requiresReapproval = templateIdChanged || personaChanged;
+
+  const formTitle =
+    intent.mode === "edit"
+      ? `Edit Request · ${src?.id}`
+      : intent.mode === "clone"
+        ? isFollowUpClone
+          ? `Follow-Up Template · nested under ${src?.templateName}`
+          : `Clone of ${src?.templateName}`
+        : "New Request";
+
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
@@ -873,7 +1053,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
 
 
     const req: TemplateRequest = {
-      id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: isEdit && src ? src.id : `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
       templateId,
       templateName,
@@ -899,7 +1079,7 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       customSubCategory: subCategory === "Other" ? customSubCategory.trim() : undefined,
       domain: domain as DomainType | "Other",
       customDomain: domain === "Other" ? customDomain.trim() : undefined,
-      customCategory: customCategory.trim() || undefined,
+      customCategory: isFollowUpClone ? "Follow-Up" : customCategory.trim() || undefined,
       categoryId: inferred.categoryId,
       priority: inferred.priority,
       attachment: finalAttachmentOption,
@@ -924,20 +1104,36 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       pdfConfig: attachmentMode === "dynamic_pdf" ? pdfConfig : undefined,
       tableConfigs: attachmentMode === "dynamic_tables" ? tableConfigs : undefined,
 
-      status: "Pending",
+      parentId: isFollowUpClone && src ? src.id : isEdit ? (src?.parentId ?? null) : null,
+      isFollowUp: isFollowUpClone ? true : isEdit ? (src?.isFollowUp ?? false) : false,
+
+      status: isEdit && src && !requiresReapproval ? src.status : "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
-      submittedAt: new Date().toISOString(),
+      submittedAt: isEdit && src ? src.submittedAt : new Date().toISOString(),
     };
+    if (isEdit && src) {
+      updateRequest(src.id, req);
+      toast.success(
+        requiresReapproval
+          ? `Request ${req.id} updated — sent back to Pending for a 2nd central approval.`
+          : `Request ${req.id} updated — approval status retained (${req.status}).`,
+      );
+      onDone();
+      return;
+    }
     addRequest(req);
     const ccPart =
       approvalCcEmails.length > 0
         ? ` and CC'd ${approvalCcEmails.length} reviewer${approvalCcEmails.length === 1 ? "" : "s"}`
         : " (no CCs)";
     toast.success(
-      `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
+      isFollowUpClone && src
+        ? `Follow-up ${req.id} submitted — nested under ${src.templateName}${ccPart}.`
+        : `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
     );
     onDone();
   };
+
 
   return (
     <div className="space-y-6">
@@ -945,8 +1141,52 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         <Button variant="ghost" size="sm" onClick={onDone} className="gap-1">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <h2 className="text-base font-semibold">New Request</h2>
+        <h2 className="text-base font-semibold">{formTitle}</h2>
+        {isFollowUpClone && (
+          <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
+            <CornerDownRight className="h-3 w-3" /> Category: Follow-Up (locked)
+          </Badge>
+        )}
       </div>
+
+      {isEdit && (
+        <div
+          className={cn(
+            "flex items-start gap-2 rounded-lg border p-3 text-xs",
+            requiresReapproval
+              ? "border-cat-amber/40 bg-cat-amber/10 text-foreground"
+              : "border-border bg-muted/40 text-muted-foreground",
+          )}
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">
+              ℹ️ Changing Template ID or User Persona triggers a required re-approval flow.
+            </p>
+            <p className="mt-0.5">
+              {requiresReapproval
+                ? `Detected: ${[templateIdChanged && "new Apollo Template ID", personaChanged && "core persona switch"].filter(Boolean).join(" + ")}. On save this request returns to Pending for a 2nd central approval.`
+                : `Edits to targeted list files or minor text within the same persona retain the current status (${src?.status}).`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isFollowUpClone && (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div>
+            <p className="font-medium">Follow-up clone — restricted editing</p>
+            <p className="mt-0.5 text-muted-foreground">
+              Editable: Audience, Attachment Setup, Template ID, Team, Mail Owner, Analyst POC,
+              Purpose and Subject. Categorization, CTA, frequency and schedule are inherited from
+              the parent template.
+            </p>
+          </div>
+        </div>
+      )}
+
+
 
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
@@ -1125,7 +1365,13 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       </section>
 
       {/* Comms Categorization - Inference engine */}
-      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <section
+        className={cn(
+          "space-y-4 rounded-xl border border-border bg-card p-5",
+          isFollowUpClone && "pointer-events-none opacity-60",
+        )}
+        aria-disabled={isFollowUpClone}
+      >
         <div>
           <h3 className="text-sm font-semibold">Comms Categorization</h3>
           <p className="text-xs text-muted-foreground">
@@ -1289,6 +1535,10 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             onFormulaDraftChange={setAttFormulaDraft}
           />
         </FormRow>
+        <div
+          className={cn("space-y-4", isFollowUpClone && "pointer-events-none opacity-60")}
+          aria-disabled={isFollowUpClone}
+        >
         <FormRow label="Call to Action">
           <Select
             value={cta}
@@ -1429,7 +1679,9 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setScheduleDeadline(e.target.value)}
           />
         </FormRow>
+        </div>
       </section>
+
 
       {showWhatsApp && (
         <section className="space-y-3 rounded-xl border border-border bg-card p-5">
@@ -1474,7 +1726,15 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             audienceCount > 1000 ? "bg-cat-amber text-white hover:bg-cat-amber/90" : undefined
           }
         >
-          {audienceCount > 1000 ? "Request Admin Approval" : "Submit Request"}
+          {isEdit
+            ? requiresReapproval
+              ? "Save & Send for Re-approval"
+              : "Save Changes"
+            : audienceCount > 1000
+              ? "Request Admin Approval"
+              : isFollowUpClone
+                ? "Submit Follow-Up"
+                : "Submit Request"}
         </Button>
       </div>
     </div>

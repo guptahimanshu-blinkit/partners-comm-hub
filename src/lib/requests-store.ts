@@ -433,6 +433,25 @@ export function addRequest(r: TemplateRequest) {
   setRequests([normalized, ...REQUESTS]);
 }
 
+/** Patch an existing request in place (used by the Edit Request flow). */
+export function updateRequest(id: string, patch: Partial<TemplateRequest>) {
+  hydrateStoreFromStorage();
+  setRequests(
+    REQUESTS.map((r) => {
+      if (r.id !== id) return r;
+      const merged: TemplateRequest = { ...r, ...patch, id: r.id };
+      const attachmentConfig = normalizeAttachmentConfig(merged.attachmentConfig);
+      return {
+        ...merged,
+        attachmentConfig,
+        emailAttachmentsName: attachmentNamesFromConfig(attachmentConfig),
+      };
+    }),
+  );
+}
+
+
+
 
 const CATEGORY_LABEL: Record<CategoryId, FeatureCategory> = {
   action_required: "Reminders",
