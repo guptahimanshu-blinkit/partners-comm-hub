@@ -78,6 +78,7 @@ import { colorClasses, type CategoryId } from "@/lib/mock-data";
 import {
   useRequests,
   addRequest,
+  updateRequest,
   approveRequest,
   rejectRequest,
   holdRequest,
