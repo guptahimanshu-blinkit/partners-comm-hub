@@ -177,6 +177,8 @@ function TemplateRequestFormPage() {
     (g) => g.entity || g.subType || g.hasPdf || g.hasTargetedList,
   );
 
+  const blocksDirty = blocks.some((b) => b.query.trim() || b.columns.length > 0);
+
   function selectType(next: AttachmentType) {
     if (next === attachmentType) return;
     if (attachmentType === "dynamic_pdf" && groupsDirty) {
@@ -189,8 +191,19 @@ function TemplateRequestFormPage() {
         { id: "1", entity: "", subType: "", hasPdf: false, hasTargetedList: false },
       ]);
     }
+    if (
+      (attachmentType === "dynamic_attachment" || attachmentType === "dynamic_table") &&
+      blocksDirty
+    ) {
+      const ok = window.confirm(
+        "Switching attachment type will clear your configured queries and tables. Continue?",
+      );
+      if (!ok) return;
+      setBlocks([newBlock()]);
+    }
     setAttachmentType(next);
   }
+
 
   function patchGroup(id: string, patch: Partial<AudienceGroup>) {
     setB2AudienceGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)));
