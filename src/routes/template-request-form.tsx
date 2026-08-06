@@ -411,6 +411,52 @@ function TemplateRequestFormPage() {
             </div>
           )}
         </section>
+
+        {/* Part C */}
+        {attachmentType !== "none" && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              C · Attachment configuration
+            </h2>
+
+            {isPdf ? (
+              <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                PDF attachments are configured per audience group above.{" "}
+                <span className="font-medium text-foreground">
+                  {b2AudienceGroups.length}
+                </span>{" "}
+                group(s) configured,{" "}
+                <span className="font-medium text-foreground">
+                  {b2AudienceGroups.filter((g) => g.hasPdf && g.hasTargetedList).length}
+                </span>{" "}
+                ready.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {blocks.map((b, i) => (
+                  <AttachmentBlockCard
+                    key={b.id}
+                    index={i}
+                    block={b}
+                    isTableMode={attachmentType === "dynamic_table"}
+                    canRemove={blocks.length > 1}
+                    onPatch={(patch) => patchBlock(b.id, patch)}
+                    onRemove={() =>
+                      setBlocks((prev) => prev.filter((p) => p.id !== b.id))
+                    }
+                  />
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setBlocks((prev) => [...prev, newBlock()])}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" /> Add another attachment block
+                </Button>
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </AppShell>
   );
