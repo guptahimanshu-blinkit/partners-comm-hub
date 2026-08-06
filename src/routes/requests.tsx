@@ -1726,7 +1726,15 @@ function NewRequestForm({
             audienceCount > 1000 ? "bg-cat-amber text-white hover:bg-cat-amber/90" : undefined
           }
         >
-          {audienceCount > 1000 ? "Request Admin Approval" : "Submit Request"}
+          {isEdit
+            ? requiresReapproval
+              ? "Save & Send for Re-approval"
+              : "Save Changes"
+            : audienceCount > 1000
+              ? "Request Admin Approval"
+              : isFollowUpClone
+                ? "Submit Follow-Up"
+                : "Submit Request"}
         </Button>
       </div>
     </div>
