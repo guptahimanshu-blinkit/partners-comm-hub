@@ -623,6 +623,14 @@ function TemplateRequestFormPage() {
           </div>
         </section>
 
+        <ApproverDashboard
+          attachmentType={attachmentType}
+          groups={b2AudienceGroups}
+          blocks={blocks}
+          varsMapped={varChecked && varsRequired && varQueryChecked && varQueryValid}
+        />
+
+
         {/* Submit */}
         <div className="sticky bottom-0 -mx-2 border-t border-border bg-background/95 px-2 py-3 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
