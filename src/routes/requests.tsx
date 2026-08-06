@@ -664,8 +664,94 @@ function RequestRowMenu({
 }
 
 
-function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
+function MyRequestsTable({
+  requests,
+  onIntent,
+}: {
+  requests: TemplateRequest[];
+  onIntent: (i: FormIntent) => void;
+}) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const roots = requests.filter((r) => !r.parentId);
+  const orphans = requests.filter((r) => r.parentId && !requests.some((p) => p.id === r.parentId));
+  const rootList = [...roots, ...orphans];
+
+  const renderRow = (r: TemplateRequest, depth: number) => {
+    const isExpanded = expanded === r.id;
+    const isRejected = r.status === "Rejected" || r.status === "Rejected Post Publish";
+    const canExpand = isRejected;
+    const postPublish = r.status === "Rejected Post Publish";
+    const children = requests.filter((c) => c.parentId === r.id);
+
+    return (
+      <Fragment key={r.id}>
+        <TableRow
+          className={cn(canExpand && "cursor-pointer", depth > 0 && "bg-muted/20")}
+          onClick={() => canExpand && setExpanded(isExpanded ? null : r.id)}
+        >
+          <TableCell className="font-medium">
+            <div
+              className="flex items-center gap-2"
+              style={{ paddingLeft: depth > 0 ? depth * 20 : undefined }}
+            >
+              {depth > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                  <CornerDownRight className="h-3 w-3" /> Follow-Up:
+                </span>
+              )}
+              <span>{r.templateName}</span>
+              {postPublish && (
+                <span className="inline-flex items-center rounded-full bg-cat-red-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-red">
+                  Flagged after scheduling
+                </span>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            <StatusTag status={r.status} />
+          </TableCell>
+          <TableCell className="text-sm text-muted-foreground">
+            {r.submittedAt.includes("T")
+              ? new Date(r.submittedAt).toLocaleString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : r.submittedAt}
+          </TableCell>
+          <TableCell className="w-10 text-right">
+            <RequestRowMenu request={r} onIntent={onIntent} />
+          </TableCell>
+        </TableRow>
+        {isExpanded && canExpand && (
+          <TableRow>
+            <TableCell colSpan={4} className="bg-muted/30">
+              <div className="space-y-2 p-2">
+                {postPublish && (
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
+                    Flagged after scheduling
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Reason Category:
+                  </span>
+                  <Badge variant="outline">{r.rejectionCategory}</Badge>
+                </div>
+                <p className="text-sm">{r.rejectionReason}</p>
+                <p className="text-xs text-muted-foreground">
+                  {postPublish ? "Flagged" : "Rejected"} at {r.rejectedAt}
+                </p>
+              </div>
+            </TableCell>
+          </TableRow>
+        )}
+        {children.map((c) => renderRow(c, depth + 1))}
+      </Fragment>
+    );
+  };
+
   return (
     <div className="rounded-xl border border-border bg-card">
       <Table>
@@ -674,75 +760,15 @@ function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
             <TableHead>Template Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Submitted At</TableHead>
+            <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {requests.map((r) => {
-            const isExpanded = expanded === r.id;
-            const isRejected = r.status === "Rejected" || r.status === "Rejected Post Publish";
-            const canExpand = isRejected;
-            const postPublish = r.status === "Rejected Post Publish";
-            return (
-              <Fragment key={r.id}>
-                <TableRow
-                  className={cn(canExpand && "cursor-pointer")}
-                  onClick={() => canExpand && setExpanded(isExpanded ? null : r.id)}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{r.templateName}</span>
-                      {postPublish && (
-                        <span className="inline-flex items-center rounded-full bg-cat-red-soft px-1.5 py-0.5 text-[10px] font-semibold text-cat-red">
-                          Flagged after scheduling
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusTag status={r.status} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {r.submittedAt.includes("T")
-                      ? new Date(r.submittedAt).toLocaleString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : r.submittedAt}
-                  </TableCell>
-                </TableRow>
-                {isExpanded && canExpand && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="bg-muted/30">
-                      <div className="space-y-2 p-2">
-                        {postPublish && (
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-cat-red">
-                            Flagged after scheduling
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Reason Category:
-                          </span>
-                          <Badge variant="outline">{r.rejectionCategory}</Badge>
-                        </div>
-                        <p className="text-sm">{r.rejectionReason}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {postPublish ? "Flagged" : "Rejected"} at {r.rejectedAt}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </Fragment>
-            );
-          })}
-        </TableBody>
+        <TableBody>{rootList.map((r) => renderRow(r, 0))}</TableBody>
       </Table>
     </div>
   );
 }
+
 
 // ------- Form -------
 const apolloTemplateUrl = (templateId: string) =>
