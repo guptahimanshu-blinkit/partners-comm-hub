@@ -828,10 +828,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (sentTo.includes("Targeted Manufacturer IDs (Upload File)") && !mfrListName)
       missing.push("Manufacturer ID list file");
 
-    const excelMatch = domain === "Other" ? null : lookupExcelActionRequired(subCategory, domain);
-    const resolvedActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
+    // Manual action declaration — no matrix inference.
+    const resolvedActionRequired = actionRequired === true;
+    if (actionRequired === null && subCategory && domain)
+      missing.push("Operational action required (Yes/No)");
     if (resolvedActionRequired && !expectedActionType.trim())
       missing.push("Expected Action from Audience");
+    if (resolvedActionRequired && followUpRequired === null)
+      missing.push("Follow-up template required (Yes/No)");
 
     if (missing.length > 0 || !inferred) {
       toast.error(
@@ -839,6 +843,35 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       );
       return;
     }
+
+    // Dynamic attachment gates.
+    if (attachmentMode === "dynamic_pdf") {
+      if (!pdfConfig.queryId || !isPdfQueryValid(pdfConfig.queryId)) {
+        toast.error(
+          "⚠️ Query Validation Failed: Selected query is missing 'entity_name' or 'mfd_id'. Cannot proceed.",
+        );
+        return;
+      }
+      if (MOCK_ENTITIES.some((e) => pdfConfig.uploadedEntities[e] !== true)) {
+        toast.error("⚠️ Please upload PDFs for all mapped entities.");
+        return;
+      }
+    }
+    if (attachmentMode === "dynamic_tables") {
+      for (const tc of tableConfigs) {
+        if (!tc.queryId || !isTableQueryValid(tc.queryId)) {
+          toast.error(
+            "⚠️ Query Validation Failed: Query missing identity column (vendor_id/manufacturer_id).",
+          );
+          return;
+        }
+        if (tc.selectedColumns.length === 0 && !tc.hasSummaryRow) {
+          toast.error("⚠️ Assign at least one column to every dynamic table.");
+          return;
+        }
+      }
+    }
+
 
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
