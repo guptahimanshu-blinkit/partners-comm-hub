@@ -377,7 +377,7 @@ export function DynamicAttachmentSections() {
           <div className="space-y-3">
             {f.b2AudienceGroups.map((g, i) => {
               const dup = f.duplicateOf[g.id];
-              const ready = g.hasPdf && g.hasTargetedList;
+              const ready = g.pdfFiles.length > 0 && g.hasTargetedList;
               return (
                 <div
                   key={g.id}
@@ -455,11 +455,38 @@ export function DynamicAttachmentSections() {
                   )}
 
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <UploadButton
-                      label="Upload PDF"
-                      done={g.hasPdf}
-                      onClick={() => f.patchGroup(g.id, { hasPdf: !g.hasPdf })}
-                    />
+                    <div className="space-y-1.5">
+                      <UploadButton
+                        label="Upload PDF set"
+                        done={g.pdfFiles.length > 0}
+                        doneLabel={`Upload PDF set · ${g.pdfFiles.length} file${g.pdfFiles.length === 1 ? "" : "s"}`}
+                        onClick={() =>
+                          f.patchGroup(g.id, {
+                            pdfFiles: [
+                              ...g.pdfFiles,
+                              `${(g.entity || "entity").toLowerCase()}_${(g.subType || "doc").toLowerCase()}_${g.pdfFiles.length + 1}.pdf`,
+                            ],
+                          })
+                        }
+                      />
+                      {g.pdfFiles.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+                          >
+                            {g.pdfFiles.length} file{g.pdfFiles.length === 1 ? "" : "s"} uploaded
+                          </span>
+                          <button
+                            type="button"
+                            className="text-[11px] text-muted-foreground underline hover:text-destructive"
+                            onClick={() => f.patchGroup(g.id, { pdfFiles: [] })}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <UploadButton
                       label="Upload MFD list"
                       done={g.hasTargetedList}
