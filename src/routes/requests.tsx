@@ -1535,6 +1535,10 @@ function NewRequestForm({
             onFormulaDraftChange={setAttFormulaDraft}
           />
         </FormRow>
+        <div
+          className={cn("space-y-4", isFollowUpClone && "pointer-events-none opacity-60")}
+          aria-disabled={isFollowUpClone}
+        >
         <FormRow label="Call to Action">
           <Select
             value={cta}
