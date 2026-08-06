@@ -21,7 +21,6 @@ import {
   ExternalLink,
 
 } from "lucide-react";
-import { lookupExcelActionRequired } from "@/lib/feature-comms";
 import { lookupApolloTemplate } from "@/lib/mock-data";
 import {
   ApolloEmailPreview,
@@ -80,6 +79,11 @@ import {
   inferCategoryRules,
   REJECTION_REASON_CATEGORIES,
   normalizeAttachmentConfig,
+  MOCK_ENTITIES,
+  PRE_APPROVED_QUERIES,
+  type AttachmentMode,
+  type PdfEntityConfig,
+  type DynamicTableConfig,
 
   type InferredRules,
   type SubCategoryPurpose,
@@ -709,6 +713,20 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [customDomain, setCustomDomain] = useState("");
   const [actionRequired, setActionRequired] = useState<boolean | null>(null);
   const [expectedActionType, setExpectedActionType] = useState("");
+  const [followUpRequired, setFollowUpRequired] = useState<boolean | null>(null);
+  const [attachmentMode, setAttachmentMode] = useState<AttachmentMode>("none");
+  const [pdfConfig, setPdfConfig] = useState<PdfEntityConfig>(() => emptyPdfConfig());
+  const [tableConfigs, setTableConfigs] = useState<DynamicTableConfig[]>([
+    {
+      id: "tbl-initial",
+      queryId: "",
+      queryName: "",
+      selectedColumns: [],
+      conditionalRules: {},
+      hasSummaryRow: false,
+    },
+  ]);
+
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
     items: [],
@@ -809,10 +827,14 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
     if (sentTo.includes("Targeted Manufacturer IDs (Upload File)") && !mfrListName)
       missing.push("Manufacturer ID list file");
 
-    const excelMatch = domain === "Other" ? null : lookupExcelActionRequired(subCategory, domain);
-    const resolvedActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
+    // Manual action declaration — no matrix inference.
+    const resolvedActionRequired = actionRequired === true;
+    if (actionRequired === null && subCategory && domain)
+      missing.push("Operational action required (Yes/No)");
     if (resolvedActionRequired && !expectedActionType.trim())
       missing.push("Expected Action from Audience");
+    if (resolvedActionRequired && followUpRequired === null)
+      missing.push("Follow-up template required (Yes/No)");
 
     if (missing.length > 0 || !inferred) {
       toast.error(
@@ -820,6 +842,35 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       );
       return;
     }
+
+    // Dynamic attachment gates.
+    if (attachmentMode === "dynamic_pdf") {
+      if (!pdfConfig.queryId || !isPdfQueryValid(pdfConfig.queryId)) {
+        toast.error(
+          "⚠️ Query Validation Failed: Selected query is missing 'entity_name' or 'mfd_id'. Cannot proceed.",
+        );
+        return;
+      }
+      if (MOCK_ENTITIES.some((e) => pdfConfig.uploadedEntities[e] !== true)) {
+        toast.error("⚠️ Please upload PDFs for all mapped entities.");
+        return;
+      }
+    }
+    if (attachmentMode === "dynamic_tables") {
+      for (const tc of tableConfigs) {
+        if (!tc.queryId || !isTableQueryValid(tc.queryId)) {
+          toast.error(
+            "⚠️ Query Validation Failed: Query missing identity column (vendor_id/manufacturer_id).",
+          );
+          return;
+        }
+        if (tc.selectedColumns.length === 0 && !tc.hasSummaryRow) {
+          toast.error("⚠️ Assign at least one column to every dynamic table.");
+          return;
+        }
+      }
+    }
+
 
     const req: TemplateRequest = {
       id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -867,6 +918,12 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       preflightChecks: preflight,
       actionRequired: resolvedActionRequired,
       expectedActionType: resolvedActionRequired ? expectedActionType.trim() : undefined,
+      expectedAction: resolvedActionRequired ? expectedActionType.trim() : undefined,
+      followUpRequired: resolvedActionRequired ? followUpRequired === true : false,
+      attachmentMode,
+      pdfConfig: attachmentMode === "dynamic_pdf" ? pdfConfig : undefined,
+      tableConfigs: attachmentMode === "dynamic_tables" ? tableConfigs : undefined,
+
       status: "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
@@ -1014,24 +1071,42 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           </div>
         </FormRow>
         <FormRow label="Mail will be sent to" required>
-          <MultiSelect
-            options={SENT_TO_OPTIONS}
-            values={sentTo}
-            onChange={(next) => {
-              const hasVendorUpload = next.includes("Targeted Vendor IDs (Upload File)");
-              const hasMfrUpload = next.includes("Targeted Manufacturer IDs (Upload File)");
-              if (!hasVendorUpload && vendorListName) setVendorListName("");
-              if (!hasMfrUpload && mfrListName) setMfrListName("");
-              setSentTo(next);
-            }}
-            max={2}
-            placeholder="Pick audience"
-          />
+          {attachmentMode === "dynamic_pdf" ? (
+            <>
+              <Input
+                value="🔒 Pre-mapped by Entity (Locked)"
+                readOnly
+                disabled
+                tabIndex={-1}
+                className="cursor-not-allowed bg-muted/60 text-muted-foreground"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Entity-level dynamic PDFs resolve the audience from the mapped entity list — manual
+                audience selection is disabled.
+              </p>
+            </>
+          ) : (
+            <MultiSelect
+              options={SENT_TO_OPTIONS}
+              values={sentTo}
+              onChange={(next) => {
+                const hasVendorUpload = next.includes("Targeted Vendor IDs (Upload File)");
+                const hasMfrUpload = next.includes("Targeted Manufacturer IDs (Upload File)");
+                if (!hasVendorUpload && vendorListName) setVendorListName("");
+                if (!hasMfrUpload && mfrListName) setMfrListName("");
+                setSentTo(next);
+              }}
+              max={2}
+              placeholder="Pick audience"
+            />
+          )}
         </FormRow>
         {(() => {
+          if (attachmentMode === "dynamic_pdf") return null;
           const hasVendorUpload = sentTo.includes("Targeted Vendor IDs (Upload File)");
           const hasMfrUpload = sentTo.includes("Targeted Manufacturer IDs (Upload File)");
           if (!hasVendorUpload && !hasMfrUpload) return null;
+
           return (
             <>
               {hasVendorUpload && (
@@ -1138,13 +1213,20 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             </div>
             <InferredRulesPanel
               rules={inferred}
-              subCategory={subCategory}
-              domain={domain}
               actionRequired={actionRequired}
-              onActionRequiredChange={setActionRequired}
+              onActionRequiredChange={(v) => {
+                setActionRequired(v);
+                if (!v) {
+                  setExpectedActionType("");
+                  setFollowUpRequired(false);
+                }
+              }}
               expectedActionType={expectedActionType}
               onExpectedActionTypeChange={setExpectedActionType}
+              followUpRequired={followUpRequired}
+              onFollowUpRequiredChange={setFollowUpRequired}
             />
+
           </>
         )}
       </section>
@@ -1178,7 +1260,24 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
         </FormRow>
       </section>
 
+      <DynamicAttachmentSetup
+        mode={attachmentMode}
+        onModeChange={(m) => {
+          setAttachmentMode(m);
+          if (m === "dynamic_pdf") {
+            setSentTo([]);
+            setVendorListName("");
+            setMfrListName("");
+          }
+        }}
+        pdfConfig={pdfConfig}
+        onPdfConfigChange={setPdfConfig}
+        tableConfigs={tableConfigs}
+        onTableConfigsChange={setTableConfigs}
+      />
+
       {/* Smart attachment + CTA + Frequency */}
+
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Attachment">
           <SmartAttachment
@@ -1504,24 +1603,23 @@ function EmailPillInput({
 // ---------- Inferred Rules Panel ----------
 function InferredRulesPanel({
   rules,
-  subCategory,
-  domain,
   actionRequired,
   onActionRequiredChange,
   expectedActionType,
   onExpectedActionTypeChange,
+  followUpRequired,
+  onFollowUpRequiredChange,
 }: {
   rules: InferredRules;
-  subCategory: string;
-  domain: string;
   actionRequired: boolean | null;
   onActionRequiredChange: (v: boolean) => void;
   expectedActionType: string;
   onExpectedActionTypeChange: (v: string) => void;
+  followUpRequired: boolean | null;
+  onFollowUpRequiredChange: (v: boolean) => void;
 }) {
   const cfg = CATEGORY_CONFIG[rules.categoryId];
-  const excelMatch = lookupExcelActionRequired(subCategory, domain);
-  const effectiveActionRequired = excelMatch?.actionRequired ?? actionRequired ?? false;
+
 
   return (
     <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
@@ -1556,76 +1654,581 @@ function InferredRulesPanel({
         >
           {rules.unsubscribe === "LOCKED_DISABLED" ? "Unsubscribe: Locked" : "Unsubscribe: Allowed"}
         </Badge>
-        {excelMatch && (
-          <Badge
-            className={cn(
-              "hover:bg-inherit",
-              excelMatch.actionRequired
-                ? "bg-cat-red-soft text-cat-red"
-                : "bg-cat-grey-soft text-cat-grey",
-            )}
-          >
-            Action Required: {excelMatch.actionRequired ? "Yes" : "No"}
-          </Badge>
-        )}
       </div>
 
-      {excelMatch ? (
-        <p className="text-[11px] text-muted-foreground">
-          🔒 Matched {excelMatch.matchedCount} master-sheet communication
-          {excelMatch.matchedCount === 1 ? "" : "s"} (e.g. “{excelMatch.sampleTitle}”) — action flag
-          inherited, not editable.
+      <div className="space-y-2 rounded-md border border-border bg-background p-3">
+        <p className="text-xs font-medium text-foreground">
+          Is an operational action required from the vendor? <span className="text-cat-red">*</span>
         </p>
-      ) : (
-        <div className="space-y-2 rounded-md border border-border bg-background p-3">
-          <p className="text-xs font-medium text-foreground">
-            ❓ Is an operational action required from the vendor/manufacturer for this
-            communication?
-          </p>
-          <div className="flex items-center gap-4">
-            {[
-              { label: "Yes", value: true },
-              { label: "No", value: false },
-            ].map((opt) => (
-              <label
-                key={opt.label}
-                className="flex cursor-pointer items-center gap-1.5 text-xs font-medium"
-              >
-                <input
-                  type="radio"
-                  name="submitter-action-required"
-                  className="h-3.5 w-3.5 accent-primary"
-                  checked={actionRequired === opt.value}
-                  onChange={() => onActionRequiredChange(opt.value)}
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Custom category — not found in the master sheet, so this flag drives the vendor-side
-            action banner.
-          </p>
+        <div className="flex items-center gap-4">
+          {[
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ].map((opt) => (
+            <label
+              key={opt.label}
+              className="flex cursor-pointer items-center gap-1.5 text-xs font-medium"
+            >
+              <input
+                type="radio"
+                name="submitter-action-required"
+                className="h-3.5 w-3.5 accent-primary"
+                checked={actionRequired === opt.value}
+                onChange={() => onActionRequiredChange(opt.value)}
+              />
+              {opt.label}
+            </label>
+          ))}
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Declared manually by the submitter — this flag drives the vendor-side action banner.
+        </p>
+      </div>
+
+      {actionRequired === true && (
+        <>
+          <div className="space-y-1.5 rounded-md border border-cat-red/40 bg-background p-3">
+            <Label className="text-xs font-medium">
+              Expected Action from Audience <span className="text-cat-red">*</span>
+            </Label>
+            <Textarea
+              rows={3}
+              value={expectedActionType}
+              onChange={(e) => onExpectedActionTypeChange(e.target.value)}
+              placeholder="e.g. Acknowledge PO cancellation, Reconcile statement, Upload missing GRN"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Specify the exact operational step required from the vendor or manufacturer.
+            </p>
+          </div>
+
+          <div className="space-y-2 rounded-md border border-border bg-background p-3">
+            <p className="text-xs font-medium text-foreground">
+              Is a follow-up template required for non-responders?{" "}
+              <span className="text-cat-red">*</span>
+            </p>
+            <div className="flex items-center gap-4">
+              {[
+                { label: "Yes", value: true },
+                { label: "No", value: false },
+              ].map((opt) => (
+                <label
+                  key={opt.label}
+                  className="flex cursor-pointer items-center gap-1.5 text-xs font-medium"
+                >
+                  <input
+                    type="radio"
+                    name="submitter-followup-required"
+                    className="h-3.5 w-3.5 accent-primary"
+                    checked={followUpRequired === opt.value}
+                    onChange={() => onFollowUpRequiredChange(opt.value)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              A nested follow-up request is auto-scaffolded on approval when set to Yes.
+            </p>
+          </div>
+        </>
       )}
 
-      {effectiveActionRequired && (
-        <div className="space-y-1.5 rounded-md border border-cat-red/40 bg-background p-3">
-          <Label className="text-xs font-medium">
-            Expected Action from Audience <span className="text-cat-red">*</span>
-          </Label>
-          <Input
-            value={expectedActionType}
-            onChange={(e) => onExpectedActionTypeChange(e.target.value)}
-            placeholder="e.g. Acknowledge PO cancellation, Reconcile statement, Upload missing GRN"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Specify the exact operational step required from the vendor or manufacturer.
-          </p>
+    </div>
+
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dynamic attachment engine (entity PDFs + multiple dynamic tables)
+// ---------------------------------------------------------------------------
+
+const NUMERIC_COLUMNS = new Set([
+  "charges",
+  "instances",
+  "sales_volume",
+  "growth_pct",
+  "downtime_mins",
+]);
+
+export function findQuery(id: string) {
+  return PRE_APPROVED_QUERIES.find((q) => q.id === id) ?? null;
+}
+
+/** Entity PDFs need entity_name AND an identity column. */
+export function isPdfQueryValid(id: string): boolean {
+  const q = findQuery(id);
+  if (!q) return false;
+  return (
+    q.columns.includes("entity_name") &&
+    (q.columns.includes("mfd_id") || q.columns.includes("vendor_id"))
+  );
+}
+
+/** Dynamic tables need an identity column. */
+export function isTableQueryValid(id: string): boolean {
+  const q = findQuery(id);
+  if (!q) return false;
+  return (
+    q.columns.includes("vendor_id") ||
+    q.columns.includes("manufacturer_id") ||
+    q.columns.includes("mfd_id")
+  );
+}
+
+const HIGHLIGHT_COLORS = ["#DC2626", "#F59E0B", "#16A34A", "#2563EB"];
+
+function tableUid() {
+  return `tbl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+export function emptyPdfConfig(): PdfEntityConfig {
+  return {
+    queryId: "",
+    queryName: "",
+    uploadedEntities: Object.fromEntries(MOCK_ENTITIES.map((e) => [e, false])),
+  };
+}
+
+function DynamicAttachmentSetup({
+  mode,
+  onModeChange,
+  pdfConfig,
+  onPdfConfigChange,
+  tableConfigs,
+  onTableConfigsChange,
+}: {
+  mode: AttachmentMode;
+  onModeChange: (m: AttachmentMode) => void;
+  pdfConfig: PdfEntityConfig;
+  onPdfConfigChange: (c: PdfEntityConfig) => void;
+  tableConfigs: DynamicTableConfig[];
+  onTableConfigsChange: (c: DynamicTableConfig[]) => void;
+}) {
+  const MODES: { value: AttachmentMode; label: string; hint: string }[] = [
+    { value: "none", label: "None", hint: "No dynamic attachment" },
+    {
+      value: "dynamic_pdf",
+      label: "Dynamic PDFs (Entity-Level)",
+      hint: "One PDF per legal entity, mapped automatically",
+    },
+    {
+      value: "dynamic_tables",
+      label: "Dynamic Tables",
+      hint: "Per-vendor tables rendered from a pre-approved query",
+    },
+  ];
+
+  return (
+    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <div>
+        <h3 className="text-sm font-semibold">Dynamic Attachment Setup</h3>
+        <p className="text-xs text-muted-foreground">
+          Attachments are generated per recipient at send time from a pre-approved query.
+        </p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        {MODES.map((m) => (
+          <label
+            key={m.value}
+            className={cn(
+              "flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-xs transition",
+              mode === m.value
+                ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+                : "border-border hover:border-primary/40",
+            )}
+          >
+            <span className="flex items-center gap-2 font-medium">
+              <input
+                type="radio"
+                name="dynamic-attachment-mode"
+                className="h-3.5 w-3.5 accent-primary"
+                checked={mode === m.value}
+                onChange={() => onModeChange(m.value)}
+              />
+              {m.label}
+            </span>
+            <span className="pl-5 text-[11px] text-muted-foreground">{m.hint}</span>
+          </label>
+        ))}
+      </div>
+
+      {mode === "dynamic_pdf" && <PdfEntitySetup config={pdfConfig} onChange={onPdfConfigChange} />}
+
+      {mode === "dynamic_tables" && (
+        <div className="space-y-4">
+          {tableConfigs.map((tc, idx) => (
+            <DynamicTableCard
+              key={tc.id}
+              index={idx}
+              config={tc}
+              onChange={(next) =>
+                onTableConfigsChange(tableConfigs.map((t) => (t.id === tc.id ? next : t)))
+              }
+              onRemove={
+                tableConfigs.length > 1
+                  ? () => onTableConfigsChange(tableConfigs.filter((t) => t.id !== tc.id))
+                  : undefined
+              }
+            />
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={() =>
+              onTableConfigsChange([
+                ...tableConfigs,
+                {
+                  id: tableUid(),
+                  queryId: "",
+                  queryName: "",
+                  selectedColumns: [],
+                  conditionalRules: {},
+                  hasSummaryRow: false,
+                },
+              ])
+            }
+          >
+            <PlusCircle className="h-4 w-4" /> Add Another Dynamic Table
+          </Button>
         </div>
       )}
     </div>
+  );
+}
 
+function PdfEntitySetup({
+  config,
+  onChange,
+}: {
+  config: PdfEntityConfig;
+  onChange: (c: PdfEntityConfig) => void;
+}) {
+  const valid = config.queryId ? isPdfQueryValid(config.queryId) : null;
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-background p-4">
+      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+        🔒 Audience is pre-mapped by Entity — the audience selector above is locked for this mode.
+      </div>
+
+      <FormRow label="Pre-approved query" required>
+        <Select
+          value={config.queryId}
+          onValueChange={(v) => {
+            const q = findQuery(v);
+            onChange({ ...config, queryId: v, queryName: q?.name ?? "" });
+          }}
+        >
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Select a pre-approved query" />
+          </SelectTrigger>
+          <SelectContent>
+            {PRE_APPROVED_QUERIES.map((q) => (
+              <SelectItem key={q.id} value={q.id}>
+                {q.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {config.queryId && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {(findQuery(config.queryId)?.columns ?? []).map((c) => (
+              <Badge key={c} variant="outline" className="font-mono text-[10px]">
+                {c}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </FormRow>
+
+      {valid === false && (
+        <div className="rounded-md border border-cat-red bg-cat-red-soft px-3 py-2 text-xs font-medium text-cat-red">
+          ⚠️ Query Validation Failed: Selected query is missing 'entity_name' or 'mfd_id'. Cannot
+          proceed.
+        </div>
+      )}
+
+      {valid === true && (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Entity Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {MOCK_ENTITIES.map((entity) => {
+                const ready = config.uploadedEntities[entity] === true;
+                return (
+                  <TableRow key={entity}>
+                    <TableCell className="font-medium">{entity}</TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                          ready
+                            ? "bg-cat-green-soft text-cat-green"
+                            : "bg-cat-red-soft text-cat-red",
+                        )}
+                      >
+                        {ready ? "🟢 PDF Ready" : "🔴 Upload needed"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={ready ? "ghost" : "outline"}
+                        className="gap-1"
+                        onClick={() =>
+                          onChange({
+                            ...config,
+                            uploadedEntities: {
+                              ...config.uploadedEntities,
+                              [entity]: !ready,
+                            },
+                          })
+                        }
+                      >
+                        <FileUp className="h-3.5 w-3.5" />
+                        {ready ? "Replace PDF" : "Upload PDF"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DynamicTableCard({
+  index,
+  config,
+  onChange,
+  onRemove,
+}: {
+  index: number;
+  config: DynamicTableConfig;
+  onChange: (c: DynamicTableConfig) => void;
+  onRemove?: () => void;
+}) {
+  const query = config.queryId ? findQuery(config.queryId) : null;
+  const valid = config.queryId ? isTableQueryValid(config.queryId) : null;
+  const available = (query?.columns ?? []).filter((c) => !config.selectedColumns.includes(c));
+
+  const addColumn = (col: string) => {
+    if (config.selectedColumns.includes(col)) return;
+    onChange({ ...config, selectedColumns: [...config.selectedColumns, col] });
+  };
+  const removeColumn = (col: string) => {
+    const rules = { ...(config.conditionalRules ?? {}) };
+    delete rules[col];
+    onChange({
+      ...config,
+      selectedColumns: config.selectedColumns.filter((c) => c !== col),
+      conditionalRules: rules,
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-background p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold">Dynamic Table #{index + 1}</span>
+        {onRemove && (
+          <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="gap-1">
+            <X className="h-3.5 w-3.5" /> Remove
+          </Button>
+        )}
+      </div>
+
+      <FormRow label="Pre-approved query" required>
+        <Select
+          value={config.queryId}
+          onValueChange={(v) => {
+            const q = findQuery(v);
+            onChange({
+              ...config,
+              queryId: v,
+              queryName: q?.name ?? "",
+              selectedColumns: [],
+              conditionalRules: {},
+            });
+          }}
+        >
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Select a pre-approved query" />
+          </SelectTrigger>
+          <SelectContent>
+            {PRE_APPROVED_QUERIES.map((q) => (
+              <SelectItem key={q.id} value={q.id}>
+                {q.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormRow>
+
+      {valid === false && (
+        <div className="rounded-md border border-cat-red bg-cat-red-soft px-3 py-2 text-xs font-medium text-cat-red">
+          ⚠️ Query Validation Failed: Query missing identity column (vendor_id/manufacturer_id).
+        </div>
+      )}
+
+      {valid === true && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label className="text-xs">Available columns (click or drag)</Label>
+            <div className="flex min-h-[64px] flex-wrap gap-1.5 rounded-md border border-dashed border-border p-2">
+              {available.length === 0 && (
+                <span className="text-[11px] text-muted-foreground">All columns assigned.</span>
+              )}
+              {available.map((col) => (
+                <button
+                  key={col}
+                  type="button"
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData("text/plain", col)}
+                  onClick={() => addColumn(col)}
+                  className="cursor-grab rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 font-mono text-[11px] text-primary hover:bg-primary/10"
+                >
+                  {col}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Manual typing of column names is disabled — assign fields from the query schema only.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Table layout</Label>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const col = e.dataTransfer.getData("text/plain");
+                if (col) addColumn(col);
+              }}
+              className="min-h-[64px] space-y-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2"
+            >
+              {config.selectedColumns.length === 0 && (
+                <span className="text-[11px] text-muted-foreground">
+                  Drop or click columns to build the table.
+                </span>
+              )}
+              {config.selectedColumns.map((col) => {
+                const rule = config.conditionalRules?.[col];
+                return (
+                  <div key={col} className="rounded-md border border-border bg-background p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[11px] font-medium">{col}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeColumn(col)}
+                        className="text-muted-foreground hover:text-cat-red"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {NUMERIC_COLUMNS.has(col) && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="text-muted-foreground">Highlight if</span>
+                        <Select
+                          value={rule?.operator ?? "<"}
+                          onValueChange={(v) =>
+                            onChange({
+                              ...config,
+                              conditionalRules: {
+                                ...(config.conditionalRules ?? {}),
+                                [col]: {
+                                  operator: v as "<" | ">",
+                                  value: rule?.value ?? "",
+                                  color: rule?.color ?? HIGHLIGHT_COLORS[0],
+                                },
+                              },
+                            })
+                          }
+                        >
+                          <SelectTrigger className="h-7 w-14">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="<">{"<"}</SelectItem>
+                            <SelectItem value=">">{">"}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          className="h-7 w-24"
+                          value={rule?.value ?? ""}
+                          onChange={(e) =>
+                            onChange({
+                              ...config,
+                              conditionalRules: {
+                                ...(config.conditionalRules ?? {}),
+                                [col]: {
+                                  operator: rule?.operator ?? "<",
+                                  value: e.target.value,
+                                  color: rule?.color ?? HIGHLIGHT_COLORS[0],
+                                },
+                              },
+                            })
+                          }
+                          placeholder="value"
+                        />
+                        <div className="flex items-center gap-1">
+                          {HIGHLIGHT_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              aria-label={`Highlight colour ${c}`}
+                              onClick={() =>
+                                onChange({
+                                  ...config,
+                                  conditionalRules: {
+                                    ...(config.conditionalRules ?? {}),
+                                    [col]: {
+                                      operator: rule?.operator ?? "<",
+                                      value: rule?.value ?? "",
+                                      color: c,
+                                    },
+                                  },
+                                })
+                              }
+                              style={{ backgroundColor: c }}
+                              className={cn(
+                                "h-4 w-4 rounded-full border",
+                                rule?.color === c ? "ring-2 ring-foreground ring-offset-1" : "",
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-[11px]">
+              <Checkbox
+                checked={config.hasSummaryRow === true}
+                onCheckedChange={(v) => onChange({ ...config, hasSummaryRow: v === true })}
+              />
+              Add Summary Row (exempt from vendor_id requirement)
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
