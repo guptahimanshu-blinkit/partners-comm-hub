@@ -908,3 +908,159 @@ function AttachmentBlockCard({
     </div>
   );
 }
+
+/* ---------------- Approver Dashboard (read-only live sync) ---------------- */
+
+const TYPE_LABEL: Record<AttachmentType, string> = {
+  none: "None",
+  dynamic_attachment: "Dynamic Attachment",
+  dynamic_table: "Dynamic Table",
+  dynamic_pdf: "Dynamic PDF",
+};
+
+function ApproverDashboard({
+  attachmentType,
+  groups,
+  blocks,
+  varsMapped,
+}: {
+  attachmentType: AttachmentType;
+  groups: AudienceGroup[];
+  blocks: AttachmentBlock[];
+  varsMapped: boolean;
+}) {
+  const passed = blocks.filter((b) => b.checked && b.queryValid);
+
+  return (
+    <section className="rounded-xl border border-cat-green/30 bg-cat-green-soft/25 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">Approver Dashboard (Live Sync Preview)</h2>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Read-only mirror of the submitter form state.
+          </p>
+        </div>
+        <span className="rounded-full bg-cat-green px-3 py-1 text-[11px] font-semibold text-primary-foreground">
+          Mode: {TYPE_LABEL[attachmentType]}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-4">
+        {attachmentType === "none" && (
+          <div className="rounded-lg border border-border bg-background p-3 text-[13px] text-muted-foreground">
+            No attachment configured for this communication.
+          </div>
+        )}
+
+        {attachmentType === "dynamic_pdf" && (
+          <div className="rounded-lg border border-border bg-background p-3">
+            <div className="text-[13px] font-medium">PDF Clearance Checklist</div>
+            <ul className="mt-2 space-y-1.5">
+              {groups.map((g, i) => {
+                const clear = g.hasPdf && g.hasTargetedList;
+                return (
+                  <li key={g.id} className="flex items-center gap-2 text-[13px]">
+                    {clear ? (
+                      <CheckCircle2 className="h-4 w-4 text-cat-green" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className={clear ? "" : "text-muted-foreground"}>
+                      {g.entity || "—"} · {g.subType || "—"}
+                    </span>
+                    {!clear && (
+                      <span className="text-[11px] text-muted-foreground">
+                        (Group {i + 1} pending uploads)
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {attachmentType === "dynamic_attachment" && (
+          <div className="rounded-lg border border-border bg-background p-3 text-[13px]">
+            {passed.length > 0 ? (
+              <span>
+                <span className="font-medium">Data Export Configured:</span> Validated query
+                containing audience IDs attached.
+                {passed.length > 1 ? ` (${passed.length} exports)` : ""}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Awaiting a validated query with audience IDs.
+              </span>
+            )}
+          </div>
+        )}
+
+        {attachmentType === "dynamic_table" && (
+          <div className="space-y-3">
+            {passed.length === 0 && (
+              <div className="rounded-lg border border-border bg-background p-3 text-[13px] text-muted-foreground">
+                No validated table queries yet.
+              </div>
+            )}
+            {passed.map((b, i) => (
+              <div
+                key={b.id}
+                className="overflow-x-auto rounded-lg border border-border bg-background p-3"
+              >
+                <div className="mb-2 text-[12px] font-medium text-muted-foreground">
+                  Table preview · Block {i + 1}
+                </div>
+                {b.columns.length === 0 ? (
+                  <div className="text-[12px] text-muted-foreground">
+                    No columns mapped yet.
+                  </div>
+                ) : (
+                  <table className="w-full border-collapse text-[12px]">
+                    <thead>
+                      <tr>
+                        {b.columns.map((c) => (
+                          <th
+                            key={c.id}
+                            className="border border-border bg-muted/50 px-2 py-1 text-left font-semibold"
+                          >
+                            {c.displayName.trim() || c.field}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[1, 2].map((r) => (
+                        <tr key={r}>
+                          {b.columns.map((c) => (
+                            <td
+                              key={c.id}
+                              className="border border-border px-2 py-1 text-muted-foreground"
+                            >
+                              {`${c.field}_${r}`}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {varsMapped && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-cat-green-soft px-3 py-1 text-[12px] font-medium text-cat-green">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Template Variables: Query Mapped Successfully
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-cat-green/25 pt-3 text-[11px] text-muted-foreground">
+        Approver view syncs in real-time with the form above.
+      </div>
+    </section>
+  );
+}
