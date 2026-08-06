@@ -896,12 +896,6 @@ function NewRequestForm({
         ],
   );
 
-  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>(
-    () => normalizeAttachmentConfig(src?.attachmentConfig) ?? { type: "none", items: [] },
-  );
-  const [attQueryDraft, setAttQueryDraft] = useState("");
-  const [attFormulaDraft, setAttFormulaDraft] = useState("");
-  const [chartQuery, setChartQuery] = useState(src?.inlineSqlChart ?? "");
   const [cta, setCta] = useState<CtaOption>(src?.cta ?? "None");
   const [ctaDest, setCtaDest] = useState(src?.ctaDestination ?? "");
   const [ctaModuleRoute, setCtaModuleRoute] = useState(src?.ctaModuleRoute ?? "");
@@ -954,28 +948,15 @@ function NewRequestForm({
 
 
   const submit = () => {
-    // 1) Auto-commit any uncommitted attachment draft text before auditing.
-    const committedItems: AttachmentItem[] = [...(attachmentConfig.items ?? [])];
-    if (attQueryDraft.trim())
-      committedItems.push({ id: attachmentUid(), type: "query", name: attQueryDraft.trim() });
-    if (attFormulaDraft.trim())
-      committedItems.push({ id: attachmentUid(), type: "formula", name: attFormulaDraft.trim() });
-    const finalAttachmentConfig: AttachmentConfig = {
-      ...attachmentConfig,
-      items: committedItems,
-      type: committedItems.length === 0 ? "none" : (committedItems[0].type as "static"),
-    };
-    if (committedItems.length !== (attachmentConfig.items ?? []).length) {
-      setAttachmentConfig(finalAttachmentConfig);
-      setAttQueryDraft("");
-      setAttFormulaDraft("");
-    }
+    // 1) Attachments are driven solely by the Dynamic Attachment Setup.
+    const committedItems: AttachmentItem[] = [];
+    const finalAttachmentConfig: AttachmentConfig = { type: "none", items: [] };
     const finalAttachmentOption: AttachmentOption =
-      committedItems.length === 0
-        ? "None"
-        : /\.(xlsx|xls|csv)$/i.test(committedItems[0].name)
+      attachmentMode === "dynamic_pdf"
+        ? "PDF"
+        : attachmentMode === "dynamic_tables"
           ? "Excel Export"
-          : "PDF";
+          : "None";
 
     // 2) CTA-specific hard gates.
     if (cta === "Autofilled Help & Support Ticket" && (!ticketCategory || !ticketSubcategory)) {
@@ -1074,7 +1055,6 @@ function NewRequestForm({
       manufacturerListName: mfrListName || "-",
       subject,
       body,
-      inlineSqlChart: chartQuery || undefined,
       formulaFlags: committedItems.some((i) => i.type === "formula")
         ? ["Formula Attachment"]
         : ["None"],
