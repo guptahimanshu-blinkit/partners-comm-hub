@@ -1141,8 +1141,52 @@ function NewRequestForm({
         <Button variant="ghost" size="sm" onClick={onDone} className="gap-1">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <h2 className="text-base font-semibold">New Request</h2>
+        <h2 className="text-base font-semibold">{formTitle}</h2>
+        {isFollowUpClone && (
+          <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
+            <CornerDownRight className="h-3 w-3" /> Category: Follow-Up (locked)
+          </Badge>
+        )}
       </div>
+
+      {isEdit && (
+        <div
+          className={cn(
+            "flex items-start gap-2 rounded-lg border p-3 text-xs",
+            requiresReapproval
+              ? "border-cat-amber/40 bg-cat-amber/10 text-foreground"
+              : "border-border bg-muted/40 text-muted-foreground",
+          )}
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">
+              ℹ️ Changing Template ID or User Persona triggers a required re-approval flow.
+            </p>
+            <p className="mt-0.5">
+              {requiresReapproval
+                ? `Detected: ${[templateIdChanged && "new Apollo Template ID", personaChanged && "core persona switch"].filter(Boolean).join(" + ")}. On save this request returns to Pending for a 2nd central approval.`
+                : `Edits to targeted list files or minor text within the same persona retain the current status (${src?.status}).`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isFollowUpClone && (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div>
+            <p className="font-medium">Follow-up clone — restricted editing</p>
+            <p className="mt-0.5 text-muted-foreground">
+              Editable: Audience, Attachment Setup, Template ID, Team, Mail Owner, Analyst POC,
+              Purpose and Subject. Categorization, CTA, frequency and schedule are inherited from
+              the parent template.
+            </p>
+          </div>
+        </div>
+      )}
+
+
 
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
