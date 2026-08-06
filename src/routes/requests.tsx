@@ -1289,6 +1289,17 @@ function NewRequestForm({
             {purpose.length}/1000 characters
           </div>
         </FormRow>
+
+        <div className="border-t border-border pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold">Dynamic Attachment Flow</h3>
+            <p className="text-xs text-muted-foreground">
+              Attachment type, audience, attachment blocks and template variable checks.
+            </p>
+          </div>
+          <DynamicAttachmentSections />
+        </div>
+
         <FormRow label="Mail will be sent to" required>
           {attachmentMode === "dynamic_pdf" ? (
             <>
