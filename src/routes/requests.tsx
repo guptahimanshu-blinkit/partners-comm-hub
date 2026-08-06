@@ -1643,6 +1643,13 @@ function NewRequestForm({
           )}
 
         </FormRow>
+        </div>
+        {isFollowUpClone && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-primary">
+            🔓 Scheduling &amp; cadence are unlocked for follow-up campaigns — set a fresh send
+            cadence and execution deadline below.
+          </div>
+        )}
         <FormRow label="Frequency of the mail to be sent" required>
           <Select value={frequency} onValueChange={(v) => setFrequency(v as FrequencyOption)}>
             <SelectTrigger className="h-9">
@@ -1664,7 +1671,6 @@ function NewRequestForm({
             onChange={(e) => setScheduleDeadline(e.target.value)}
           />
         </FormRow>
-        </div>
       </section>
 
 
