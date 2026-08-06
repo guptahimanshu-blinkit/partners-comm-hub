@@ -100,13 +100,11 @@ import {
   type AttachmentMode,
   type PdfEntityConfig,
   type DynamicTableConfig,
-
   type InferredRules,
   type SubCategoryPurpose,
   type DomainType,
   type AttachmentConfig,
   type AttachmentItem,
-
   type PreflightChecks,
   type PublishLog,
   type TemplateRequest,
@@ -575,7 +573,11 @@ function SubmitterView() {
       )}
 
       {intent ? (
-        <NewRequestForm key={JSON.stringify(intent)} intent={intent} onDone={() => setIntent(null)} />
+        <NewRequestForm
+          key={JSON.stringify(intent)}
+          intent={intent}
+          onDone={() => setIntent(null)}
+        />
       ) : (
         <MyRequestsTable requests={mine} onIntent={setIntent} />
       )}
@@ -665,7 +667,6 @@ function RequestRowMenu({
     </>
   );
 }
-
 
 function MyRequestsTable({
   requests,
@@ -771,7 +772,6 @@ function MyRequestsTable({
     </div>
   );
 }
-
 
 // ------- Form -------
 const apolloTemplateUrl = (templateId: string) =>
@@ -896,12 +896,6 @@ function NewRequestForm({
         ],
   );
 
-  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>(
-    () => normalizeAttachmentConfig(src?.attachmentConfig) ?? { type: "none", items: [] },
-  );
-  const [attQueryDraft, setAttQueryDraft] = useState("");
-  const [attFormulaDraft, setAttFormulaDraft] = useState("");
-  const [chartQuery, setChartQuery] = useState(src?.inlineSqlChart ?? "");
   const [cta, setCta] = useState<CtaOption>(src?.cta ?? "None");
   const [ctaDest, setCtaDest] = useState(src?.ctaDestination ?? "");
   const [ctaModuleRoute, setCtaModuleRoute] = useState(src?.ctaModuleRoute ?? "");
@@ -921,7 +915,8 @@ function NewRequestForm({
 
   // ---- 2nd approval triggers (Edit flow) ----
   const templateIdChanged = isEdit && !!src && src.templateId.trim() !== templateId.trim();
-  const personaChanged = isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
+  const personaChanged =
+    isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
   const requiresReapproval = templateIdChanged || personaChanged;
 
   const formTitle =
@@ -932,7 +927,6 @@ function NewRequestForm({
           ? `Follow-Up Template · nested under ${src?.templateName}`
           : `Clone of ${src?.templateName}`
         : "New Request";
-
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
@@ -949,33 +943,16 @@ function NewRequestForm({
     waValidated: showWhatsApp ? waMessage.trim().length > 0 : true,
   };
 
-
-
-
-
   const submit = () => {
-    // 1) Auto-commit any uncommitted attachment draft text before auditing.
-    const committedItems: AttachmentItem[] = [...(attachmentConfig.items ?? [])];
-    if (attQueryDraft.trim())
-      committedItems.push({ id: attachmentUid(), type: "query", name: attQueryDraft.trim() });
-    if (attFormulaDraft.trim())
-      committedItems.push({ id: attachmentUid(), type: "formula", name: attFormulaDraft.trim() });
-    const finalAttachmentConfig: AttachmentConfig = {
-      ...attachmentConfig,
-      items: committedItems,
-      type: committedItems.length === 0 ? "none" : (committedItems[0].type as "static"),
-    };
-    if (committedItems.length !== (attachmentConfig.items ?? []).length) {
-      setAttachmentConfig(finalAttachmentConfig);
-      setAttQueryDraft("");
-      setAttFormulaDraft("");
-    }
+    // 1) Attachments are driven solely by the Dynamic Attachment Setup.
+    const committedItems: AttachmentItem[] = [];
+    const finalAttachmentConfig: AttachmentConfig = { type: "none", items: [] };
     const finalAttachmentOption: AttachmentOption =
-      committedItems.length === 0
-        ? "None"
-        : /\.(xlsx|xls|csv)$/i.test(committedItems[0].name)
+      attachmentMode === "dynamic_pdf"
+        ? "PDF"
+        : attachmentMode === "dynamic_tables"
           ? "Excel Export"
-          : "PDF";
+          : "None";
 
     // 2) CTA-specific hard gates.
     if (cta === "Autofilled Help & Support Ticket" && (!ticketCategory || !ticketSubcategory)) {
@@ -1054,7 +1031,6 @@ function NewRequestForm({
       }
     }
 
-
     const req: TemplateRequest = {
       id: isEdit && src ? src.id : `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
@@ -1068,13 +1044,16 @@ function NewRequestForm({
       purpose,
       sentTo,
       emailAttachmentsName:
-        committedItems.length > 0 ? committedItems.map((i) => i.name).join(", ") : "No Attachment",
+        attachmentMode === "dynamic_pdf"
+          ? `Dynamic PDFs · ${pdfConfig.queryName || "query pending"}`
+          : attachmentMode === "dynamic_tables"
+            ? `Dynamic Tables · ${tableConfigs.length} table(s)`
+            : "No Attachment",
 
       vendorListName: vendorListName || "-",
       manufacturerListName: mfrListName || "-",
       subject,
       body,
-      inlineSqlChart: chartQuery || undefined,
       formulaFlags: committedItems.some((i) => i.type === "formula")
         ? ["Formula Attachment"]
         : ["None"],
@@ -1137,7 +1116,6 @@ function NewRequestForm({
     onDone();
   };
 
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -1181,15 +1159,14 @@ function NewRequestForm({
           <div>
             <p className="font-medium">Follow-up clone — restricted editing</p>
             <p className="mt-0.5 text-muted-foreground">
-              Editable: Audience, Attachment Setup, Template ID, Team, Mail Owner, Analyst POC,
-              Purpose and Subject. Categorization, CTA, frequency and schedule are inherited from
-              the parent template.
+              Editable: Scheduling &amp; cadence (frequency, date/time deadline), Audience,
+              Attachment Setup, Template ID, Team, Mail Owner, Analyst POC, Purpose and Subject.
+              Categorization, domain, action required and CTA are inherited from the parent
+              template.
             </p>
           </div>
         </div>
       )}
-
-
 
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
@@ -1204,8 +1181,8 @@ function NewRequestForm({
           </div>
           {apolloTemplate && (
             <p className="mt-2 text-[11px] text-muted-foreground">
-              ℹ️ Live template design auto-fetched from Apollo Service — use “Check Template” for the
-              full Desktop / Tablet / Mobile preview.
+              ℹ️ Live template design auto-fetched from Apollo Service — use “Check Template” for
+              the full Desktop / Tablet / Mobile preview.
             </p>
           )}
         </FormRow>
@@ -1223,7 +1200,6 @@ function NewRequestForm({
               ? `ℹ️ Auto-fetched from Apollo Service for Template ID: ${templateId.trim()}`
               : "ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above."}
           </p>
-
         </FormRow>
         <FormRow label="Submitted By">
           <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
@@ -1475,7 +1451,6 @@ function NewRequestForm({
               followUpRequired={followUpRequired}
               onFollowUpRequiredChange={setFollowUpRequired}
             />
-
           </>
         )}
       </section>
@@ -1499,14 +1474,6 @@ function NewRequestForm({
           />
           <LiquidVarPills text={subject} />
         </FormRow>
-        <FormRow label="Inline SQL Chart binding (optional)">
-          <Input
-            value={chartQuery}
-            onChange={(e) => setChartQuery(e.target.value)}
-            placeholder="rebate_trend_by_vendor.sql"
-          />
-          {chartQuery && <InlineSqlChartPreview label={chartQuery} />}
-        </FormRow>
       </section>
 
       <DynamicAttachmentSetup
@@ -1528,139 +1495,135 @@ function NewRequestForm({
       {/* Smart attachment + CTA + Frequency */}
 
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <FormRow label="Attachment">
-          <SmartAttachment
-            value={attachmentConfig}
-            onChange={setAttachmentConfig}
-            queryDraft={attQueryDraft}
-            onQueryDraftChange={setAttQueryDraft}
-            formulaDraft={attFormulaDraft}
-            onFormulaDraftChange={setAttFormulaDraft}
-          />
-        </FormRow>
         <div
           className={cn("space-y-4", isFollowUpClone && "pointer-events-none opacity-60")}
           aria-disabled={isFollowUpClone}
         >
-        <FormRow label="Call to Action">
-          <Select
-            value={cta}
-            onValueChange={(v) => {
-              const next = v as CtaOption;
-              setCta(next);
-              if (next !== "Direct Link") {
-                setCtaModuleRoute("");
-                setCtaQueryParams("");
-                setCtaDest("");
-              }
-              if (next !== "Autofilled Help & Support Ticket") {
-                setTicketCategory("");
-                setTicketSubcategory("");
-              }
-            }}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(["None", "Direct Link", "Autofilled Help & Support Ticket"] as const).map((v) => (
-                <SelectItem key={v} value={v}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {cta === "Direct Link" && (
-            <div className="mt-2 space-y-2">
-              <div>
-                <Label className="text-xs">Target Portal Module Route *</Label>
-                <Select
-                  value={ctaModuleRoute}
-                  onValueChange={(v) => {
-                    setCtaModuleRoute(v);
-                    setCtaDest(v);
-                  }}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select module route" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CTA_MODULE_ROUTES.map((r) => (
-                      <SelectItem key={r.route} value={r.route}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <FormRow label="Call to Action">
+            <Select
+              value={cta}
+              onValueChange={(v) => {
+                const next = v as CtaOption;
+                setCta(next);
+                if (next !== "Direct Link") {
+                  setCtaModuleRoute("");
+                  setCtaQueryParams("");
+                  setCtaDest("");
+                }
+                if (next !== "Autofilled Help & Support Ticket") {
+                  setTicketCategory("");
+                  setTicketSubcategory("");
+                }
+              }}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["None", "Direct Link", "Autofilled Help & Support Ticket"] as const).map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {cta === "Direct Link" && (
+              <div className="mt-2 space-y-2">
+                <div>
+                  <Label className="text-xs">Target Portal Module Route *</Label>
+                  <Select
+                    value={ctaModuleRoute}
+                    onValueChange={(v) => {
+                      setCtaModuleRoute(v);
+                      setCtaDest(v);
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select module route" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CTA_MODULE_ROUTES.map((r) => (
+                        <SelectItem key={r.route} value={r.route}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Query Parameters (optional)</Label>
+                  <Input
+                    value={ctaQueryParams}
+                    onChange={(e) => setCtaQueryParams(e.target.value)}
+                    placeholder="?po_id={{po_number}}"
+                  />
+                </div>
               </div>
-              <div>
-                <Label className="text-xs">Query Parameters (optional)</Label>
-                <Input
-                  value={ctaQueryParams}
-                  onChange={(e) => setCtaQueryParams(e.target.value)}
-                  placeholder="?po_id={{po_number}}"
-                />
+            )}
+            {cta === "Autofilled Help & Support Ticket" && (
+              <div className="mt-2 space-y-2">
+                <div>
+                  <Label className="text-xs">
+                    Ticket Category <span className="text-cat-red">*</span>
+                  </Label>
+                  <Select
+                    value={ticketCategory}
+                    onValueChange={(v) => {
+                      setTicketCategory(v);
+                      setTicketSubcategory("");
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select ticket category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(TICKET_TAXONOMY).map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">
+                    Ticket Subcategory <span className="text-cat-red">*</span>
+                  </Label>
+                  <Select
+                    value={ticketSubcategory}
+                    onValueChange={setTicketSubcategory}
+                    disabled={!ticketCategory}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue
+                        placeholder={
+                          ticketCategory ? "Select subcategory" : "Select a category first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(TICKET_TAXONOMY[ticketCategory] ?? []).map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  ℹ️ Autofills vendor ticket category to eliminate mistagged tickets and support SLA
+                  rejections.
+                </p>
               </div>
-            </div>
-          )}
-          {cta === "Autofilled Help & Support Ticket" && (
-            <div className="mt-2 space-y-2">
-              <div>
-                <Label className="text-xs">
-                  Ticket Category <span className="text-cat-red">*</span>
-                </Label>
-                <Select
-                  value={ticketCategory}
-                  onValueChange={(v) => {
-                    setTicketCategory(v);
-                    setTicketSubcategory("");
-                  }}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select ticket category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(TICKET_TAXONOMY).map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">
-                  Ticket Subcategory <span className="text-cat-red">*</span>
-                </Label>
-                <Select
-                  value={ticketSubcategory}
-                  onValueChange={setTicketSubcategory}
-                  disabled={!ticketCategory}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue
-                      placeholder={
-                        ticketCategory ? "Select subcategory" : "Select a category first"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(TICKET_TAXONOMY[ticketCategory] ?? []).map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                ℹ️ Autofills vendor ticket category to eliminate mistagged tickets and support SLA
-                rejections.
-              </p>
-            </div>
-          )}
-
-        </FormRow>
+            )}
+          </FormRow>
+        </div>
+        {isFollowUpClone && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-primary">
+            🔓 Scheduling &amp; cadence are unlocked for follow-up campaigns — set a fresh send
+            cadence and execution deadline below.
+          </div>
+        )}
         <FormRow label="Frequency of the mail to be sent" required>
           <Select value={frequency} onValueChange={(v) => setFrequency(v as FrequencyOption)}>
             <SelectTrigger className="h-9">
@@ -1682,9 +1645,7 @@ function NewRequestForm({
             onChange={(e) => setScheduleDeadline(e.target.value)}
           />
         </FormRow>
-        </div>
       </section>
-
 
       {showWhatsApp && (
         <section className="space-y-3 rounded-xl border border-border bg-card p-5">
@@ -1883,7 +1844,6 @@ function InferredRulesPanel({
 }) {
   const cfg = CATEGORY_CONFIG[rules.categoryId];
 
-
   return (
     <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
       <div className="flex items-center justify-between">
@@ -1996,9 +1956,7 @@ function InferredRulesPanel({
           </div>
         </>
       )}
-
     </div>
-
   );
 }
 
@@ -2547,10 +2505,7 @@ export const TICKET_TAXONOMY: Record<string, string[]> = {
     "Mismatch in debit notes (Response time ~3 Days)",
     "Others (Response time ~3 Days)",
   ],
-  Onboarding: [
-    "Warehouse details needed (Response time ~4 Days)",
-    "Other (Response time ~4 Days)",
-  ],
+  Onboarding: ["Warehouse details needed (Response time ~4 Days)", "Other (Response time ~4 Days)"],
   "Login Issues": ["Not receiving OTP (Response time ~1 Day)", "Other"],
   "Fees & Charges": ["Dispute Charge (Response time ~2 Days)", "Other"],
   "Marketing & Brand Fund Invoices": [
@@ -2574,202 +2529,6 @@ const ATTACHMENT_ICON: Record<AttachmentItem["type"], string> = {
 function attachmentUid(): string {
   return `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
-
-type AttachmentTabKey = "none" | "static" | "query" | "formula";
-
-function SmartAttachment({
-  value,
-  onChange,
-  queryDraft,
-  onQueryDraftChange,
-  formulaDraft,
-  onFormulaDraftChange,
-}: {
-  value: AttachmentConfig;
-  onChange: (v: AttachmentConfig) => void;
-  queryDraft: string;
-  onQueryDraftChange: (v: string) => void;
-  formulaDraft: string;
-  onFormulaDraftChange: (v: string) => void;
-}) {
-  const items = value.items ?? [];
-  const [tab, setTab] = useState<AttachmentTabKey>(items.length === 0 ? "none" : "static");
-
-  const tabs: Array<{ key: AttachmentTabKey; label: string; icon: typeof Ban }> = [
-    { key: "none", label: "No Attachment", icon: Ban },
-    { key: "static", label: "Static Upload", icon: FileUp },
-    { key: "query", label: "SQL Query Output", icon: Database },
-    { key: "formula", label: "Dynamic Formula Attachment", icon: Cloud },
-  ];
-
-  const commit = (next: AttachmentItem[]) => {
-    const primary = next[next.length - 1];
-    onChange({
-      ...value,
-      items: next,
-      type: next.length === 0 ? "none" : (primary?.type ?? "static"),
-      fileName: next.find((i) => i.type === "static")?.name,
-      queryKey: next.find((i) => i.type === "query")?.name,
-      formulaSpec: next.find((i) => i.type === "formula")?.name,
-    });
-  };
-
-  const addFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const next = [...items];
-    Array.from(files).forEach((f) => {
-      next.push({
-        id: attachmentUid(),
-        type: "static",
-        name: f.name,
-        size: `${Math.max(1, Math.round(f.size / 1024))} KB`,
-      });
-    });
-    commit(next);
-  };
-
-  const addText = (type: "query" | "formula", raw: string) => {
-    const name = raw.trim();
-    if (!name) return;
-    commit([...items, { id: attachmentUid(), type, name }]);
-    if (type === "query") onQueryDraftChange("");
-    else onFormulaDraftChange("");
-  };
-
-  const remove = (id: string) => commit(items.filter((i) => i.id !== id));
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {tabs.map((t) => {
-          const on = tab === t.key;
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                on
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" /> {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {tab === "none" && (
-        <p className="text-[11px] text-muted-foreground">
-          No attachment will ship with this communication. Switch tabs to add one or more sources —
-          adding a source never clears the ones already configured.
-        </p>
-      )}
-
-      {tab === "static" && (
-        <label
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            addFiles(e.dataTransfer.files);
-          }}
-          className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border bg-muted/30 px-3 py-6 text-center text-xs text-muted-foreground hover:bg-muted/50"
-        >
-          <FileUp className="h-5 w-5" />
-          <span className="font-medium">Drag &amp; drop files, or click to browse</span>
-          <span className="text-[10px]">Multiple files supported · .pdf / .xlsx / .csv</span>
-          <input
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
-        </label>
-      )}
-
-      {tab === "query" && (
-        <div className="flex items-start gap-2">
-          <Input
-            value={queryDraft}
-            onChange={(e) => onQueryDraftChange(e.target.value)}
-            placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0"
-            onClick={() => addText("query", queryDraft)}
-          >
-            + Add SQL Query
-          </Button>
-        </div>
-      )}
-
-      {tab === "formula" && (
-        <div className="space-y-1">
-          <Label className="text-xs">Formula Attachment Specification</Label>
-          <div className="flex items-start gap-2">
-            <Input
-              value={formulaDraft}
-              onChange={(e) => onFormulaDraftChange(e.target.value)}
-              placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 shrink-0"
-              onClick={() => addText("formula", formulaDraft)}
-            >
-              + Add Formula Spec
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            The formula file or script that generates the attachment at send time.
-          </p>
-        </div>
-      )}
-
-      <div className="rounded-lg border border-border bg-muted/30 p-3">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Configured Attachments ({items.length})
-        </div>
-        {items.length === 0 ? (
-          <p className="mt-1 text-xs text-muted-foreground">No attachments configured yet.</p>
-        ) : (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {items.map((item) => (
-              <span
-                key={item.id}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs"
-              >
-                <span>{ATTACHMENT_ICON[item.type]}</span>
-                <span className="font-medium">{item.name}</span>
-                {item.size && <span className="text-[10px] text-muted-foreground">{item.size}</span>}
-                <button
-                  type="button"
-                  aria-label={`Remove ${item.name}`}
-                  onClick={() => remove(item.id)}
-                  className="text-muted-foreground hover:text-cat-red"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 
 // ---------- Approver: multi-attachment inspection ----------
 function AttachmentInspectionCard({ items }: { items: AttachmentItem[] }) {
@@ -2889,36 +2648,6 @@ function fillSample(text: string): string {
       .join(" ");
     return `[${title}]`;
   });
-}
-
-// ---------- Inline SQL chart preview ----------
-function InlineSqlChartPreview({ label }: { label: string }) {
-  const bars = [42, 68, 55, 81, 34, 90, 62];
-  const max = Math.max(...bars);
-  return (
-    <div className="mt-2 rounded-lg border border-border bg-background p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="font-mono text-[11px] text-muted-foreground">{label}</span>
-        <span className="text-[10px] text-muted-foreground">Live SQL preview · sample data</span>
-      </div>
-      <svg viewBox="0 0 210 80" className="w-full">
-        {bars.map((b, i) => {
-          const h = (b / max) * 60;
-          return (
-            <rect
-              key={i}
-              x={i * 30 + 6}
-              y={70 - h}
-              width={20}
-              height={h}
-              rx={2}
-              className="fill-primary/70"
-            />
-          );
-        })}
-      </svg>
-    </div>
-  );
 }
 
 // ---------- Real-time active governance interception ----------
@@ -3463,7 +3192,9 @@ function DynamicPdfInspectionCard({ request }: { request: TemplateRequest }) {
               <tr key={entity} className="border-t border-border">
                 <td className="px-3 py-2 font-medium">{entity}</td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {ok ? `${entity.toLowerCase().replace(/\s+/g, "_")}_statement.pdf` : "Not uploaded"}
+                  {ok
+                    ? `${entity.toLowerCase().replace(/\s+/g, "_")}_statement.pdf`
+                    : "Not uploaded"}
                 </td>
                 <td className="px-3 py-2">
                   {ok ? (
@@ -3495,7 +3226,8 @@ function mockCellValue(column: string, rowIndex: number): string {
   if (c.includes("charges") || c.includes("amount"))
     return String([48200, 76500, 12900][rowIndex % 3]);
   if (c.includes("growth")) return String([12.4, -3.8, 5.1][rowIndex % 3]);
-  if (c.includes("sales") || c.includes("volume")) return String([18420, 9310, 26550][rowIndex % 3]);
+  if (c.includes("sales") || c.includes("volume"))
+    return String([18420, 9310, 26550][rowIndex % 3]);
   if (c.includes("date")) return ["01 Aug 2026", "02 Aug 2026", "03 Aug 2026"][rowIndex % 3];
   if (c.includes("pct") || c.includes("rate")) return String([94.2, 88.7, 71.5][rowIndex % 3]);
   return `${column}-${rowIndex + 1}`;
@@ -3616,7 +3348,6 @@ function DynamicTablesPreviewCard({ request }: { request: TemplateRequest }) {
   );
 }
 
-
 function RequestDetail({
   request,
   onBack,
@@ -3725,7 +3456,6 @@ function RequestDetail({
     normalizeAttachmentConfig(request.attachmentConfig).items ?? [];
   const actionRequiredYes = request.actionRequired === true;
 
-
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2">
@@ -3757,8 +3487,6 @@ function RequestDetail({
           </Button>
         </div>
       )}
-
-
 
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -3831,16 +3559,6 @@ function RequestDetail({
             />
           )}
           <DetailField label="Subject line" value={request.subject} full />
-          <DetailField
-            label="Inline SQL Chart Binding"
-            value={request.inlineSqlChart || "None"}
-            full
-          />
-          {request.inlineSqlChart ? (
-            <div className="sm:col-span-2">
-              <InlineSqlChartPreview label={request.inlineSqlChart} />
-            </div>
-          ) : null}
           {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
           <DetailField label="Target Portal CTA Route" value={ctaValue} full />
@@ -3853,7 +3571,6 @@ function RequestDetail({
         <DynamicTablesPreviewCard request={request} />
 
         <AttachmentInspectionCard items={attachmentItems} />
-
 
         <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -3936,7 +3653,6 @@ function RequestDetail({
           Read-only view — this request is already <b>{request.status}</b>.
         </div>
       )}
-
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
