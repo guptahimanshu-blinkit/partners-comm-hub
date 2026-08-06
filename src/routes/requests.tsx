@@ -3911,25 +3911,32 @@ function RequestDetail({
 
       <ClubbingMatchPanel requestId={request.id} />
 
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={() => setRejectOpen(true)}
-          className="gap-2 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
-        >
-          <XCircle className="h-4 w-4" /> Reject
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setHoldOpen(true)}
-          className="gap-2 border-cat-amber/40 text-cat-amber hover:bg-cat-amber-soft"
-        >
-          <PauseCircle className="h-4 w-4" /> Hold
-        </Button>
-        <Button onClick={approve} className="gap-2">
-          <CheckCircle2 className="h-4 w-4" /> Approve
-        </Button>
-      </div>
+      {request.status === "Pending" ? (
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setRejectOpen(true)}
+            className="gap-2 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
+          >
+            <XCircle className="h-4 w-4" /> Reject
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setHoldOpen(true)}
+            className="gap-2 border-cat-amber/40 text-cat-amber hover:bg-cat-amber-soft"
+          >
+            <PauseCircle className="h-4 w-4" /> Hold
+          </Button>
+          <Button onClick={approve} className="gap-2">
+            <CheckCircle2 className="h-4 w-4" /> Approve
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          Read-only view — this request is already <b>{request.status}</b>.
+        </div>
+      )}
+
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
