@@ -64,6 +64,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
 import { colorClasses, type CategoryId } from "@/lib/mock-data";
