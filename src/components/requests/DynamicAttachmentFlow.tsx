@@ -519,7 +519,7 @@ export function DynamicAttachmentSections() {
               <span className="font-medium text-foreground">{f.b2AudienceGroups.length}</span>{" "}
               group(s) configured,{" "}
               <span className="font-medium text-foreground">
-                {f.b2AudienceGroups.filter((g) => g.hasPdf && g.hasTargetedList).length}
+                {f.b2AudienceGroups.filter((g) => g.pdfFiles.length > 0 && g.hasTargetedList).length}
               </span>{" "}
               ready.
             </div>
