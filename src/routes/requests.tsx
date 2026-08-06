@@ -80,6 +80,11 @@ import {
   inferCategoryRules,
   REJECTION_REASON_CATEGORIES,
   normalizeAttachmentConfig,
+  MOCK_ENTITIES,
+  PRE_APPROVED_QUERIES,
+  type AttachmentMode,
+  type PdfEntityConfig,
+  type DynamicTableConfig,
 
   type InferredRules,
   type SubCategoryPurpose,
