@@ -258,7 +258,70 @@ export interface TemplateRequest {
   actionRequired?: boolean;
   /** Exact operational step expected from the audience when actionRequired is true. */
   expectedActionType?: string;
+  /** Alias used by the newer attachment-flow UI. */
+  expectedAction?: string;
+
+  // ---- Follow-up nesting ----
+  /** Null/undefined for root templates; the parent request id for follow-ups. */
+  parentId?: string | null;
+  isFollowUp?: boolean;
+  /** Manual sub-question, only meaningful when actionRequired is true. */
+  followUpRequired?: boolean;
+
+  // ---- Dynamic attachment engine ----
+  attachmentMode?: AttachmentMode;
+  pdfConfig?: PdfEntityConfig;
+  /** Array — multiple dynamic tables are supported. */
+  tableConfigs?: DynamicTableConfig[];
 }
+
+// ---------------------------------------------------------------------------
+// Dynamic attachment configuration (entity PDFs + multiple dynamic tables)
+// ---------------------------------------------------------------------------
+
+export type AttachmentMode = "none" | "dynamic_pdf" | "dynamic_tables";
+
+export interface DynamicTableConfig {
+  id: string;
+  queryId: string;
+  queryName: string;
+  selectedColumns: string[];
+  conditionalRules?: Record<string, { operator: "<" | ">"; value: string; color: string }>;
+  hasSummaryRow?: boolean;
+}
+
+export interface PdfEntityConfig {
+  queryId: string;
+  queryName: string;
+  /** e.g. { BPCL: true, Moonstone: false, ZHPL: true } */
+  uploadedEntities: Record<string, boolean>;
+}
+
+export interface PreApprovedQuery {
+  id: string;
+  name: string;
+  columns: string[];
+}
+
+export const MOCK_ENTITIES = ["BPCL", "Moonstone", "ZHPL", "Vedanta Corp"];
+
+export const PRE_APPROVED_QUERIES: PreApprovedQuery[] = [
+  {
+    id: "q_rebate_valid",
+    name: "Vendor Rebates & Penalties (Valid)",
+    columns: ["vendor_id", "mfd_id", "entity_name", "instances", "charges"],
+  },
+  {
+    id: "q_invalid_missing_entity",
+    name: "Daily Sales Summary (Missing entity_name)",
+    columns: ["vendor_id", "mfd_id", "sales_volume", "growth_pct"],
+  },
+  {
+    id: "q_invalid_missing_vendor",
+    name: "Platform Outage Logs (Missing vendor_id/mfd_id)",
+    columns: ["entity_name", "downtime_mins", "severity"],
+  },
+];
 
 // HMR-safe singletons: keep state on globalThis so hot reloads and any
 // duplicated module evaluation share the same arrays and listener sets.
@@ -276,10 +339,10 @@ type StoreGlobal = {
 const g = globalThis as unknown as StoreGlobal;
 
 const STORAGE_KEYS = {
-  requests: "pbcc_requests_v4",
-  publishLogs: "pbcc_publish_logs_v4",
-  campaigns: "pbcc_campaigns_v4",
-  actions: "pbcc_actions_v4",
+  requests: "pbcc_requests_v5",
+  publishLogs: "pbcc_publish_logs_v5",
+  campaigns: "pbcc_campaigns_v5",
+  actions: "pbcc_actions_v5",
 } as const;
 
 function readStoredArray<T>(key: string): T[] | null {
@@ -1338,6 +1401,116 @@ function iso(minutesAgo: number): string {
 
 function seed(): TemplateRequest[] {
   return [
+    {
+      id: "1244",
+      requestType: "Template Approval",
+      templateId: "APOLLO-1244",
+      templateName: "Vendor Rebates & Penalties — Monthly Statement",
+      primaryEmail: "himanshu.gupta@grofers.com",
+      mailOwner: "himanshu.gupta@grofers.com",
+      approvalCcEmails: ["finance-comms@zomato.com"],
+      team: "Finance",
+      purpose:
+        "Share the monthly rebate and penalty statement with vendors, entity-wise, with the signed PDF attached.",
+      sentTo: ["Tech Enabled Vendors"],
+      emailAttachmentsName: "rebate_statement.pdf",
+      vendorListName: "vendors_all.csv",
+      manufacturerListName: "-",
+      subject: "Your monthly rebate & penalty statement — {{entity_name}}",
+      body: "Hi {{vendor_name}}, please find your entity-wise rebate and penalty statement attached. Raise a ticket within 7 days for any mismatch.",
+      formulaFlags: ["Formula Attachment"],
+      subCategory: "Reports",
+      domain: "Finance & Payments",
+      commType: "Periodic",
+      categoryId: "reports_analytics",
+      priority: "P2",
+      attachment: "PDF",
+      cta: "Autofilled Help & Support Ticket",
+      frequency: "Monthly",
+      sequenceTier: "Standard",
+      scheduleDeadline: "2026-08-20T10:00",
+      analystPoc: "analyst@grofers.com",
+      status: "Approved",
+      submittedBy: "Himanshu Gupta",
+      submittedAt: iso(10080),
+      approvedAt: "01 Aug 2026, 11:15 AM",
+      parentId: null,
+      isFollowUp: false,
+      actionRequired: true,
+      expectedActionType: "Acknowledge the statement or raise a dispute ticket",
+      expectedAction: "Acknowledge the statement or raise a dispute ticket",
+      followUpRequired: true,
+      attachmentMode: "dynamic_pdf",
+      pdfConfig: {
+        queryId: "q_rebate_valid",
+        queryName: "Vendor Rebates & Penalties (Valid)",
+        uploadedEntities: { BPCL: true, Moonstone: false, ZHPL: true, "Vedanta Corp": false },
+      },
+    },
+    {
+      id: "1244-F1",
+      requestType: "Template Approval",
+      templateId: "APOLLO-1244-F1",
+      templateName: "Follow-up: Unacknowledged Rebate Statement",
+      primaryEmail: "himanshu.gupta@grofers.com",
+      mailOwner: "himanshu.gupta@grofers.com",
+      approvalCcEmails: [],
+      team: "Finance",
+      purpose:
+        "Nudge vendors who have not acknowledged or disputed the monthly rebate statement within 7 days.",
+      sentTo: ["Tech Enabled Vendors", "Low Tech Vendors"],
+      emailAttachmentsName: "-",
+      vendorListName: "vendors_pending_ack.csv",
+      manufacturerListName: "-",
+      subject: "Reminder: Action pending on your rebate statement",
+      body: "Hi {{vendor_name}}, your rebate statement for {{entity_name}} is still awaiting action. Please respond before {{due_date}}.",
+      formulaFlags: ["Table in Body"],
+      subCategory: "Reports",
+      domain: "Finance & Payments",
+      commType: "Periodic",
+      categoryId: "reminders",
+      priority: "P2",
+      attachment: "None",
+      cta: "Direct Link",
+      ctaDestination: "https://partnersbiz.blinkit.com/fees-and-charges",
+      frequency: "Once",
+      sequenceTier: "Standard",
+      scheduleDeadline: "2026-08-27T10:00",
+      analystPoc: "analyst@grofers.com",
+      status: "Approved",
+      submittedBy: "Himanshu Gupta",
+      submittedAt: iso(8640),
+      approvedAt: "03 Aug 2026, 04:40 PM",
+      parentId: "1244",
+      isFollowUp: true,
+      actionRequired: true,
+      expectedActionType: "Acknowledge or dispute the pending statement",
+      expectedAction: "Acknowledge or dispute the pending statement",
+      followUpRequired: false,
+      attachmentMode: "dynamic_tables",
+      tableConfigs: [
+        {
+          id: "tbl-1244-f1-a",
+          queryId: "q_rebate_valid",
+          queryName: "Vendor Rebates & Penalties (Valid)",
+          selectedColumns: ["vendor_id", "entity_name", "instances", "charges"],
+          conditionalRules: {
+            charges: { operator: ">", value: "50000", color: "#DC2626" },
+          },
+          hasSummaryRow: true,
+        },
+        {
+          id: "tbl-1244-f1-b",
+          queryId: "q_invalid_missing_entity",
+          queryName: "Daily Sales Summary (Missing entity_name)",
+          selectedColumns: ["vendor_id", "sales_volume", "growth_pct"],
+          conditionalRules: {
+            growth_pct: { operator: "<", value: "0", color: "#F59E0B" },
+          },
+          hasSummaryRow: false,
+        },
+      ],
+    },
     {
       id: "REQ-1001",
       requestType: "Template Approval",
