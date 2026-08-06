@@ -339,10 +339,10 @@ type StoreGlobal = {
 const g = globalThis as unknown as StoreGlobal;
 
 const STORAGE_KEYS = {
-  requests: "pbcc_requests_v4",
-  publishLogs: "pbcc_publish_logs_v4",
-  campaigns: "pbcc_campaigns_v4",
-  actions: "pbcc_actions_v4",
+  requests: "pbcc_requests_v5",
+  publishLogs: "pbcc_publish_logs_v5",
+  campaigns: "pbcc_campaigns_v5",
+  actions: "pbcc_actions_v5",
 } as const;
 
 function readStoredArray<T>(key: string): T[] | null {
