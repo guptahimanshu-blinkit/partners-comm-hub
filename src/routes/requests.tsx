@@ -3781,6 +3781,14 @@ function RequestDetail({
             >
               {actionRequiredYes ? "⚡ Action Required: YES" : "Action Required: NO"}
             </Badge>
+            {request.isFollowUp && (
+              <Badge className="bg-cat-amber text-white hover:bg-cat-amber">🚩 Follow-Up</Badge>
+            )}
+            {request.actionRequired === true && (
+              <Badge variant="outline" className="border-dashed text-[11px]">
+                Follow-up Campaign: {request.followUpRequired ? "YES" : "NO"}
+              </Badge>
+            )}
             <CategoryTag id={request.categoryId} />
             <PriorityTag p={request.priority} />
             <StatusTag status={request.status} />
