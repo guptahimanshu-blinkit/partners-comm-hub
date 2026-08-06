@@ -504,7 +504,7 @@ function TemplateRequestFormPage() {
                   variant="outline"
                   onClick={() => setBlocks((prev) => [...prev, newBlock()])}
                 >
-                  <Plus className="mr-1.5 h-4 w-4" /> Add another attachment block
+                  <Plus className="mr-1.5 h-4 w-4" /> Add another attachment
                 </Button>
               </div>
             )}
