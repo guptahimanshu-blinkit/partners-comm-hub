@@ -21,7 +21,7 @@ import {
   ExternalLink,
 
 } from "lucide-react";
-import { lookupExcelActionRequired } from "@/lib/feature-comms";
+import { lookupApolloTemplate } from "@/lib/mock-data";
 import { lookupApolloTemplate } from "@/lib/mock-data";
 import {
   ApolloEmailPreview,
