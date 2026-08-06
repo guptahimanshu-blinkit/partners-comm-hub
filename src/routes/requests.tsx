@@ -1104,20 +1104,36 @@ function NewRequestForm({
       pdfConfig: attachmentMode === "dynamic_pdf" ? pdfConfig : undefined,
       tableConfigs: attachmentMode === "dynamic_tables" ? tableConfigs : undefined,
 
-      status: "Pending",
+      parentId: isFollowUpClone && src ? src.id : isEdit ? (src?.parentId ?? null) : null,
+      isFollowUp: isFollowUpClone ? true : isEdit ? (src?.isFollowUp ?? false) : false,
+
+      status: isEdit && src && !requiresReapproval ? src.status : "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
-      submittedAt: new Date().toISOString(),
+      submittedAt: isEdit && src ? src.submittedAt : new Date().toISOString(),
     };
+    if (isEdit && src) {
+      updateRequest(src.id, req);
+      toast.success(
+        requiresReapproval
+          ? `Request ${req.id} updated — sent back to Pending for a 2nd central approval.`
+          : `Request ${req.id} updated — approval status retained (${req.status}).`,
+      );
+      onDone();
+      return;
+    }
     addRequest(req);
     const ccPart =
       approvalCcEmails.length > 0
         ? ` and CC'd ${approvalCcEmails.length} reviewer${approvalCcEmails.length === 1 ? "" : "s"}`
         : " (no CCs)";
     toast.success(
-      `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
+      isFollowUpClone && src
+        ? `Follow-up ${req.id} submitted — nested under ${src.templateName}${ccPart}.`
+        : `Request ${req.id} submitted — Approval notification routed to ${AUTH_SUBMITTER_EMAIL}${ccPart}.`,
     );
     onDone();
   };
+
 
   return (
     <div className="space-y-6">
