@@ -1560,74 +1560,86 @@ function InferredRulesPanel({
         >
           {rules.unsubscribe === "LOCKED_DISABLED" ? "Unsubscribe: Locked" : "Unsubscribe: Allowed"}
         </Badge>
-        {excelMatch && (
-          <Badge
-            className={cn(
-              "hover:bg-inherit",
-              excelMatch.actionRequired
-                ? "bg-cat-red-soft text-cat-red"
-                : "bg-cat-grey-soft text-cat-grey",
-            )}
-          >
-            Action Required: {excelMatch.actionRequired ? "Yes" : "No"}
-          </Badge>
-        )}
       </div>
 
-      {excelMatch ? (
-        <p className="text-[11px] text-muted-foreground">
-          🔒 Matched {excelMatch.matchedCount} master-sheet communication
-          {excelMatch.matchedCount === 1 ? "" : "s"} (e.g. “{excelMatch.sampleTitle}”) — action flag
-          inherited, not editable.
+      <div className="space-y-2 rounded-md border border-border bg-background p-3">
+        <p className="text-xs font-medium text-foreground">
+          Is an operational action required from the vendor? <span className="text-cat-red">*</span>
         </p>
-      ) : (
-        <div className="space-y-2 rounded-md border border-border bg-background p-3">
-          <p className="text-xs font-medium text-foreground">
-            ❓ Is an operational action required from the vendor/manufacturer for this
-            communication?
-          </p>
-          <div className="flex items-center gap-4">
-            {[
-              { label: "Yes", value: true },
-              { label: "No", value: false },
-            ].map((opt) => (
-              <label
-                key={opt.label}
-                className="flex cursor-pointer items-center gap-1.5 text-xs font-medium"
-              >
-                <input
-                  type="radio"
-                  name="submitter-action-required"
-                  className="h-3.5 w-3.5 accent-primary"
-                  checked={actionRequired === opt.value}
-                  onChange={() => onActionRequiredChange(opt.value)}
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Custom category — not found in the master sheet, so this flag drives the vendor-side
-            action banner.
-          </p>
+        <div className="flex items-center gap-4">
+          {[
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ].map((opt) => (
+            <label
+              key={opt.label}
+              className="flex cursor-pointer items-center gap-1.5 text-xs font-medium"
+            >
+              <input
+                type="radio"
+                name="submitter-action-required"
+                className="h-3.5 w-3.5 accent-primary"
+                checked={actionRequired === opt.value}
+                onChange={() => onActionRequiredChange(opt.value)}
+              />
+              {opt.label}
+            </label>
+          ))}
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Declared manually by the submitter — this flag drives the vendor-side action banner.
+        </p>
+      </div>
+
+      {actionRequired === true && (
+        <>
+          <div className="space-y-1.5 rounded-md border border-cat-red/40 bg-background p-3">
+            <Label className="text-xs font-medium">
+              Expected Action from Audience <span className="text-cat-red">*</span>
+            </Label>
+            <Textarea
+              rows={3}
+              value={expectedActionType}
+              onChange={(e) => onExpectedActionTypeChange(e.target.value)}
+              placeholder="e.g. Acknowledge PO cancellation, Reconcile statement, Upload missing GRN"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Specify the exact operational step required from the vendor or manufacturer.
+            </p>
+          </div>
+
+          <div className="space-y-2 rounded-md border border-border bg-background p-3">
+            <p className="text-xs font-medium text-foreground">
+              Is a follow-up template required for non-responders?{" "}
+              <span className="text-cat-red">*</span>
+            </p>
+            <div className="flex items-center gap-4">
+              {[
+                { label: "Yes", value: true },
+                { label: "No", value: false },
+              ].map((opt) => (
+                <label
+                  key={opt.label}
+                  className="flex cursor-pointer items-center gap-1.5 text-xs font-medium"
+                >
+                  <input
+                    type="radio"
+                    name="submitter-followup-required"
+                    className="h-3.5 w-3.5 accent-primary"
+                    checked={followUpRequired === opt.value}
+                    onChange={() => onFollowUpRequiredChange(opt.value)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              A nested follow-up request is auto-scaffolded on approval when set to Yes.
+            </p>
+          </div>
+        </>
       )}
 
-      {effectiveActionRequired && (
-        <div className="space-y-1.5 rounded-md border border-cat-red/40 bg-background p-3">
-          <Label className="text-xs font-medium">
-            Expected Action from Audience <span className="text-cat-red">*</span>
-          </Label>
-          <Input
-            value={expectedActionType}
-            onChange={(e) => onExpectedActionTypeChange(e.target.value)}
-            placeholder="e.g. Acknowledge PO cancellation, Reconcile statement, Upload missing GRN"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Specify the exact operational step required from the vendor or manufacturer.
-          </p>
-        </div>
-      )}
     </div>
 
   );
