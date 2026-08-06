@@ -1181,9 +1181,10 @@ function NewRequestForm({
           <div>
             <p className="font-medium">Follow-up clone — restricted editing</p>
             <p className="mt-0.5 text-muted-foreground">
-              Editable: Audience, Attachment Setup, Template ID, Team, Mail Owner, Analyst POC,
-              Purpose and Subject. Categorization, CTA, frequency and schedule are inherited from
-              the parent template.
+              Editable: Scheduling &amp; cadence (frequency, date/time deadline), Audience,
+              Attachment Setup, Template ID, Team, Mail Owner, Analyst POC, Purpose and Subject.
+              Categorization, domain, action required and CTA are inherited from the parent
+              template.
             </p>
           </div>
         </div>
