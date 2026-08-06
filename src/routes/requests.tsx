@@ -543,10 +543,16 @@ function FrequencyPicker({
 }
 
 // ------- Submitter -------
+export type FormIntent =
+  | { mode: "new" }
+  | { mode: "edit"; source: TemplateRequest }
+  | { mode: "clone"; source: TemplateRequest; followUp: boolean };
+
 function SubmitterView() {
-  const [showForm, setShowForm] = useState(false);
+  const [intent, setIntent] = useState<FormIntent | null>(null);
   const requests = useRequests();
   const mine = requests; // prototype: submitter sees all as "own history"
+  const showForm = intent !== null;
 
   return (
     <div className="space-y-6">
@@ -554,25 +560,109 @@ function SubmitterView() {
       {!showForm && (
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold">My Requests</h2>
+            <h2 className="text-base font-semibold">Request Logs &amp; History</h2>
             <p className="text-xs text-muted-foreground">
-              Track approval status of submitted templates.
+              Root templates with their nested follow-ups. Use the ⋮ menu to edit or clone.
             </p>
           </div>
-          <Button onClick={() => setShowForm(true)} className="gap-2">
+          <Button onClick={() => setIntent({ mode: "new" })} className="gap-2">
             <PlusCircle className="h-4 w-4" /> New Request
           </Button>
         </div>
       )}
 
-      {showForm ? (
-        <NewRequestForm onDone={() => setShowForm(false)} />
+      {intent ? (
+        <NewRequestForm key={JSON.stringify(intent)} intent={intent} onDone={() => setIntent(null)} />
       ) : (
-        <MyRequestsTable requests={mine} />
+        <MyRequestsTable requests={mine} onIntent={setIntent} />
       )}
     </div>
   );
 }
+
+function RequestRowMenu({
+  request,
+  onIntent,
+}: {
+  request: TemplateRequest;
+  onIntent: (i: FormIntent) => void;
+}) {
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [isFollowUp, setIsFollowUp] = useState<"yes" | "no">("no");
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={`Actions for ${request.templateName}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onSelect={() => onIntent({ mode: "edit", source: request })}>
+            <Pencil className="mr-2 h-4 w-4" /> Edit Request
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setCloneOpen(true)}>
+            <Copy className="mr-2 h-4 w-4" /> Clone Template
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={cloneOpen} onOpenChange={setCloneOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Is this a follow-up template?</DialogTitle>
+            <DialogDescription>
+              Cloning “{request.templateName}”. Follow-ups stay nested under the original and are
+              hard-locked to the Follow-Up category.
+            </DialogDescription>
+          </DialogHeader>
+          <RadioGroup value={isFollowUp} onValueChange={(v) => setIsFollowUp(v as "yes" | "no")}>
+            <label className="flex items-start gap-2 rounded-md border border-border p-3 text-sm">
+              <RadioGroupItem value="yes" className="mt-0.5" />
+              <span>
+                <span className="font-medium">Yes — follow-up</span>
+                <span className="block text-xs text-muted-foreground">
+                  Nested under {request.templateName}. Only audience, attachments, Template ID,
+                  team, owner/analyst emails, purpose and subject are editable.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-md border border-border p-3 text-sm">
+              <RadioGroupItem value="no" className="mt-0.5" />
+              <span>
+                <span className="font-medium">No — independent template</span>
+                <span className="block text-xs text-muted-foreground">
+                  Creates a brand new root request with the cloned data.
+                </span>
+              </span>
+            </label>
+          </RadioGroup>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCloneOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setCloneOpen(false);
+                onIntent({ mode: "clone", source: request, followUp: isFollowUp === "yes" });
+              }}
+            >
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 
 function MyRequestsTable({ requests }: { requests: TemplateRequest[] }) {
   const [expanded, setExpanded] = useState<string | null>(null);
