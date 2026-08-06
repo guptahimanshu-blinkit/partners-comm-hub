@@ -1701,7 +1701,11 @@ function NewRequestForm({
                 : "Submit Request"}
         </Button>
       </div>
-    </div>
+
+      <DynamicAttachmentApproverDashboard />
+      </div>
+    </DynamicAttachmentProvider>
+
   );
 }
 
