@@ -695,7 +695,16 @@ function AttachmentBlockCard({
       (block.columns.length > 0 && block.columns.every((c) => c.displayName.trim())));
 
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <div
+      className={cn(
+        "space-y-3 rounded-xl border-2 bg-card p-4",
+        ready
+          ? "border-cat-green"
+          : block.checked && !block.queryValid
+            ? "border-destructive"
+            : "border-border",
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-semibold">Attachment Block {index + 1}</div>
         <div className="flex items-center gap-2">
