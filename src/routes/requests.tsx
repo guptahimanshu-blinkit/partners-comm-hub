@@ -3726,6 +3726,32 @@ function RequestDetail({
         </Button>
       </div>
 
+      {request.isFollowUp && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cat-amber/50 bg-cat-amber/10 p-4">
+          <div className="flex items-start gap-2">
+            <Flag className="mt-0.5 h-4 w-4 text-cat-amber" />
+            <div>
+              <div className="text-sm font-semibold">🚩 FOLLOW-UP TEMPLATE</div>
+              <p className="text-xs text-muted-foreground">
+                Parent Request ID: #{request.parentId ?? "—"}
+                {parent ? ` · ${parent.templateName}` : " · parent not found in store"}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!parent || !onOpenRequest}
+            onClick={() => parent && onOpenRequest?.(parent.id)}
+            className="gap-1"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> View Parent Request
+          </Button>
+        </div>
+      )}
+
+
+
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
