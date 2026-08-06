@@ -1499,14 +1499,6 @@ function NewRequestForm({
           />
           <LiquidVarPills text={subject} />
         </FormRow>
-        <FormRow label="Inline SQL Chart binding (optional)">
-          <Input
-            value={chartQuery}
-            onChange={(e) => setChartQuery(e.target.value)}
-            placeholder="rebate_trend_by_vendor.sql"
-          />
-          {chartQuery && <InlineSqlChartPreview label={chartQuery} />}
-        </FormRow>
       </section>
 
       <DynamicAttachmentSetup
@@ -1528,16 +1520,6 @@ function NewRequestForm({
       {/* Smart attachment + CTA + Frequency */}
 
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <FormRow label="Attachment">
-          <SmartAttachment
-            value={attachmentConfig}
-            onChange={setAttachmentConfig}
-            queryDraft={attQueryDraft}
-            onQueryDraftChange={setAttQueryDraft}
-            formulaDraft={attFormulaDraft}
-            onFormulaDraftChange={setAttFormulaDraft}
-          />
-        </FormRow>
         <div
           className={cn("space-y-4", isFollowUpClone && "pointer-events-none opacity-60")}
           aria-disabled={isFollowUpClone}
@@ -2575,202 +2557,6 @@ function attachmentUid(): string {
   return `att-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-type AttachmentTabKey = "none" | "static" | "query" | "formula";
-
-function SmartAttachment({
-  value,
-  onChange,
-  queryDraft,
-  onQueryDraftChange,
-  formulaDraft,
-  onFormulaDraftChange,
-}: {
-  value: AttachmentConfig;
-  onChange: (v: AttachmentConfig) => void;
-  queryDraft: string;
-  onQueryDraftChange: (v: string) => void;
-  formulaDraft: string;
-  onFormulaDraftChange: (v: string) => void;
-}) {
-  const items = value.items ?? [];
-  const [tab, setTab] = useState<AttachmentTabKey>(items.length === 0 ? "none" : "static");
-
-  const tabs: Array<{ key: AttachmentTabKey; label: string; icon: typeof Ban }> = [
-    { key: "none", label: "No Attachment", icon: Ban },
-    { key: "static", label: "Static Upload", icon: FileUp },
-    { key: "query", label: "SQL Query Output", icon: Database },
-    { key: "formula", label: "Dynamic Formula Attachment", icon: Cloud },
-  ];
-
-  const commit = (next: AttachmentItem[]) => {
-    const primary = next[next.length - 1];
-    onChange({
-      ...value,
-      items: next,
-      type: next.length === 0 ? "none" : (primary?.type ?? "static"),
-      fileName: next.find((i) => i.type === "static")?.name,
-      queryKey: next.find((i) => i.type === "query")?.name,
-      formulaSpec: next.find((i) => i.type === "formula")?.name,
-    });
-  };
-
-  const addFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const next = [...items];
-    Array.from(files).forEach((f) => {
-      next.push({
-        id: attachmentUid(),
-        type: "static",
-        name: f.name,
-        size: `${Math.max(1, Math.round(f.size / 1024))} KB`,
-      });
-    });
-    commit(next);
-  };
-
-  const addText = (type: "query" | "formula", raw: string) => {
-    const name = raw.trim();
-    if (!name) return;
-    commit([...items, { id: attachmentUid(), type, name }]);
-    if (type === "query") onQueryDraftChange("");
-    else onFormulaDraftChange("");
-  };
-
-  const remove = (id: string) => commit(items.filter((i) => i.id !== id));
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5">
-        {tabs.map((t) => {
-          const on = tab === t.key;
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                on
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" /> {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {tab === "none" && (
-        <p className="text-[11px] text-muted-foreground">
-          No attachment will ship with this communication. Switch tabs to add one or more sources —
-          adding a source never clears the ones already configured.
-        </p>
-      )}
-
-      {tab === "static" && (
-        <label
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            addFiles(e.dataTransfer.files);
-          }}
-          className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border bg-muted/30 px-3 py-6 text-center text-xs text-muted-foreground hover:bg-muted/50"
-        >
-          <FileUp className="h-5 w-5" />
-          <span className="font-medium">Drag &amp; drop files, or click to browse</span>
-          <span className="text-[10px]">Multiple files supported · .pdf / .xlsx / .csv</span>
-          <input
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
-        </label>
-      )}
-
-      {tab === "query" && (
-        <div className="flex items-start gap-2">
-          <Input
-            value={queryDraft}
-            onChange={(e) => onQueryDraftChange(e.target.value)}
-            placeholder="e.g. pending_rebates.sql — runs at send time, ships CSV/XLSX"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0"
-            onClick={() => addText("query", queryDraft)}
-          >
-            + Add SQL Query
-          </Button>
-        </div>
-      )}
-
-      {tab === "formula" && (
-        <div className="space-y-1">
-          <Label className="text-xs">Formula Attachment Specification</Label>
-          <div className="flex items-start gap-2">
-            <Input
-              value={formulaDraft}
-              onChange={(e) => onFormulaDraftChange(e.target.value)}
-              placeholder="e.g. s3://blinkit-templates/formulas/vendor_penalty_recon_v2.xlsx"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 shrink-0"
-              onClick={() => addText("formula", formulaDraft)}
-            >
-              + Add Formula Spec
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            The formula file or script that generates the attachment at send time.
-          </p>
-        </div>
-      )}
-
-      <div className="rounded-lg border border-border bg-muted/30 p-3">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Configured Attachments ({items.length})
-        </div>
-        {items.length === 0 ? (
-          <p className="mt-1 text-xs text-muted-foreground">No attachments configured yet.</p>
-        ) : (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {items.map((item) => (
-              <span
-                key={item.id}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs"
-              >
-                <span>{ATTACHMENT_ICON[item.type]}</span>
-                <span className="font-medium">{item.name}</span>
-                {item.size && <span className="text-[10px] text-muted-foreground">{item.size}</span>}
-                <button
-                  type="button"
-                  aria-label={`Remove ${item.name}`}
-                  onClick={() => remove(item.id)}
-                  className="text-muted-foreground hover:text-cat-red"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
 // ---------- Approver: multi-attachment inspection ----------
 function AttachmentInspectionCard({ items }: { items: AttachmentItem[] }) {
   const [active, setActive] = useState<AttachmentItem | null>(null);
@@ -2891,35 +2677,6 @@ function fillSample(text: string): string {
   });
 }
 
-// ---------- Inline SQL chart preview ----------
-function InlineSqlChartPreview({ label }: { label: string }) {
-  const bars = [42, 68, 55, 81, 34, 90, 62];
-  const max = Math.max(...bars);
-  return (
-    <div className="mt-2 rounded-lg border border-border bg-background p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="font-mono text-[11px] text-muted-foreground">{label}</span>
-        <span className="text-[10px] text-muted-foreground">Live SQL preview · sample data</span>
-      </div>
-      <svg viewBox="0 0 210 80" className="w-full">
-        {bars.map((b, i) => {
-          const h = (b / max) * 60;
-          return (
-            <rect
-              key={i}
-              x={i * 30 + 6}
-              y={70 - h}
-              width={20}
-              height={h}
-              rx={2}
-              className="fill-primary/70"
-            />
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
 
 // ---------- Real-time active governance interception ----------
 function GovernanceInterception({
@@ -3831,16 +3588,6 @@ function RequestDetail({
             />
           )}
           <DetailField label="Subject line" value={request.subject} full />
-          <DetailField
-            label="Inline SQL Chart Binding"
-            value={request.inlineSqlChart || "None"}
-            full
-          />
-          {request.inlineSqlChart ? (
-            <div className="sm:col-span-2">
-              <InlineSqlChartPreview label={request.inlineSqlChart} />
-            </div>
-          ) : null}
           {request.commType && <DetailField label="Comm type" value={request.commType} />}
           <DetailField label="Attachment Type" value={attachmentValue} />
           <DetailField label="Target Portal CTA Route" value={ctaValue} full />
