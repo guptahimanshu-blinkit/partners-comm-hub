@@ -919,6 +919,12 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
       preflightChecks: preflight,
       actionRequired: resolvedActionRequired,
       expectedActionType: resolvedActionRequired ? expectedActionType.trim() : undefined,
+      expectedAction: resolvedActionRequired ? expectedActionType.trim() : undefined,
+      followUpRequired: resolvedActionRequired ? followUpRequired === true : false,
+      attachmentMode,
+      pdfConfig: attachmentMode === "dynamic_pdf" ? pdfConfig : undefined,
+      tableConfigs: attachmentMode === "dynamic_tables" ? tableConfigs : undefined,
+
       status: "Pending",
       submittedBy: AUTH_SUBMITTER_NAME,
       submittedAt: new Date().toISOString(),
