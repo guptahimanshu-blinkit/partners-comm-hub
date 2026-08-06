@@ -487,3 +487,228 @@ function UploadButton({
     </button>
   );
 }
+
+const AUDIENCE_ID_RE = /(vendor_id|manufacturer_id)/i;
+let cid = 1;
+
+function AttachmentBlockCard({
+  index,
+  block,
+  isTableMode,
+  canRemove,
+  onPatch,
+  onRemove,
+}: {
+  index: number;
+  block: AttachmentBlock;
+  isTableMode: boolean;
+  canRemove: boolean;
+  onPatch: (patch: Partial<AttachmentBlock>) => void;
+  onRemove: () => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+
+  function runCheck() {
+    const valid = AUDIENCE_ID_RE.test(block.query);
+    const detected = valid
+      ? Array.from(
+          new Set(
+            block.query
+              .split(/[\s,();]+/)
+              .map((w) => w.replace(/^[^a-z0-9_]+|[^a-z0-9_]+$/gi, ""))
+              .filter((w) => w.includes("_") && /^[a-z0-9_]+$/i.test(w)),
+          ),
+        )
+      : [];
+    onPatch({ checked: true, queryValid: valid, detectedFields: detected });
+  }
+
+  function addColumn(field: string) {
+    if (block.columns.some((c) => c.field === field)) return;
+    onPatch({
+      columns: [...block.columns, { id: `col-${++cid}`, field, displayName: "" }],
+    });
+  }
+
+  const ready =
+    block.queryValid &&
+    (!isTableMode ||
+      (block.columns.length > 0 && block.columns.every((c) => c.displayName.trim())));
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">Attachment Block {index + 1}</div>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] font-medium",
+              ready ? "bg-cat-green-soft text-cat-green" : "bg-muted text-muted-foreground",
+            )}
+          >
+            {ready ? "🟢 Ready" : "⚪ Incomplete"}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!canRemove}
+            onClick={onRemove}
+            aria-label={`Remove attachment block ${index + 1}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[12px] font-medium text-muted-foreground">Query</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" aria-label="Query requirements">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Make sure audience ID is included</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <Textarea
+          rows={5}
+          value={block.query}
+          placeholder="Paste your query here"
+          className="font-mono text-[12px]"
+          onChange={(e) =>
+            onPatch({
+              query: e.target.value,
+              checked: false,
+              queryValid: false,
+              detectedFields: [],
+              columns: [],
+            })
+          }
+        />
+        <div className="flex items-center gap-3">
+          <Button type="button" variant="outline" size="sm" onClick={runCheck}>
+            Check Query
+          </Button>
+          {block.checked && (
+            <span
+              className={cn(
+                "flex items-center gap-1.5 text-[12px] font-medium",
+                block.queryValid ? "text-cat-green" : "text-destructive",
+              )}
+            >
+              {block.queryValid ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4" /> Audience ID column found
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4" /> No audience ID column detected
+                </>
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {isTableMode && block.queryValid && (
+        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+          <div className="text-[12px] font-medium text-muted-foreground">
+            Detected fields — drag into table below.
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {block.detectedFields.length === 0 && (
+              <span className="text-[12px] text-muted-foreground">
+                No underscore fields detected in the query.
+              </span>
+            )}
+            {block.detectedFields.map((f) => {
+              const used = block.columns.some((c) => c.field === f);
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  draggable={!used}
+                  onDragStart={(e) => e.dataTransfer.setData("text/plain", f)}
+                  onClick={() => addColumn(f)}
+                  disabled={used}
+                  className={cn(
+                    "flex items-center gap-1 rounded-md border px-2 py-1 font-mono text-[11px]",
+                    used
+                      ? "cursor-not-allowed border-border bg-muted text-muted-foreground/60"
+                      : "cursor-grab border-primary/40 bg-primary/5 text-foreground hover:bg-primary/10",
+                  )}
+                >
+                  <GripVertical className="h-3 w-3 opacity-60" />
+                  {f}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const f = e.dataTransfer.getData("text/plain");
+              if (f) addColumn(f);
+            }}
+            className={cn(
+              "flex min-h-[110px] gap-3 overflow-x-auto rounded-lg border-2 border-dashed p-3 transition",
+              dragOver ? "border-primary bg-primary/5" : "border-border bg-card",
+            )}
+          >
+            {block.columns.length === 0 && (
+              <div className="m-auto text-[12px] text-muted-foreground">
+                Table Builder — drop fields here to create columns
+              </div>
+            )}
+            {block.columns.map((c) => (
+              <div
+                key={c.id}
+                className="w-48 shrink-0 space-y-2 rounded-lg border border-border bg-background p-2"
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+                    {c.field}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove column ${c.field}`}
+                    onClick={() =>
+                      onPatch({ columns: block.columns.filter((x) => x.id !== c.id) })
+                    }
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <Input
+                  value={c.displayName}
+                  placeholder="Display name"
+                  className="h-8 text-[12px]"
+                  onChange={(e) =>
+                    onPatch({
+                      columns: block.columns.map((x) =>
+                        x.id === c.id ? { ...x, displayName: e.target.value } : x,
+                      ),
+                    })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
