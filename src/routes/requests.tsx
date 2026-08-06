@@ -1679,7 +1679,9 @@ function NewRequestForm({
             onChange={(e) => setScheduleDeadline(e.target.value)}
           />
         </FormRow>
+        </div>
       </section>
+
 
       {showWhatsApp && (
         <section className="space-y-3 rounded-xl border border-border bg-card p-5">
