@@ -1072,24 +1072,42 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
           </div>
         </FormRow>
         <FormRow label="Mail will be sent to" required>
-          <MultiSelect
-            options={SENT_TO_OPTIONS}
-            values={sentTo}
-            onChange={(next) => {
-              const hasVendorUpload = next.includes("Targeted Vendor IDs (Upload File)");
-              const hasMfrUpload = next.includes("Targeted Manufacturer IDs (Upload File)");
-              if (!hasVendorUpload && vendorListName) setVendorListName("");
-              if (!hasMfrUpload && mfrListName) setMfrListName("");
-              setSentTo(next);
-            }}
-            max={2}
-            placeholder="Pick audience"
-          />
+          {attachmentMode === "dynamic_pdf" ? (
+            <>
+              <Input
+                value="🔒 Pre-mapped by Entity (Locked)"
+                readOnly
+                disabled
+                tabIndex={-1}
+                className="cursor-not-allowed bg-muted/60 text-muted-foreground"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Entity-level dynamic PDFs resolve the audience from the mapped entity list — manual
+                audience selection is disabled.
+              </p>
+            </>
+          ) : (
+            <MultiSelect
+              options={SENT_TO_OPTIONS}
+              values={sentTo}
+              onChange={(next) => {
+                const hasVendorUpload = next.includes("Targeted Vendor IDs (Upload File)");
+                const hasMfrUpload = next.includes("Targeted Manufacturer IDs (Upload File)");
+                if (!hasVendorUpload && vendorListName) setVendorListName("");
+                if (!hasMfrUpload && mfrListName) setMfrListName("");
+                setSentTo(next);
+              }}
+              max={2}
+              placeholder="Pick audience"
+            />
+          )}
         </FormRow>
         {(() => {
+          if (attachmentMode === "dynamic_pdf") return null;
           const hasVendorUpload = sentTo.includes("Targeted Vendor IDs (Upload File)");
           const hasMfrUpload = sentTo.includes("Targeted Manufacturer IDs (Upload File)");
           if (!hasVendorUpload && !hasMfrUpload) return null;
+
           return (
             <>
               {hasVendorUpload && (
