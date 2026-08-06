@@ -258,7 +258,70 @@ export interface TemplateRequest {
   actionRequired?: boolean;
   /** Exact operational step expected from the audience when actionRequired is true. */
   expectedActionType?: string;
+  /** Alias used by the newer attachment-flow UI. */
+  expectedAction?: string;
+
+  // ---- Follow-up nesting ----
+  /** Null/undefined for root templates; the parent request id for follow-ups. */
+  parentId?: string | null;
+  isFollowUp?: boolean;
+  /** Manual sub-question, only meaningful when actionRequired is true. */
+  followUpRequired?: boolean;
+
+  // ---- Dynamic attachment engine ----
+  attachmentMode?: AttachmentMode;
+  pdfConfig?: PdfEntityConfig;
+  /** Array — multiple dynamic tables are supported. */
+  tableConfigs?: DynamicTableConfig[];
 }
+
+// ---------------------------------------------------------------------------
+// Dynamic attachment configuration (entity PDFs + multiple dynamic tables)
+// ---------------------------------------------------------------------------
+
+export type AttachmentMode = "none" | "dynamic_pdf" | "dynamic_tables";
+
+export interface DynamicTableConfig {
+  id: string;
+  queryId: string;
+  queryName: string;
+  selectedColumns: string[];
+  conditionalRules?: Record<string, { operator: "<" | ">"; value: string; color: string }>;
+  hasSummaryRow?: boolean;
+}
+
+export interface PdfEntityConfig {
+  queryId: string;
+  queryName: string;
+  /** e.g. { BPCL: true, Moonstone: false, ZHPL: true } */
+  uploadedEntities: Record<string, boolean>;
+}
+
+export interface PreApprovedQuery {
+  id: string;
+  name: string;
+  columns: string[];
+}
+
+export const MOCK_ENTITIES = ["BPCL", "Moonstone", "ZHPL", "Vedanta Corp"];
+
+export const PRE_APPROVED_QUERIES: PreApprovedQuery[] = [
+  {
+    id: "q_rebate_valid",
+    name: "Vendor Rebates & Penalties (Valid)",
+    columns: ["vendor_id", "mfd_id", "entity_name", "instances", "charges"],
+  },
+  {
+    id: "q_invalid_missing_entity",
+    name: "Daily Sales Summary (Missing entity_name)",
+    columns: ["vendor_id", "mfd_id", "sales_volume", "growth_pct"],
+  },
+  {
+    id: "q_invalid_missing_vendor",
+    name: "Platform Outage Logs (Missing vendor_id/mfd_id)",
+    columns: ["entity_name", "downtime_mins", "severity"],
+  },
+];
 
 // HMR-safe singletons: keep state on globalThis so hot reloads and any
 // duplicated module evaluation share the same arrays and listener sets.
