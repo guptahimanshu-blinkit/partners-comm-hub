@@ -1635,7 +1635,7 @@ function seed(): TemplateRequest[] {
       subject: "Pending: replenishment plan for your fill-rate gaps",
       body: "Hi {{vendor_name}}, your fill-rate plan for {{entity_name}} is still pending. Please respond before {{due_date}}.",
       subCategory: "Reports",
-      domain: "Supply Chain",
+      domain: "Warehouse Ops",
       commType: "Periodic",
       categoryId: "reminders",
       priority: "P2",
