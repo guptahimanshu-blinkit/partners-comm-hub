@@ -926,6 +926,17 @@ function NewRequestForm({
   const personaChanged =
     isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
   const requiresReapproval = templateIdChanged || personaChanged;
+  const wasApproved = isEdit && src?.status === "Approved";
+  const warnedRef = useRef(false);
+  useEffect(() => {
+    if (wasApproved && requiresReapproval && !warnedRef.current) {
+      warnedRef.current = true;
+      toast.warning("Audience or Template ID changed. This request now requires a 2nd approval.");
+    }
+    if (!requiresReapproval) warnedRef.current = false;
+  }, [wasApproved, requiresReapproval]);
+
+
 
   const formTitle =
     intent.mode === "edit"
