@@ -70,6 +70,32 @@ interface AudienceGroup {
   hasTargetedList: boolean;
 }
 
+interface MappedColumn {
+  id: string;
+  field: string;
+  displayName: string;
+}
+
+interface AttachmentBlock {
+  id: string;
+  query: string;
+  checked: boolean;
+  queryValid: boolean;
+  detectedFields: string[];
+  columns: MappedColumn[];
+}
+
+let bid = 1;
+const newBlock = (): AttachmentBlock => ({
+  id: `blk-${++bid}`,
+  query: "",
+  checked: false,
+  queryValid: false,
+  detectedFields: [],
+  columns: [],
+});
+
+
 const TYPE_CARDS: {
   id: AttachmentType;
   label: string;
