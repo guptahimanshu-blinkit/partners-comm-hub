@@ -35,6 +35,11 @@ import {
   type PreviewChannel,
 } from "@/components/requests/ApolloEmailPreview";
 import { TemplatePreviewModal } from "@/components/requests/TemplatePreviewModal";
+import {
+  DynamicAttachmentProvider,
+  DynamicAttachmentSections,
+  DynamicAttachmentApproverDashboard,
+} from "@/components/requests/DynamicAttachmentFlow";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
