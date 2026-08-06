@@ -279,7 +279,7 @@ export function useDynamicAttachmentBlockers() {
 
 export function DynamicAttachmentSections() {
   const f = useFlow();
-  const showTargetedUpload = f.b1Audience.some((a) => a.startsWith("Targeted"));
+  
 
   return (
     <div className="space-y-6">
@@ -347,21 +347,29 @@ export function DynamicAttachmentSections() {
               })}
             </div>
 
-            {showTargetedUpload && (
-              <div
-                className="rounded-lg border border-dashed p-6 text-center"
-                style={{ borderColor: `${ACCENT}80`, backgroundColor: `${ACCENT}0D` }}
-              >
-                <Upload className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
-                <div className="mt-2 text-sm font-medium">Upload targeted ID list</div>
-                <p className="mt-1 text-[12px] text-muted-foreground">
-                  .csv or .xlsx · one ID per row (mock upload)
-                </p>
-                <Button type="button" variant="outline" size="sm" className="mt-3">
-                  Choose file
-                </Button>
-              </div>
-            )}
+            {(
+              [
+                ["Targeted Vendor IDs", "Upload Targeted Vendor List (.csv, .xlsx)"],
+                ["Targeted Manufacturer IDs", "Upload Targeted Manufacturer List (.csv, .xlsx)"],
+              ] as const
+            )
+              .filter(([opt]) => f.b1Audience.includes(opt))
+              .map(([opt, label]) => (
+                <div
+                  key={opt}
+                  className="rounded-lg border border-dashed p-6 text-center"
+                  style={{ borderColor: `${ACCENT}80`, backgroundColor: `${ACCENT}0D` }}
+                >
+                  <Upload className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+                  <div className="mt-2 text-sm font-medium">{label}</div>
+                  <p className="mt-1 text-[12px] text-muted-foreground">
+                    .csv or .xlsx · one ID per row (mock upload)
+                  </p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3">
+                    Choose file
+                  </Button>
+                </div>
+              ))}
           </div>
         )}
 

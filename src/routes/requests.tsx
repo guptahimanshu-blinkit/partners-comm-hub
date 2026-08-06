@@ -860,13 +860,14 @@ function NewRequestForm({
   const [customTeam, setCustomTeam] = useState(src?.customTeam ?? "");
   const [mailOwner, setMailOwner] = useState(src?.mailOwner ?? "");
   const [purpose, setPurpose] = useState(src?.purpose ?? "");
-  const [sentTo, setSentTo] = useState<string[]>(src?.sentTo ?? []);
-  const [vendorListName, setVendorListName] = useState(
-    src?.vendorListName && src.vendorListName !== "-" ? src.vendorListName : "",
-  );
-  const [mfrListName, setMfrListName] = useState(
-    src?.manufacturerListName && src.manufacturerListName !== "-" ? src.manufacturerListName : "",
-  );
+  // Audience is now owned entirely by the Part B section of the Dynamic Attachment Flow.
+  const sentTo: string[] = src?.sentTo ?? [];
+  const vendorListName =
+    src?.vendorListName && src.vendorListName !== "-" ? src.vendorListName : "";
+  const mfrListName =
+    src?.manufacturerListName && src.manufacturerListName !== "-"
+      ? src.manufacturerListName
+      : "";
   // Subject + body are auto-fetched from Apollo and are not editable here.
   const subject = apolloTemplate?.subject ?? (sameTemplateAsSource ? (src?.subject ?? "") : "");
   const body = apolloTemplate?.bodyHtml ?? (sameTemplateAsSource ? (src?.body ?? "") : "");
@@ -1305,60 +1306,8 @@ function NewRequestForm({
           </div>
           <DynamicAttachmentSections />
         </div>
-
-        <FormRow label="Mail will be sent to" required>
-          {attachmentMode === "dynamic_pdf" ? (
-            <>
-              <Input
-                value="🔒 Pre-mapped by Entity (Locked)"
-                readOnly
-                disabled
-                tabIndex={-1}
-                className="cursor-not-allowed bg-muted/60 text-muted-foreground"
-              />
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Entity-level dynamic PDFs resolve the audience from the mapped entity list — manual
-                audience selection is disabled.
-              </p>
-            </>
-          ) : (
-            <MultiSelect
-              options={SENT_TO_OPTIONS}
-              values={sentTo}
-              onChange={(next) => {
-                const hasVendorUpload = next.includes("Targeted Vendor IDs (Upload File)");
-                const hasMfrUpload = next.includes("Targeted Manufacturer IDs (Upload File)");
-                if (!hasVendorUpload && vendorListName) setVendorListName("");
-                if (!hasMfrUpload && mfrListName) setMfrListName("");
-                setSentTo(next);
-              }}
-              max={2}
-              placeholder="Pick audience"
-            />
-          )}
-        </FormRow>
-        {(() => {
-          if (attachmentMode === "dynamic_pdf") return null;
-          const hasVendorUpload = sentTo.includes("Targeted Vendor IDs (Upload File)");
-          const hasMfrUpload = sentTo.includes("Targeted Manufacturer IDs (Upload File)");
-          if (!hasVendorUpload && !hasMfrUpload) return null;
-
-          return (
-            <>
-              {hasVendorUpload && (
-                <FormRow label="Vendor ID list" required>
-                  <FileField value={vendorListName} onChange={setVendorListName} />
-                </FormRow>
-              )}
-              {hasMfrUpload && (
-                <FormRow label="Manufacturer ID list" required>
-                  <FileField value={mfrListName} onChange={setMfrListName} />
-                </FormRow>
-              )}
-            </>
-          );
-        })()}
       </section>
+
 
       {/* Comms Categorization - Inference engine */}
       <section
@@ -1497,11 +1446,6 @@ function NewRequestForm({
         mode={attachmentMode}
         onModeChange={(m) => {
           setAttachmentMode(m);
-          if (m === "dynamic_pdf") {
-            setSentTo([]);
-            setVendorListName("");
-            setMfrListName("");
-          }
         }}
         pdfConfig={pdfConfig}
         onPdfConfigChange={setPdfConfig}
