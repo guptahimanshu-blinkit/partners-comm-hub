@@ -35,6 +35,11 @@ import {
   type PreviewChannel,
 } from "@/components/requests/ApolloEmailPreview";
 import { TemplatePreviewModal } from "@/components/requests/TemplatePreviewModal";
+import {
+  DynamicAttachmentProvider,
+  DynamicAttachmentSections,
+  DynamicAttachmentApproverDashboard,
+} from "@/components/requests/DynamicAttachmentFlow";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -1117,6 +1122,7 @@ function NewRequestForm({
   };
 
   return (
+    <DynamicAttachmentProvider>
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onDone} className="gap-1">
@@ -1289,6 +1295,17 @@ function NewRequestForm({
             {purpose.length}/1000 characters
           </div>
         </FormRow>
+
+        <div className="border-t border-border pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold">Dynamic Attachment Flow</h3>
+            <p className="text-xs text-muted-foreground">
+              Attachment type, audience, attachment blocks and template variable checks.
+            </p>
+          </div>
+          <DynamicAttachmentSections />
+        </div>
+
         <FormRow label="Mail will be sent to" required>
           {attachmentMode === "dynamic_pdf" ? (
             <>
@@ -1701,7 +1718,11 @@ function NewRequestForm({
                 : "Submit Request"}
         </Button>
       </div>
-    </div>
+
+      <DynamicAttachmentApproverDashboard />
+      </div>
+    </DynamicAttachmentProvider>
+
   );
 }
 
