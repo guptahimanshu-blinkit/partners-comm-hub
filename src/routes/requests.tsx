@@ -1053,7 +1053,7 @@ function NewRequestForm({
 
 
     const req: TemplateRequest = {
-      id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: isEdit && src ? src.id : `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
       templateId,
       templateName,
