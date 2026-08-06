@@ -212,6 +212,38 @@ function TemplateRequestFormPage() {
   const showTargetedUpload = b1Audience.some((a) => a.startsWith("Targeted"));
   const isPdf = attachmentType === "dynamic_pdf";
 
+  const blockers = useMemo(() => {
+    const out: string[] = [];
+    if (isPdf) {
+      if (!b2AudienceGroups.every((g) => g.hasPdf && g.hasTargetedList))
+        out.push("Every audience group must be Ready (PDF + list uploaded).");
+    } else if (attachmentType !== "none") {
+      if (!blocks.every((b) => b.checked && b.queryValid))
+        out.push("Every attachment block needs a passing query check.");
+      if (
+        attachmentType === "dynamic_table" &&
+        !blocks.every(
+          (b) => b.columns.length > 0 && b.columns.every((c) => c.displayName.trim()),
+        )
+      )
+        out.push("Every mapped table column needs a display name.");
+    }
+    if (varChecked && varsRequired && !(varQueryChecked && varQueryValid))
+      out.push("Template variable query must pass the check.");
+    return out;
+  }, [
+    isPdf,
+    attachmentType,
+    b2AudienceGroups,
+    blocks,
+    varChecked,
+    varsRequired,
+    varQueryChecked,
+    varQueryValid,
+  ]);
+
+  const canSubmit = blockers.length === 0;
+
   return (
     <AppShell>
       <div className="mx-auto max-w-4xl space-y-8 pb-16">
