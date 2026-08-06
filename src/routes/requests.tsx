@@ -817,68 +817,119 @@ function CheckTemplateButton({
   );
 }
 
-function NewRequestForm({ onDone }: { onDone: () => void }) {
+/** Core persona signature used to detect re-approval-worthy audience switches. */
+function personaSignature(sentTo: string[]): string {
+  return sentTo
+    .map((s) => {
+      const targeted = /targeted/i.test(s);
+      const persona = /manufactur/i.test(s) ? "manufacturer" : "vendor";
+      return `${targeted ? "targeted" : "all"}:${persona}`;
+    })
+    .sort()
+    .join("|");
+}
 
-  const [templateId, setTemplateId] = useState("");
+function NewRequestForm({
+  intent = { mode: "new" },
+  onDone,
+}: {
+  intent?: FormIntent;
+  onDone: () => void;
+}) {
+  const src = intent.mode === "new" ? null : intent.source;
+  const isEdit = intent.mode === "edit";
+  const isFollowUpClone = intent.mode === "clone" && intent.followUp;
+
+  const [templateId, setTemplateId] = useState(src?.templateId ?? "");
   // Apollo Service auto-fetch simulation — the whole payload is fetched by Template ID.
   const apolloTemplate = useMemo(() => lookupApolloTemplate(templateId), [templateId]);
-  const templateName = apolloTemplate?.templateName ?? "";
+  const sameTemplateAsSource = !!src && src.templateId.trim() === templateId.trim();
+  const templateName =
+    apolloTemplate?.templateName ?? (sameTemplateAsSource ? (src?.templateName ?? "") : "");
   const AUTH_SUBMITTER_NAME = "Himanshu Gupta";
   const AUTH_SUBMITTER_EMAIL = "gupta.himanshu@grofers.com";
-  const [team, setTeam] = useState<string>("");
-  const [customTeam, setCustomTeam] = useState("");
-  const [mailOwner, setMailOwner] = useState("");
-  const [purpose, setPurpose] = useState("");
-  const [sentTo, setSentTo] = useState<string[]>([]);
-  const [vendorListName, setVendorListName] = useState("");
-  const [mfrListName, setMfrListName] = useState("");
+  const [team, setTeam] = useState<string>(src?.team ?? "");
+  const [customTeam, setCustomTeam] = useState(src?.customTeam ?? "");
+  const [mailOwner, setMailOwner] = useState(src?.mailOwner ?? "");
+  const [purpose, setPurpose] = useState(src?.purpose ?? "");
+  const [sentTo, setSentTo] = useState<string[]>(src?.sentTo ?? []);
+  const [vendorListName, setVendorListName] = useState(
+    src?.vendorListName && src.vendorListName !== "-" ? src.vendorListName : "",
+  );
+  const [mfrListName, setMfrListName] = useState(
+    src?.manufacturerListName && src.manufacturerListName !== "-" ? src.manufacturerListName : "",
+  );
   // Subject + body are auto-fetched from Apollo and are not editable here.
-  const subject = apolloTemplate?.subject ?? "";
-  const body = apolloTemplate?.bodyHtml ?? "";
-  const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">("");
-  const [customSubCategory, setCustomSubCategory] = useState("");
-  const [customCategory, setCustomCategory] = useState("");
-  const [domain, setDomain] = useState<DomainType | "Other" | "">("");
-  const [customDomain, setCustomDomain] = useState("");
-  const [actionRequired, setActionRequired] = useState<boolean | null>(null);
-  const [expectedActionType, setExpectedActionType] = useState("");
-  const [followUpRequired, setFollowUpRequired] = useState<boolean | null>(null);
-  const [attachmentMode, setAttachmentMode] = useState<AttachmentMode>("none");
-  const [pdfConfig, setPdfConfig] = useState<PdfEntityConfig>(() => emptyPdfConfig());
-  const [tableConfigs, setTableConfigs] = useState<DynamicTableConfig[]>([
-    {
-      id: "tbl-initial",
-      queryId: "",
-      queryName: "",
-      selectedColumns: [],
-      conditionalRules: {},
-      hasSummaryRow: false,
-    },
-  ]);
+  const subject = apolloTemplate?.subject ?? (sameTemplateAsSource ? (src?.subject ?? "") : "");
+  const body = apolloTemplate?.bodyHtml ?? (sameTemplateAsSource ? (src?.body ?? "") : "");
+  const [subCategory, setSubCategory] = useState<SubCategoryPurpose | "">(src?.subCategory ?? "");
+  const [customSubCategory, setCustomSubCategory] = useState(src?.customSubCategory ?? "");
+  const [customCategory, setCustomCategory] = useState(src?.customCategory ?? "");
+  const [domain, setDomain] = useState<DomainType | "Other" | "">(src?.domain ?? "");
+  const [customDomain, setCustomDomain] = useState(src?.customDomain ?? "");
+  const [actionRequired, setActionRequired] = useState<boolean | null>(src?.actionRequired ?? null);
+  const [expectedActionType, setExpectedActionType] = useState(src?.expectedActionType ?? "");
+  const [followUpRequired, setFollowUpRequired] = useState<boolean | null>(
+    src?.followUpRequired ?? null,
+  );
+  const [attachmentMode, setAttachmentMode] = useState<AttachmentMode>(
+    src?.attachmentMode ?? "none",
+  );
+  const [pdfConfig, setPdfConfig] = useState<PdfEntityConfig>(
+    () => src?.pdfConfig ?? emptyPdfConfig(),
+  );
+  const [tableConfigs, setTableConfigs] = useState<DynamicTableConfig[]>(
+    src?.tableConfigs && src.tableConfigs.length > 0
+      ? src.tableConfigs
+      : [
+          {
+            id: "tbl-initial",
+            queryId: "",
+            queryName: "",
+            selectedColumns: [],
+            conditionalRules: {},
+            hasSummaryRow: false,
+          },
+        ],
+  );
 
-  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
-    type: "none",
-    items: [],
-  });
+  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>(
+    () => normalizeAttachmentConfig(src?.attachmentConfig) ?? { type: "none", items: [] },
+  );
   const [attQueryDraft, setAttQueryDraft] = useState("");
   const [attFormulaDraft, setAttFormulaDraft] = useState("");
-  const [chartQuery, setChartQuery] = useState("");
-  const [cta, setCta] = useState<CtaOption>("None");
-  const [ctaDest, setCtaDest] = useState("");
-  const [ctaModuleRoute, setCtaModuleRoute] = useState("");
-  const [ctaQueryParams, setCtaQueryParams] = useState("");
-  const [ticketCategory, setTicketCategory] = useState("");
-  const [ticketSubcategory, setTicketSubcategory] = useState("");
+  const [chartQuery, setChartQuery] = useState(src?.inlineSqlChart ?? "");
+  const [cta, setCta] = useState<CtaOption>(src?.cta ?? "None");
+  const [ctaDest, setCtaDest] = useState(src?.ctaDestination ?? "");
+  const [ctaModuleRoute, setCtaModuleRoute] = useState(src?.ctaModuleRoute ?? "");
+  const [ctaQueryParams, setCtaQueryParams] = useState(src?.ctaQueryParams ?? "");
+  const [ticketCategory, setTicketCategory] = useState(src?.ticketCategory ?? "");
+  const [ticketSubcategory, setTicketSubcategory] = useState(src?.ticketSubcategory ?? "");
 
-  const [frequency, setFrequency] = useState<FrequencyOption>("Once");
-  const [scheduleDeadline, setScheduleDeadline] = useState("");
-  const [approvalCcEmails, setApprovalCcEmails] = useState<string[]>([]);
-  const [analyst, setAnalyst] = useState("");
-  const [waMessage, setWaMessage] = useState("");
-  const [waFreq, setWaFreq] = useState<FrequencyOption[]>([]);
-  const [waCta, setWaCta] = useState("");
+  const [frequency, setFrequency] = useState<FrequencyOption>(src?.frequency ?? "Once");
+  const [scheduleDeadline, setScheduleDeadline] = useState(src?.scheduleDeadline ?? "");
+  const [approvalCcEmails, setApprovalCcEmails] = useState<string[]>(src?.approvalCcEmails ?? []);
+  const [analyst, setAnalyst] = useState(src?.analystPoc ?? "");
+  const [waMessage, setWaMessage] = useState(src?.whatsapp?.message ?? "");
+  const [waFreq, setWaFreq] = useState<FrequencyOption[]>(src?.whatsapp?.frequency ?? []);
+  const [waCta, setWaCta] = useState(src?.whatsapp?.cta ?? "");
   const [waMetaId, setWaMetaId] = useState("");
-  const [audienceCount, setAudienceCount] = useState(450);
+  const [audienceCount, setAudienceCount] = useState(src?.preflightChecks?.audienceCount ?? 450);
+
+  // ---- 2nd approval triggers (Edit flow) ----
+  const templateIdChanged = isEdit && !!src && src.templateId.trim() !== templateId.trim();
+  const personaChanged = isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
+  const requiresReapproval = templateIdChanged || personaChanged;
+
+  const formTitle =
+    intent.mode === "edit"
+      ? `Edit Request · ${src?.id}`
+      : intent.mode === "clone"
+        ? isFollowUpClone
+          ? `Follow-Up Template · nested under ${src?.templateName}`
+          : `Clone of ${src?.templateName}`
+        : "New Request";
+
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
