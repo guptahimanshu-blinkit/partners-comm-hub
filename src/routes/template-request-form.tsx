@@ -564,11 +564,18 @@ function TemplateRequestFormPage() {
               >
                 <div className="text-[13px]">
                   This template requires values for:{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">
-                    {"{{vendor_name}}"}
-                  </code>
+                  {["{{vendor_name}}", "{{invoice_amount}}", "{{due_date}}"].map((v, i) => (
+                    <span key={v}>
+                      {i === 2 ? "and " : ""}
+                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">
+                        {v}
+                      </code>
+                      {i < 2 ? ", " : ""}
+                    </span>
+                  ))}
                   . Attach a query to fill this per recipient.
                 </div>
+
                 <Textarea
                   rows={4}
                   value={varQuery}
