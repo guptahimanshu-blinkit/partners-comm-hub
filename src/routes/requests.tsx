@@ -1079,7 +1079,7 @@ function NewRequestForm({
       customSubCategory: subCategory === "Other" ? customSubCategory.trim() : undefined,
       domain: domain as DomainType | "Other",
       customDomain: domain === "Other" ? customDomain.trim() : undefined,
-      customCategory: customCategory.trim() || undefined,
+      customCategory: isFollowUpClone ? "Follow-Up" : customCategory.trim() || undefined,
       categoryId: inferred.categoryId,
       priority: inferred.priority,
       attachment: finalAttachmentOption,
