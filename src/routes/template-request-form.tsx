@@ -165,6 +165,14 @@ function TemplateRequestFormPage() {
     setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   }
 
+  const [templateId, setTemplateId] = useState("");
+  const [varChecked, setVarChecked] = useState(false);
+  const [varQuery, setVarQuery] = useState("");
+  const [varQueryChecked, setVarQueryChecked] = useState(false);
+  const [varQueryValid, setVarQueryValid] = useState(false);
+
+  const varsRequired = templateId.includes("9") || templateId.trim() === "1234567";
+
   const groupsDirty = b2AudienceGroups.some(
     (g) => g.entity || g.subType || g.hasPdf || g.hasTargetedList,
   );
