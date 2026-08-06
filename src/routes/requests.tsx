@@ -860,13 +860,14 @@ function NewRequestForm({
   const [customTeam, setCustomTeam] = useState(src?.customTeam ?? "");
   const [mailOwner, setMailOwner] = useState(src?.mailOwner ?? "");
   const [purpose, setPurpose] = useState(src?.purpose ?? "");
-  const [sentTo, setSentTo] = useState<string[]>(src?.sentTo ?? []);
-  const [vendorListName, setVendorListName] = useState(
-    src?.vendorListName && src.vendorListName !== "-" ? src.vendorListName : "",
-  );
-  const [mfrListName, setMfrListName] = useState(
-    src?.manufacturerListName && src.manufacturerListName !== "-" ? src.manufacturerListName : "",
-  );
+  // Audience is now owned entirely by the Part B section of the Dynamic Attachment Flow.
+  const sentTo: string[] = src?.sentTo ?? [];
+  const vendorListName =
+    src?.vendorListName && src.vendorListName !== "-" ? src.vendorListName : "";
+  const mfrListName =
+    src?.manufacturerListName && src.manufacturerListName !== "-"
+      ? src.manufacturerListName
+      : "";
   // Subject + body are auto-fetched from Apollo and are not editable here.
   const subject = apolloTemplate?.subject ?? (sameTemplateAsSource ? (src?.subject ?? "") : "");
   const body = apolloTemplate?.bodyHtml ?? (sameTemplateAsSource ? (src?.body ?? "") : "");
