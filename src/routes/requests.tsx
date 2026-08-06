@@ -3118,10 +3118,18 @@ function ApproverView() {
   const requests = useRequests();
   const pending = requests.filter((r) => r.status === "Pending");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = pending.find((r) => r.id === selectedId) ?? null;
+  // Read the live payload from the shared store (not just the pending slice) so
+  // parent-request navigation and post-approval state stay in sync.
+  const selected = selectedId ? (requests.find((r) => r.id === selectedId) ?? null) : null;
 
   if (selected) {
-    return <RequestDetail request={selected} onBack={() => setSelectedId(null)} />;
+    return (
+      <RequestDetail
+        request={selected}
+        onBack={() => setSelectedId(null)}
+        onOpenRequest={(id) => setSelectedId(id)}
+      />
+    );
   }
 
   return (
