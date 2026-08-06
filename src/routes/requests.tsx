@@ -19,7 +19,11 @@ import {
   PauseCircle,
   Search,
   ExternalLink,
-
+  MoreVertical,
+  Pencil,
+  Copy,
+  CornerDownRight,
+  Lock,
 } from "lucide-react";
 import { lookupApolloTemplate } from "@/lib/mock-data";
 import {
