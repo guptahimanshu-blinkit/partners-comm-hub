@@ -24,6 +24,9 @@ import {
   Copy,
   CornerDownRight,
   Lock,
+  FileText,
+  Table as TableIcon,
+  Flag,
 } from "lucide-react";
 import { lookupApolloTemplate } from "@/lib/mock-data";
 import {
@@ -3115,10 +3118,18 @@ function ApproverView() {
   const requests = useRequests();
   const pending = requests.filter((r) => r.status === "Pending");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = pending.find((r) => r.id === selectedId) ?? null;
+  // Read the live payload from the shared store (not just the pending slice) so
+  // parent-request navigation and post-approval state stay in sync.
+  const selected = selectedId ? (requests.find((r) => r.id === selectedId) ?? null) : null;
 
   if (selected) {
-    return <RequestDetail request={selected} onBack={() => setSelectedId(null)} />;
+    return (
+      <RequestDetail
+        request={selected}
+        onBack={() => setSelectedId(null)}
+        onOpenRequest={(id) => setSelectedId(id)}
+      />
+    );
   }
 
   return (
@@ -3362,7 +3373,263 @@ function ReasonChecklist({
   );
 }
 
-function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: () => void }) {
+// ---------------------------------------------------------------------------
+// Approver: manual action / follow-up / dynamic attachment inspection cards
+// ---------------------------------------------------------------------------
+
+function ActionDirectivesCard({ request }: { request: TemplateRequest }) {
+  const actionYes = request.actionRequired === true;
+  if (!actionYes) return null;
+  const followUp = request.followUpRequired === true;
+  return (
+    <div className="mt-3 rounded-lg border border-cat-red/40 bg-cat-red/5 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge className="bg-cat-red text-white hover:bg-cat-red">⚡ Action Required: YES</Badge>
+        <Badge
+          variant="outline"
+          className={cn(
+            "border-dashed text-[11px]",
+            followUp ? "border-cat-amber text-cat-amber" : "text-muted-foreground",
+          )}
+        >
+          Follow-up Campaign Required: {followUp ? "YES" : "NO"}
+        </Badge>
+      </div>
+      <div className="mt-3">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Expected Vendor Action
+        </div>
+        <p className="mt-1 text-[13px] font-medium leading-relaxed">
+          {request.expectedAction ||
+            request.expectedActionType ||
+            "Action required — detail not specified by submitter"}
+        </p>
+      </div>
+      {followUp && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          A nudge campaign must be scheduled for audience members who do not complete this action.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DynamicPdfInspectionCard({ request }: { request: TemplateRequest }) {
+  if (request.attachmentMode !== "dynamic_pdf" || !request.pdfConfig) return null;
+  const cfg = request.pdfConfig;
+  const entities = Object.entries(cfg.uploadedEntities ?? {});
+  const verified = entities.filter(([, ok]) => ok).length;
+  const complete = entities.length > 0 && verified === entities.length;
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <FileText className="h-4 w-4 text-primary" /> Dynamic Entity PDF Attachment
+        </div>
+        <Badge
+          className={cn(
+            "hover:bg-inherit",
+            complete ? "bg-cat-green text-white" : "bg-cat-amber text-white",
+          )}
+        >
+          {verified}/{entities.length} entity PDFs verified
+        </Badge>
+      </div>
+      <div className="mt-2 text-[12px]">
+        <span className="text-muted-foreground">Selected Query: </span>
+        <span className="font-medium">{cfg.queryName}</span>
+        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          {cfg.queryId}
+        </span>
+      </div>
+      <div className="mt-3 overflow-hidden rounded-md border border-border">
+        <table className="w-full text-[12px]">
+          <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Entity</th>
+              <th className="px-3 py-2 text-left">Attachment Source</th>
+              <th className="px-3 py-2 text-left">Clearance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entities.length === 0 && (
+              <tr>
+                <td colSpan={3} className="px-3 py-3 text-muted-foreground">
+                  No entities mapped for this query.
+                </td>
+              </tr>
+            )}
+            {entities.map(([entity, ok]) => (
+              <tr key={entity} className="border-t border-border">
+                <td className="px-3 py-2 font-medium">{entity}</td>
+                <td className="px-3 py-2 text-muted-foreground">
+                  {ok ? `${entity.toLowerCase().replace(/\s+/g, "_")}_statement.pdf` : "Not uploaded"}
+                </td>
+                <td className="px-3 py-2">
+                  {ok ? (
+                    <span className="font-medium text-cat-green">🟢 PDF Verified</span>
+                  ) : (
+                    <span className="font-medium text-cat-red">🔴 Missing upload</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!complete && (
+        <p className="mt-2 text-[11px] text-cat-red">
+          Audience lock breach — vendors mapped to unverified entities will not receive an
+          attachment. Hold or reject until every entity PDF is supplied.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function mockCellValue(column: string, rowIndex: number): string {
+  const c = column.toLowerCase();
+  if (c.includes("vendor_id")) return `VND-${10234 + rowIndex * 7}`;
+  if (c.includes("entity")) return ["BPCL", "Moonstone", "ZHPL"][rowIndex % 3];
+  if (c.includes("instances")) return String(3 + rowIndex * 4);
+  if (c.includes("charges") || c.includes("amount"))
+    return String([48200, 76500, 12900][rowIndex % 3]);
+  if (c.includes("growth")) return String([12.4, -3.8, 5.1][rowIndex % 3]);
+  if (c.includes("sales") || c.includes("volume")) return String([18420, 9310, 26550][rowIndex % 3]);
+  if (c.includes("date")) return ["01 Aug 2026", "02 Aug 2026", "03 Aug 2026"][rowIndex % 3];
+  if (c.includes("pct") || c.includes("rate")) return String([94.2, 88.7, 71.5][rowIndex % 3]);
+  return `${column}-${rowIndex + 1}`;
+}
+
+function ruleBreached(
+  rule: { operator: "<" | ">"; value: string } | undefined,
+  raw: string,
+): boolean {
+  if (!rule) return false;
+  const n = Number(raw);
+  const t = Number(rule.value);
+  if (Number.isNaN(n) || Number.isNaN(t)) return false;
+  return rule.operator === ">" ? n > t : n < t;
+}
+
+function DynamicTablesPreviewCard({ request }: { request: TemplateRequest }) {
+  const tables = request.tableConfigs ?? [];
+  if (request.attachmentMode !== "dynamic_tables" || tables.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <TableIcon className="h-4 w-4 text-primary" /> Dynamic Tables in Body ({tables.length})
+      </div>
+      {tables.map((t, ti) => {
+        const cols = t.selectedColumns ?? [];
+        const rules = t.conditionalRules ?? {};
+        return (
+          <div key={t.id} className="rounded-lg border border-border bg-card p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-[13px] font-semibold">
+                Table {ti + 1}: {t.queryName}
+              </div>
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                {t.queryId}
+              </span>
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {cols.length} column{cols.length === 1 ? "" : "s"} selected · Summary row:{" "}
+              {t.hasSummaryRow ? "Yes" : "No"}
+            </div>
+
+            {Object.keys(rules).length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {Object.entries(rules).map(([col, rule]) => (
+                  <Badge
+                    key={col}
+                    variant="outline"
+                    className="border-dashed text-[10px]"
+                    style={{ color: rule.color, borderColor: rule.color }}
+                  >
+                    If {col} {rule.operator} {rule.value} ➔ ●
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 overflow-x-auto rounded-md border border-border">
+              <table className="w-full text-[12px]">
+                <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    {cols.map((c) => (
+                      <th key={c} className="whitespace-nowrap px-3 py-2 text-left">
+                        {c}
+                        {rules[c] ? " *" : ""}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[0, 1, 2].map((ri) => (
+                    <tr key={ri} className="border-t border-border">
+                      {cols.map((c) => {
+                        const raw = mockCellValue(c, ri);
+                        const rule = rules[c];
+                        const breach = ruleBreached(rule, raw);
+                        return (
+                          <td
+                            key={c}
+                            className={cn("whitespace-nowrap px-3 py-2", breach && "font-semibold")}
+                            style={breach ? { color: rule?.color } : undefined}
+                          >
+                            {raw}
+                            {breach ? " 🔴" : ""}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {t.hasSummaryRow && (
+                    <tr className="border-t-2 border-primary/40 bg-muted/50 font-semibold">
+                      {cols.map((c, ci) => (
+                        <td key={c} className="whitespace-nowrap px-3 py-2">
+                          {ci === 0
+                            ? "PAN INDIA / SUMMARY TOTAL"
+                            : Number.isNaN(Number(mockCellValue(c, 0)))
+                              ? "—"
+                              : String(
+                                  [0, 1, 2].reduce(
+                                    (sum, ri) => sum + Number(mockCellValue(c, ri)),
+                                    0,
+                                  ),
+                                )}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Sample rendering only — live rows are hydrated from the approved query at send time.
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
+function RequestDetail({
+  request,
+  onBack,
+  onOpenRequest,
+}: {
+  request: TemplateRequest;
+  onBack: () => void;
+  onOpenRequest?: (id: string) => void;
+}) {
+  const allRequests = useRequests();
+  const parent = request.parentId
+    ? (allRequests.find((r) => r.id === request.parentId) ?? null)
+    : null;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonCats, setReasonCats] = useState<RejectionReasonCategory[]>([]);
@@ -3467,6 +3734,32 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
         </Button>
       </div>
 
+      {request.isFollowUp && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cat-amber/50 bg-cat-amber/10 p-4">
+          <div className="flex items-start gap-2">
+            <Flag className="mt-0.5 h-4 w-4 text-cat-amber" />
+            <div>
+              <div className="text-sm font-semibold">🚩 FOLLOW-UP TEMPLATE</div>
+              <p className="text-xs text-muted-foreground">
+                Parent Request ID: #{request.parentId ?? "—"}
+                {parent ? ` · ${parent.templateName}` : " · parent not found in store"}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!parent || !onOpenRequest}
+            onClick={() => parent && onOpenRequest?.(parent.id)}
+            className="gap-1"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> View Parent Request
+          </Button>
+        </div>
+      )}
+
+
+
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -3496,6 +3789,14 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
             >
               {actionRequiredYes ? "⚡ Action Required: YES" : "Action Required: NO"}
             </Badge>
+            {request.isFollowUp && (
+              <Badge className="bg-cat-amber text-white hover:bg-cat-amber">🚩 Follow-Up</Badge>
+            )}
+            {request.actionRequired === true && (
+              <Badge variant="outline" className="border-dashed text-[11px]">
+                Follow-up Campaign: {request.followUpRequired ? "YES" : "NO"}
+              </Badge>
+            )}
             <CategoryTag id={request.categoryId} />
             <PriorityTag p={request.priority} />
             <StatusTag status={request.status} />
@@ -3546,6 +3847,10 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
           <DetailField label="Query Parameters" value={queryParamsValue} />
           <DetailField label="Frequency & Schedule Deadline" value={frequencyValue} />
         </div>
+
+        <ActionDirectivesCard request={request} />
+        <DynamicPdfInspectionCard request={request} />
+        <DynamicTablesPreviewCard request={request} />
 
         <AttachmentInspectionCard items={attachmentItems} />
 
@@ -3606,25 +3911,32 @@ function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: 
 
       <ClubbingMatchPanel requestId={request.id} />
 
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={() => setRejectOpen(true)}
-          className="gap-2 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
-        >
-          <XCircle className="h-4 w-4" /> Reject
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setHoldOpen(true)}
-          className="gap-2 border-cat-amber/40 text-cat-amber hover:bg-cat-amber-soft"
-        >
-          <PauseCircle className="h-4 w-4" /> Hold
-        </Button>
-        <Button onClick={approve} className="gap-2">
-          <CheckCircle2 className="h-4 w-4" /> Approve
-        </Button>
-      </div>
+      {request.status === "Pending" ? (
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setRejectOpen(true)}
+            className="gap-2 border-cat-red/30 text-cat-red hover:bg-cat-red-soft"
+          >
+            <XCircle className="h-4 w-4" /> Reject
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setHoldOpen(true)}
+            className="gap-2 border-cat-amber/40 text-cat-amber hover:bg-cat-amber-soft"
+          >
+            <PauseCircle className="h-4 w-4" /> Hold
+          </Button>
+          <Button onClick={approve} className="gap-2">
+            <CheckCircle2 className="h-4 w-4" /> Approve
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          Read-only view — this request is already <b>{request.status}</b>.
+        </div>
+      )}
+
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
