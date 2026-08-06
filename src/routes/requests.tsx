@@ -714,6 +714,20 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
   const [customDomain, setCustomDomain] = useState("");
   const [actionRequired, setActionRequired] = useState<boolean | null>(null);
   const [expectedActionType, setExpectedActionType] = useState("");
+  const [followUpRequired, setFollowUpRequired] = useState<boolean | null>(null);
+  const [attachmentMode, setAttachmentMode] = useState<AttachmentMode>("none");
+  const [pdfConfig, setPdfConfig] = useState<PdfEntityConfig>(() => emptyPdfConfig());
+  const [tableConfigs, setTableConfigs] = useState<DynamicTableConfig[]>([
+    {
+      id: "tbl-initial",
+      queryId: "",
+      queryName: "",
+      selectedColumns: [],
+      conditionalRules: {},
+      hasSummaryRow: false,
+    },
+  ]);
+
   const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig>({
     type: "none",
     items: [],
