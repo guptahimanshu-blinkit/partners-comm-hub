@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendorDeliveryProfilesRouteImport } from './routes/vendor-delivery-profiles'
+import { Route as TemplateRequestFormRouteImport } from './routes/template-request-form'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PoExtensionRequestRouteImport } from './routes/po-extension-request'
 import { Route as CommsPerformanceRouteImport } from './routes/comms-performance'
@@ -33,6 +34,11 @@ import { Route as AppAdminRouteImport } from './routes/app.admin'
 const VendorDeliveryProfilesRoute = VendorDeliveryProfilesRouteImport.update({
   id: '/vendor-delivery-profiles',
   path: '/vendor-delivery-profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplateRequestFormRoute = TemplateRequestFormRouteImport.update({
+  id: '/template-request-form',
+  path: '/template-request-form',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestsRoute = RequestsRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
+  '/template-request-form': typeof TemplateRequestFormRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/app/admin': typeof AppAdminRoute
   '/app/appointments': typeof AppAppointmentsRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
+  '/template-request-form': typeof TemplateRequestFormRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/app/admin': typeof AppAdminRoute
   '/app/appointments': typeof AppAppointmentsRoute
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/comms-performance': typeof CommsPerformanceRoute
   '/po-extension-request': typeof PoExtensionRequestRoute
   '/requests': typeof RequestsRoute
+  '/template-request-form': typeof TemplateRequestFormRoute
   '/vendor-delivery-profiles': typeof VendorDeliveryProfilesRoute
   '/app/admin': typeof AppAdminRoute
   '/app/appointments': typeof AppAppointmentsRoute
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
+    | '/template-request-form'
     | '/vendor-delivery-profiles'
     | '/app/admin'
     | '/app/appointments'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
+    | '/template-request-form'
     | '/vendor-delivery-profiles'
     | '/app/admin'
     | '/app/appointments'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/comms-performance'
     | '/po-extension-request'
     | '/requests'
+    | '/template-request-form'
     | '/vendor-delivery-profiles'
     | '/app/admin'
     | '/app/appointments'
@@ -276,6 +288,7 @@ export interface RootRouteChildren {
   CommsPerformanceRoute: typeof CommsPerformanceRoute
   PoExtensionRequestRoute: typeof PoExtensionRequestRoute
   RequestsRoute: typeof RequestsRoute
+  TemplateRequestFormRoute: typeof TemplateRequestFormRoute
   VendorDeliveryProfilesRoute: typeof VendorDeliveryProfilesRoute
   AppAdminRoute: typeof AppAdminRoute
   AppAppointmentsRoute: typeof AppAppointmentsRoute
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/vendor-delivery-profiles'
       fullPath: '/vendor-delivery-profiles'
       preLoaderRoute: typeof VendorDeliveryProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/template-request-form': {
+      id: '/template-request-form'
+      path: '/template-request-form'
+      fullPath: '/template-request-form'
+      preLoaderRoute: typeof TemplateRequestFormRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/requests': {
@@ -444,6 +464,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommsPerformanceRoute: CommsPerformanceRoute,
   PoExtensionRequestRoute: PoExtensionRequestRoute,
   RequestsRoute: RequestsRoute,
+  TemplateRequestFormRoute: TemplateRequestFormRoute,
   VendorDeliveryProfilesRoute: VendorDeliveryProfilesRoute,
   AppAdminRoute: AppAdminRoute,
   AppAppointmentsRoute: AppAppointmentsRoute,

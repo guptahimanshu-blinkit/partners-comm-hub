@@ -153,7 +153,7 @@ function TemplateRequestFormPage() {
   const isPdf = attachmentType === "dynamic_pdf";
 
   return (
-    <AppShell title="Template Request" subtitle="Simulating: Workdesk">
+    <AppShell>
       <div className="mx-auto max-w-4xl space-y-8 pb-16">
         <header>
           <h1 className="text-xl font-semibold">Template Request Form</h1>
