@@ -457,6 +457,125 @@ function TemplateRequestFormPage() {
             )}
           </section>
         )}
+
+        {/* Part D */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            D · Template variable check
+          </h2>
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <div className="text-[12px] text-muted-foreground">Template ID</div>
+                <Input
+                  value={templateId}
+                  placeholder="e.g. 1234567"
+                  className="h-9 w-56"
+                  onChange={(e) => {
+                    setTemplateId(e.target.value);
+                    setVarChecked(false);
+                    setVarQueryChecked(false);
+                    setVarQueryValid(false);
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVarChecked(true)}
+                disabled={!templateId.trim()}
+              >
+                Check Template Variables
+              </Button>
+            </div>
+            <p className="text-[12px] text-muted-foreground">
+              Note: manual button exists only for demo.
+            </p>
+
+            {varChecked && !varsRequired && (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 text-[13px] text-muted-foreground">
+                No variables detected in this template.
+              </div>
+            )}
+
+            {varChecked && varsRequired && (
+              <div
+                className={cn(
+                  "space-y-3 rounded-lg border-2 p-3",
+                  varQueryChecked && varQueryValid
+                    ? "border-cat-green bg-cat-green-soft/30"
+                    : varQueryChecked
+                      ? "border-destructive bg-destructive/5"
+                      : "border-amber-400/60 bg-amber-50/40",
+                )}
+              >
+                <div className="text-[13px]">
+                  This template requires values for:{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">
+                    {"{{vendor_name}}"}
+                  </code>
+                  . Attach a query to fill this per recipient.
+                </div>
+                <Textarea
+                  rows={4}
+                  value={varQuery}
+                  placeholder="Paste your query here"
+                  className="bg-background font-mono text-[12px]"
+                  onChange={(e) => {
+                    setVarQuery(e.target.value);
+                    setVarQueryChecked(false);
+                    setVarQueryValid(false);
+                  }}
+                />
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setVarQueryValid(AUDIENCE_ID_RE.test(varQuery));
+                      setVarQueryChecked(true);
+                    }}
+                  >
+                    Check Query
+                  </Button>
+                  {varQueryChecked && (
+                    <span
+                      className={cn(
+                        "flex items-center gap-1.5 text-[12px] font-medium",
+                        varQueryValid ? "text-cat-green" : "text-destructive",
+                      )}
+                    >
+                      {varQueryValid ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" /> Audience ID column found
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-4 w-4" /> No audience ID column detected
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Submit */}
+        <div className="sticky bottom-0 -mx-2 border-t border-border bg-background/95 px-2 py-3 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[12px] text-muted-foreground">
+              {canSubmit
+                ? "All checks passed."
+                : blockers[0] ?? "Complete the required checks to submit."}
+            </span>
+            <Button type="button" disabled={!canSubmit}>
+              Submit Form
+            </Button>
+          </div>
+        </div>
       </div>
     </AppShell>
   );
