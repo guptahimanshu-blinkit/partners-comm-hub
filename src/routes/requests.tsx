@@ -1143,13 +1143,20 @@ function NewRequestForm({ onDone }: { onDone: () => void }) {
             </div>
             <InferredRulesPanel
               rules={inferred}
-              subCategory={subCategory}
-              domain={domain}
               actionRequired={actionRequired}
-              onActionRequiredChange={setActionRequired}
+              onActionRequiredChange={(v) => {
+                setActionRequired(v);
+                if (!v) {
+                  setExpectedActionType("");
+                  setFollowUpRequired(false);
+                }
+              }}
               expectedActionType={expectedActionType}
               onExpectedActionTypeChange={setExpectedActionType}
+              followUpRequired={followUpRequired}
+              onFollowUpRequiredChange={setFollowUpRequired}
             />
+
           </>
         )}
       </section>
