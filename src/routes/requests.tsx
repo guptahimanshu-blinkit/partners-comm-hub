@@ -1446,11 +1446,6 @@ function NewRequestForm({
         mode={attachmentMode}
         onModeChange={(m) => {
           setAttachmentMode(m);
-          if (m === "dynamic_pdf") {
-            setSentTo([]);
-            setVendorListName("");
-            setMfrListName("");
-          }
         }}
         pdfConfig={pdfConfig}
         onPdfConfigChange={setPdfConfig}
