@@ -100,13 +100,11 @@ import {
   type AttachmentMode,
   type PdfEntityConfig,
   type DynamicTableConfig,
-
   type InferredRules,
   type SubCategoryPurpose,
   type DomainType,
   type AttachmentConfig,
   type AttachmentItem,
-
   type PreflightChecks,
   type PublishLog,
   type TemplateRequest,
@@ -575,7 +573,11 @@ function SubmitterView() {
       )}
 
       {intent ? (
-        <NewRequestForm key={JSON.stringify(intent)} intent={intent} onDone={() => setIntent(null)} />
+        <NewRequestForm
+          key={JSON.stringify(intent)}
+          intent={intent}
+          onDone={() => setIntent(null)}
+        />
       ) : (
         <MyRequestsTable requests={mine} onIntent={setIntent} />
       )}
@@ -665,7 +667,6 @@ function RequestRowMenu({
     </>
   );
 }
-
 
 function MyRequestsTable({
   requests,
@@ -771,7 +772,6 @@ function MyRequestsTable({
     </div>
   );
 }
-
 
 // ------- Form -------
 const apolloTemplateUrl = (templateId: string) =>
@@ -915,7 +915,8 @@ function NewRequestForm({
 
   // ---- 2nd approval triggers (Edit flow) ----
   const templateIdChanged = isEdit && !!src && src.templateId.trim() !== templateId.trim();
-  const personaChanged = isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
+  const personaChanged =
+    isEdit && !!src && personaSignature(src.sentTo) !== personaSignature(sentTo);
   const requiresReapproval = templateIdChanged || personaChanged;
 
   const formTitle =
@@ -926,7 +927,6 @@ function NewRequestForm({
           ? `Follow-Up Template · nested under ${src?.templateName}`
           : `Clone of ${src?.templateName}`
         : "New Request";
-
 
   const inferred: InferredRules | null = useMemo(() => {
     if (!subCategory || !domain) return null;
@@ -942,10 +942,6 @@ function NewRequestForm({
     isAtFrequencyCap: frequency.length >= 3,
     waValidated: showWhatsApp ? waMessage.trim().length > 0 : true,
   };
-
-
-
-
 
   const submit = () => {
     // 1) Attachments are driven solely by the Dynamic Attachment Setup.
@@ -1035,7 +1031,6 @@ function NewRequestForm({
       }
     }
 
-
     const req: TemplateRequest = {
       id: isEdit && src ? src.id : `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       requestType: "Template Approval",
@@ -1121,7 +1116,6 @@ function NewRequestForm({
     onDone();
   };
 
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -1174,8 +1168,6 @@ function NewRequestForm({
         </div>
       )}
 
-
-
       {/* Core fields */}
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <FormRow label="Template ID" required>
@@ -1189,8 +1181,8 @@ function NewRequestForm({
           </div>
           {apolloTemplate && (
             <p className="mt-2 text-[11px] text-muted-foreground">
-              ℹ️ Live template design auto-fetched from Apollo Service — use “Check Template” for the
-              full Desktop / Tablet / Mobile preview.
+              ℹ️ Live template design auto-fetched from Apollo Service — use “Check Template” for
+              the full Desktop / Tablet / Mobile preview.
             </p>
           )}
         </FormRow>
@@ -1208,7 +1200,6 @@ function NewRequestForm({
               ? `ℹ️ Auto-fetched from Apollo Service for Template ID: ${templateId.trim()}`
               : "ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above."}
           </p>
-
         </FormRow>
         <FormRow label="Submitted By">
           <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
@@ -1460,7 +1451,6 @@ function NewRequestForm({
               followUpRequired={followUpRequired}
               onFollowUpRequiredChange={setFollowUpRequired}
             />
-
           </>
         )}
       </section>
@@ -1509,125 +1499,124 @@ function NewRequestForm({
           className={cn("space-y-4", isFollowUpClone && "pointer-events-none opacity-60")}
           aria-disabled={isFollowUpClone}
         >
-        <FormRow label="Call to Action">
-          <Select
-            value={cta}
-            onValueChange={(v) => {
-              const next = v as CtaOption;
-              setCta(next);
-              if (next !== "Direct Link") {
-                setCtaModuleRoute("");
-                setCtaQueryParams("");
-                setCtaDest("");
-              }
-              if (next !== "Autofilled Help & Support Ticket") {
-                setTicketCategory("");
-                setTicketSubcategory("");
-              }
-            }}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(["None", "Direct Link", "Autofilled Help & Support Ticket"] as const).map((v) => (
-                <SelectItem key={v} value={v}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {cta === "Direct Link" && (
-            <div className="mt-2 space-y-2">
-              <div>
-                <Label className="text-xs">Target Portal Module Route *</Label>
-                <Select
-                  value={ctaModuleRoute}
-                  onValueChange={(v) => {
-                    setCtaModuleRoute(v);
-                    setCtaDest(v);
-                  }}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select module route" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CTA_MODULE_ROUTES.map((r) => (
-                      <SelectItem key={r.route} value={r.route}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <FormRow label="Call to Action">
+            <Select
+              value={cta}
+              onValueChange={(v) => {
+                const next = v as CtaOption;
+                setCta(next);
+                if (next !== "Direct Link") {
+                  setCtaModuleRoute("");
+                  setCtaQueryParams("");
+                  setCtaDest("");
+                }
+                if (next !== "Autofilled Help & Support Ticket") {
+                  setTicketCategory("");
+                  setTicketSubcategory("");
+                }
+              }}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["None", "Direct Link", "Autofilled Help & Support Ticket"] as const).map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {cta === "Direct Link" && (
+              <div className="mt-2 space-y-2">
+                <div>
+                  <Label className="text-xs">Target Portal Module Route *</Label>
+                  <Select
+                    value={ctaModuleRoute}
+                    onValueChange={(v) => {
+                      setCtaModuleRoute(v);
+                      setCtaDest(v);
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select module route" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CTA_MODULE_ROUTES.map((r) => (
+                        <SelectItem key={r.route} value={r.route}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Query Parameters (optional)</Label>
+                  <Input
+                    value={ctaQueryParams}
+                    onChange={(e) => setCtaQueryParams(e.target.value)}
+                    placeholder="?po_id={{po_number}}"
+                  />
+                </div>
               </div>
-              <div>
-                <Label className="text-xs">Query Parameters (optional)</Label>
-                <Input
-                  value={ctaQueryParams}
-                  onChange={(e) => setCtaQueryParams(e.target.value)}
-                  placeholder="?po_id={{po_number}}"
-                />
+            )}
+            {cta === "Autofilled Help & Support Ticket" && (
+              <div className="mt-2 space-y-2">
+                <div>
+                  <Label className="text-xs">
+                    Ticket Category <span className="text-cat-red">*</span>
+                  </Label>
+                  <Select
+                    value={ticketCategory}
+                    onValueChange={(v) => {
+                      setTicketCategory(v);
+                      setTicketSubcategory("");
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select ticket category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(TICKET_TAXONOMY).map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">
+                    Ticket Subcategory <span className="text-cat-red">*</span>
+                  </Label>
+                  <Select
+                    value={ticketSubcategory}
+                    onValueChange={setTicketSubcategory}
+                    disabled={!ticketCategory}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue
+                        placeholder={
+                          ticketCategory ? "Select subcategory" : "Select a category first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(TICKET_TAXONOMY[ticketCategory] ?? []).map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  ℹ️ Autofills vendor ticket category to eliminate mistagged tickets and support SLA
+                  rejections.
+                </p>
               </div>
-            </div>
-          )}
-          {cta === "Autofilled Help & Support Ticket" && (
-            <div className="mt-2 space-y-2">
-              <div>
-                <Label className="text-xs">
-                  Ticket Category <span className="text-cat-red">*</span>
-                </Label>
-                <Select
-                  value={ticketCategory}
-                  onValueChange={(v) => {
-                    setTicketCategory(v);
-                    setTicketSubcategory("");
-                  }}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select ticket category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(TICKET_TAXONOMY).map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">
-                  Ticket Subcategory <span className="text-cat-red">*</span>
-                </Label>
-                <Select
-                  value={ticketSubcategory}
-                  onValueChange={setTicketSubcategory}
-                  disabled={!ticketCategory}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue
-                      placeholder={
-                        ticketCategory ? "Select subcategory" : "Select a category first"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(TICKET_TAXONOMY[ticketCategory] ?? []).map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                ℹ️ Autofills vendor ticket category to eliminate mistagged tickets and support SLA
-                rejections.
-              </p>
-            </div>
-          )}
-
-        </FormRow>
+            )}
+          </FormRow>
         </div>
         {isFollowUpClone && (
           <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[11px] text-primary">
@@ -1657,7 +1646,6 @@ function NewRequestForm({
           />
         </FormRow>
       </section>
-
 
       {showWhatsApp && (
         <section className="space-y-3 rounded-xl border border-border bg-card p-5">
@@ -1856,7 +1844,6 @@ function InferredRulesPanel({
 }) {
   const cfg = CATEGORY_CONFIG[rules.categoryId];
 
-
   return (
     <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
       <div className="flex items-center justify-between">
@@ -1969,9 +1956,7 @@ function InferredRulesPanel({
           </div>
         </>
       )}
-
     </div>
-
   );
 }
 
@@ -2520,10 +2505,7 @@ export const TICKET_TAXONOMY: Record<string, string[]> = {
     "Mismatch in debit notes (Response time ~3 Days)",
     "Others (Response time ~3 Days)",
   ],
-  Onboarding: [
-    "Warehouse details needed (Response time ~4 Days)",
-    "Other (Response time ~4 Days)",
-  ],
+  Onboarding: ["Warehouse details needed (Response time ~4 Days)", "Other (Response time ~4 Days)"],
   "Login Issues": ["Not receiving OTP (Response time ~1 Day)", "Other"],
   "Fees & Charges": ["Dispute Charge (Response time ~2 Days)", "Other"],
   "Marketing & Brand Fund Invoices": [
@@ -2667,7 +2649,6 @@ function fillSample(text: string): string {
     return `[${title}]`;
   });
 }
-
 
 // ---------- Real-time active governance interception ----------
 function GovernanceInterception({
@@ -3211,7 +3192,9 @@ function DynamicPdfInspectionCard({ request }: { request: TemplateRequest }) {
               <tr key={entity} className="border-t border-border">
                 <td className="px-3 py-2 font-medium">{entity}</td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {ok ? `${entity.toLowerCase().replace(/\s+/g, "_")}_statement.pdf` : "Not uploaded"}
+                  {ok
+                    ? `${entity.toLowerCase().replace(/\s+/g, "_")}_statement.pdf`
+                    : "Not uploaded"}
                 </td>
                 <td className="px-3 py-2">
                   {ok ? (
@@ -3243,7 +3226,8 @@ function mockCellValue(column: string, rowIndex: number): string {
   if (c.includes("charges") || c.includes("amount"))
     return String([48200, 76500, 12900][rowIndex % 3]);
   if (c.includes("growth")) return String([12.4, -3.8, 5.1][rowIndex % 3]);
-  if (c.includes("sales") || c.includes("volume")) return String([18420, 9310, 26550][rowIndex % 3]);
+  if (c.includes("sales") || c.includes("volume"))
+    return String([18420, 9310, 26550][rowIndex % 3]);
   if (c.includes("date")) return ["01 Aug 2026", "02 Aug 2026", "03 Aug 2026"][rowIndex % 3];
   if (c.includes("pct") || c.includes("rate")) return String([94.2, 88.7, 71.5][rowIndex % 3]);
   return `${column}-${rowIndex + 1}`;
@@ -3364,7 +3348,6 @@ function DynamicTablesPreviewCard({ request }: { request: TemplateRequest }) {
   );
 }
 
-
 function RequestDetail({
   request,
   onBack,
@@ -3473,7 +3456,6 @@ function RequestDetail({
     normalizeAttachmentConfig(request.attachmentConfig).items ?? [];
   const actionRequiredYes = request.actionRequired === true;
 
-
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2">
@@ -3505,8 +3487,6 @@ function RequestDetail({
           </Button>
         </div>
       )}
-
-
 
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -3592,7 +3572,6 @@ function RequestDetail({
 
         <AttachmentInspectionCard items={attachmentItems} />
 
-
         <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Purpose of Mail
@@ -3674,7 +3653,6 @@ function RequestDetail({
           Read-only view — this request is already <b>{request.status}</b>.
         </div>
       )}
-
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
