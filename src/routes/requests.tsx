@@ -3362,6 +3362,250 @@ function ReasonChecklist({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Approver: manual action / follow-up / dynamic attachment inspection cards
+// ---------------------------------------------------------------------------
+
+function ActionDirectivesCard({ request }: { request: TemplateRequest }) {
+  const actionYes = request.actionRequired === true;
+  if (!actionYes) return null;
+  const followUp = request.followUpRequired === true;
+  return (
+    <div className="mt-3 rounded-lg border border-cat-red/40 bg-cat-red/5 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge className="bg-cat-red text-white hover:bg-cat-red">⚡ Action Required: YES</Badge>
+        <Badge
+          variant="outline"
+          className={cn(
+            "border-dashed text-[11px]",
+            followUp ? "border-cat-amber text-cat-amber" : "text-muted-foreground",
+          )}
+        >
+          Follow-up Campaign Required: {followUp ? "YES" : "NO"}
+        </Badge>
+      </div>
+      <div className="mt-3">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Expected Vendor Action
+        </div>
+        <p className="mt-1 text-[13px] font-medium leading-relaxed">
+          {request.expectedAction ||
+            request.expectedActionType ||
+            "Action required — detail not specified by submitter"}
+        </p>
+      </div>
+      {followUp && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          A nudge campaign must be scheduled for audience members who do not complete this action.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DynamicPdfInspectionCard({ request }: { request: TemplateRequest }) {
+  if (request.attachmentMode !== "dynamic_pdf" || !request.pdfConfig) return null;
+  const cfg = request.pdfConfig;
+  const entities = Object.entries(cfg.uploadedEntities ?? {});
+  const verified = entities.filter(([, ok]) => ok).length;
+  const complete = entities.length > 0 && verified === entities.length;
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <FileText className="h-4 w-4 text-primary" /> Dynamic Entity PDF Attachment
+        </div>
+        <Badge
+          className={cn(
+            "hover:bg-inherit",
+            complete ? "bg-cat-green text-white" : "bg-cat-amber text-white",
+          )}
+        >
+          {verified}/{entities.length} entity PDFs verified
+        </Badge>
+      </div>
+      <div className="mt-2 text-[12px]">
+        <span className="text-muted-foreground">Selected Query: </span>
+        <span className="font-medium">{cfg.queryName}</span>
+        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          {cfg.queryId}
+        </span>
+      </div>
+      <div className="mt-3 overflow-hidden rounded-md border border-border">
+        <table className="w-full text-[12px]">
+          <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Entity</th>
+              <th className="px-3 py-2 text-left">Attachment Source</th>
+              <th className="px-3 py-2 text-left">Clearance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entities.length === 0 && (
+              <tr>
+                <td colSpan={3} className="px-3 py-3 text-muted-foreground">
+                  No entities mapped for this query.
+                </td>
+              </tr>
+            )}
+            {entities.map(([entity, ok]) => (
+              <tr key={entity} className="border-t border-border">
+                <td className="px-3 py-2 font-medium">{entity}</td>
+                <td className="px-3 py-2 text-muted-foreground">
+                  {ok ? `${entity.toLowerCase().replace(/\s+/g, "_")}_statement.pdf` : "Not uploaded"}
+                </td>
+                <td className="px-3 py-2">
+                  {ok ? (
+                    <span className="font-medium text-cat-green">🟢 PDF Verified</span>
+                  ) : (
+                    <span className="font-medium text-cat-red">🔴 Missing upload</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!complete && (
+        <p className="mt-2 text-[11px] text-cat-red">
+          Audience lock breach — vendors mapped to unverified entities will not receive an
+          attachment. Hold or reject until every entity PDF is supplied.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function mockCellValue(column: string, rowIndex: number): string {
+  const c = column.toLowerCase();
+  if (c.includes("vendor_id")) return `VND-${10234 + rowIndex * 7}`;
+  if (c.includes("entity")) return ["BPCL", "Moonstone", "ZHPL"][rowIndex % 3];
+  if (c.includes("instances")) return String(3 + rowIndex * 4);
+  if (c.includes("charges") || c.includes("amount"))
+    return String([48200, 76500, 12900][rowIndex % 3]);
+  if (c.includes("growth")) return String([12.4, -3.8, 5.1][rowIndex % 3]);
+  if (c.includes("sales") || c.includes("volume")) return String([18420, 9310, 26550][rowIndex % 3]);
+  if (c.includes("date")) return ["01 Aug 2026", "02 Aug 2026", "03 Aug 2026"][rowIndex % 3];
+  if (c.includes("pct") || c.includes("rate")) return String([94.2, 88.7, 71.5][rowIndex % 3]);
+  return `${column}-${rowIndex + 1}`;
+}
+
+function ruleBreached(
+  rule: { operator: "<" | ">"; value: string } | undefined,
+  raw: string,
+): boolean {
+  if (!rule) return false;
+  const n = Number(raw);
+  const t = Number(rule.value);
+  if (Number.isNaN(n) || Number.isNaN(t)) return false;
+  return rule.operator === ">" ? n > t : n < t;
+}
+
+function DynamicTablesPreviewCard({ request }: { request: TemplateRequest }) {
+  const tables = request.tableConfigs ?? [];
+  if (request.attachmentMode !== "dynamic_tables" || tables.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <TableIcon className="h-4 w-4 text-primary" /> Dynamic Tables in Body ({tables.length})
+      </div>
+      {tables.map((t, ti) => {
+        const cols = t.selectedColumns ?? [];
+        const rules = t.conditionalRules ?? {};
+        return (
+          <div key={t.id} className="rounded-lg border border-border bg-card p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-[13px] font-semibold">
+                Table {ti + 1}: {t.queryName}
+              </div>
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                {t.queryId}
+              </span>
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {cols.length} column{cols.length === 1 ? "" : "s"} selected · Summary row:{" "}
+              {t.hasSummaryRow ? "Yes" : "No"}
+            </div>
+
+            {Object.keys(rules).length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {Object.entries(rules).map(([col, rule]) => (
+                  <Badge
+                    key={col}
+                    variant="outline"
+                    className="border-dashed text-[10px]"
+                    style={{ color: rule.color, borderColor: rule.color }}
+                  >
+                    If {col} {rule.operator} {rule.value} ➔ ●
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 overflow-x-auto rounded-md border border-border">
+              <table className="w-full text-[12px]">
+                <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    {cols.map((c) => (
+                      <th key={c} className="whitespace-nowrap px-3 py-2 text-left">
+                        {c}
+                        {rules[c] ? " *" : ""}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[0, 1, 2].map((ri) => (
+                    <tr key={ri} className="border-t border-border">
+                      {cols.map((c) => {
+                        const raw = mockCellValue(c, ri);
+                        const rule = rules[c];
+                        const breach = ruleBreached(rule, raw);
+                        return (
+                          <td
+                            key={c}
+                            className={cn("whitespace-nowrap px-3 py-2", breach && "font-semibold")}
+                            style={breach ? { color: rule?.color } : undefined}
+                          >
+                            {raw}
+                            {breach ? " 🔴" : ""}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {t.hasSummaryRow && (
+                    <tr className="border-t-2 border-primary/40 bg-muted/50 font-semibold">
+                      {cols.map((c, ci) => (
+                        <td key={c} className="whitespace-nowrap px-3 py-2">
+                          {ci === 0
+                            ? "PAN INDIA / SUMMARY TOTAL"
+                            : Number.isNaN(Number(mockCellValue(c, 0)))
+                              ? "—"
+                              : String(
+                                  [0, 1, 2].reduce(
+                                    (sum, ri) => sum + Number(mockCellValue(c, ri)),
+                                    0,
+                                  ),
+                                )}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Sample rendering only — live rows are hydrated from the approved query at send time.
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 function RequestDetail({ request, onBack }: { request: TemplateRequest; onBack: () => void }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
