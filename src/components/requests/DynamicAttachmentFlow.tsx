@@ -42,7 +42,7 @@ export interface AudienceGroup {
   id: string;
   entity: string;
   subType: string;
-  hasPdf: boolean;
+  pdfFiles: string[];
   hasTargetedList: boolean;
 }
 
@@ -79,7 +79,7 @@ const newGroup = (): AudienceGroup => ({
   id: `grp-${++gid}`,
   entity: "",
   subType: "",
-  hasPdf: false,
+  pdfFiles: [],
   hasTargetedList: false,
 });
 
@@ -129,7 +129,7 @@ function useFlowState() {
   const [attachmentType, setAttachmentType] = useState<AttachmentType>("none");
   const [b1Audience, setB1Audience] = useState<string[]>([]);
   const [b2AudienceGroups, setB2AudienceGroups] = useState<AudienceGroup[]>([
-    { id: "grp-1", entity: "", subType: "", hasPdf: false, hasTargetedList: false },
+    { id: "grp-1", entity: "", subType: "", pdfFiles: [], hasTargetedList: false },
   ]);
   const [blocks, setBlocks] = useState<AttachmentBlock[]>([
     {
@@ -151,7 +151,7 @@ function useFlowState() {
   const isPdf = attachmentType === "dynamic_pdf";
 
   const groupsDirty = b2AudienceGroups.some(
-    (g) => g.entity || g.subType || g.hasPdf || g.hasTargetedList,
+    (g) => g.entity || g.subType || g.pdfFiles.length > 0 || g.hasTargetedList,
   );
   const blocksDirty = blocks.some((b) => b.query.trim() || b.columns.length > 0);
 
@@ -204,8 +204,8 @@ function useFlowState() {
   const blockers = useMemo(() => {
     const out: string[] = [];
     if (isPdf) {
-      if (!b2AudienceGroups.every((g) => g.hasPdf && g.hasTargetedList))
-        out.push("Every audience group must be Ready (PDF + list uploaded).");
+      if (!b2AudienceGroups.every((g) => g.pdfFiles.length > 0 && g.hasTargetedList))
+        out.push("Every audience group must be Ready (at least 1 PDF + MFD list uploaded).");
     } else if (attachmentType !== "none") {
       if (!blocks.every((b) => b.checked && b.queryValid))
         out.push("Every attachment block needs a passing query check.");
