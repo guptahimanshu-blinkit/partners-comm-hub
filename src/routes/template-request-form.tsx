@@ -150,6 +150,20 @@ function TemplateRequestFormPage() {
   const [b2AudienceGroups, setB2AudienceGroups] = useState<AudienceGroup[]>([
     { id: "1", entity: "", subType: "", hasPdf: false, hasTargetedList: false },
   ]);
+  const [blocks, setBlocks] = useState<AttachmentBlock[]>([
+    {
+      id: "blk-1",
+      query: "",
+      checked: false,
+      queryValid: false,
+      detectedFields: [],
+      columns: [],
+    },
+  ]);
+
+  function patchBlock(id: string, patch: Partial<AttachmentBlock>) {
+    setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  }
 
   const groupsDirty = b2AudienceGroups.some(
     (g) => g.entity || g.subType || g.hasPdf || g.hasTargetedList,
