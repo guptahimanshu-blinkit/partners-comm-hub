@@ -1365,7 +1365,13 @@ function NewRequestForm({
       </section>
 
       {/* Comms Categorization - Inference engine */}
-      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <section
+        className={cn(
+          "space-y-4 rounded-xl border border-border bg-card p-5",
+          isFollowUpClone && "pointer-events-none opacity-60",
+        )}
+        aria-disabled={isFollowUpClone}
+      >
         <div>
           <h3 className="text-sm font-semibold">Comms Categorization</h3>
           <p className="text-xs text-muted-foreground">
