@@ -24,6 +24,9 @@ import {
   Copy,
   CornerDownRight,
   Lock,
+  FileText,
+  Table as TableIcon,
+  Flag,
 } from "lucide-react";
 import { lookupApolloTemplate } from "@/lib/mock-data";
 import {
