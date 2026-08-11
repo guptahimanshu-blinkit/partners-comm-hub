@@ -2034,3 +2034,297 @@ export function DynamicAttachmentApproverSummary() {
     </div>
   );
 }
+
+/* ---------------- Template Variables (triggered by top "Check Template") ---------------- */
+
+/** Exposes the variable-check trigger + status to the submitter form header. */
+export function useTemplateVariables() {
+  const f = useFlow();
+  return {
+    templateHasVariables: f.templateHasVariables,
+    runTemplateVariableCheck: f.runTemplateVariableCheck,
+    resetTemplateVariableCheck: f.resetTemplateVariableCheck,
+    isVariableBlockReady: f.isVariableBlockReady,
+  };
+}
+
+function VarList() {
+  return (
+    <>
+      {TEMPLATE_VARIABLES.map((v, i) => (
+        <span key={v}>
+          {i > 0 ? ", " : ""}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">{v}</code>
+        </span>
+      ))}
+    </>
+  );
+}
+
+function ScopeRadios<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[12px] font-medium">{label}</div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => {
+          const active = value === opt;
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(opt)}
+              style={active ? { borderColor: ACCENT, color: ACCENT, backgroundColor: `${ACCENT}0D` } : undefined}
+              className={cn(
+                "rounded-full border px-3 py-1 text-[12px] font-medium transition",
+                active ? "" : "border-border text-muted-foreground hover:border-primary/50",
+              )}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function UploadTile({
+  done,
+  title,
+  hint,
+  onToggle,
+}: {
+  done: boolean;
+  title: string;
+  hint?: string;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className="rounded-lg border border-dashed p-4 text-center"
+      style={{ borderColor: `${ACCENT}80`, backgroundColor: `${ACCENT}0D` }}
+    >
+      {done ? (
+        <CheckCircle2 className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+      ) : (
+        <Upload className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+      )}
+      <div className="mt-2 text-[13px] font-medium">{done ? `${title} — uploaded` : title}</div>
+      {hint && <p className="mt-1 text-[12px] text-muted-foreground">{hint}</p>}
+      <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onToggle}>
+        {done ? "Remove file" : "Choose file"}
+      </Button>
+    </div>
+  );
+}
+
+/** Submitter-side variable configuration card. Render directly under the fetched Template Name. */
+export function TemplateVariableSection() {
+  const f = useFlow();
+
+  if (f.templateHasVariables === null) return null;
+
+  if (f.templateHasVariables === false) {
+    return (
+      <p className="mt-2 text-[12px] text-muted-foreground">
+        No variables detected in this template.
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className="mt-3 space-y-4 rounded-xl border-2 p-4"
+      style={{ borderColor: f.isVariableBlockReady ? ACCENT : "#f0b100" }}
+    >
+      <div>
+        <div className="text-sm font-semibold">
+          This template requires values for: <VarList />
+        </div>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          Attach a source so these values can be filled in per recipient at send time.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(
+          [
+            ["query", "Query Attachment", "Use a query already approved on JIS Analytics."],
+            [
+              "bulk",
+              "Bulk Upload Attachment",
+              "For urgent templates with no time to get a query approved on JIS — upload values directly.",
+            ],
+          ] as const
+        ).map(([mode, title, desc]) => {
+          const active = f.variableMode === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => f.setVariableMode(mode)}
+              style={active ? { borderColor: ACCENT, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
+              className={cn(
+                "rounded-lg border p-3 text-left transition",
+                active ? "bg-cat-green-soft/40" : "border-border bg-card hover:border-primary/50",
+              )}
+            >
+              <div className="text-[13px] font-semibold">{title}</div>
+              <div className="mt-1 text-[12px] leading-snug text-muted-foreground">{desc}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {f.variableMode === "query" && (
+        <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+          <div className="space-y-1.5">
+            <div className="text-[12px] font-medium">Select your query</div>
+            <Select
+              value={f.variableQueryName ?? ""}
+              onValueChange={(v) => f.setVariableQueryName(v)}
+            >
+              <SelectTrigger className="h-9 w-full sm:w-96">
+                <SelectValue placeholder="Pick a JIS-approved query" />
+              </SelectTrigger>
+              <SelectContent>
+                {VARIABLE_QUERIES.map((q) => (
+                  <SelectItem key={q.id} value={q.name}>
+                    {q.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {f.variableQueryName && (
+            <div className="space-y-1.5">
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
+                style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Audience ID column found
+              </span>
+              <p className="text-[12px] text-muted-foreground">
+                Selected query will supply values for: <VarList />
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {f.variableMode === "bulk" && (
+        <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+          <ScopeRadios
+            label="Vendor Scope"
+            value={f.variableVendorScope}
+            options={VENDOR_SCOPES}
+            onChange={f.setVariableVendorScope}
+          />
+          <ScopeRadios
+            label="MFD Scope"
+            value={f.variableMfdScope}
+            options={MFD_SCOPES}
+            onChange={f.setVariableMfdScope}
+          />
+          {f.variableVendorScope === "Not included" && f.variableMfdScope === "Not included" && (
+            <p className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5" /> Select at least one audience type
+            </p>
+          )}
+
+          {f.variableVendorScope === "Targeted Vendors" && (
+            <UploadTile
+              done={f.variableHasTargetedVendorList}
+              title="Upload Targeted Vendor List (.csv, .xlsx, .xls)"
+              onToggle={() => f.setVariableHasTargetedVendorList(!f.variableHasTargetedVendorList)}
+            />
+          )}
+          {f.variableMfdScope === "Targeted MFDs" && (
+            <UploadTile
+              done={f.variableHasTargetedMfdList}
+              title="Upload Targeted MFD List (.csv, .xlsx, .xls)"
+              onToggle={() => f.setVariableHasTargetedMfdList(!f.variableHasTargetedMfdList)}
+            />
+          )}
+
+          <UploadTile
+            done={f.variableHasBulkCsv}
+            title="Upload a CSV with one row per recipient, including the values for the template variables."
+            hint="Accepts .csv, .xlsx, .xls. At send time, the system will filter this file to find each vendor's row using vendor_id and fill in their values individually."
+            onToggle={() => f.setVariableHasBulkCsv(!f.variableHasBulkCsv)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Approver-side mirror of the template variable configuration. */
+export function TemplateVariableApproverSummary() {
+  const f = useFlow();
+  if (f.templateHasVariables !== true) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Template Variables Configuration
+      </div>
+
+      {!f.variableMode && (
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          Variables detected — submitter has not picked a source mode yet.
+        </p>
+      )}
+
+      {f.variableMode === "query" && (
+        <div className="mt-2 space-y-1.5">
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Mode: </span>
+            <span className="font-medium">JIS Query Attachment</span>
+          </div>
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Query Name: </span>
+            <span className="font-medium">{f.variableQueryName ?? "—"}</span>
+          </div>
+          {f.isVariableBlockReady && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
+              style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Variables mapped successfully via query.
+            </span>
+          )}
+        </div>
+      )}
+
+      {f.variableMode === "bulk" && (
+        <div className="mt-2 space-y-1.5">
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Mode: </span>
+            <span className="font-medium">Bulk CSV Upload</span>
+          </div>
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Scope: </span>
+            <span className="font-medium">{f.variableResolvedAudienceName || "—"}</span>
+          </div>
+          <ul className="space-y-0.5 text-[12px] font-medium">
+            {f.variableHasBulkCsv && <li>✅ Master Values CSV Attached</li>}
+            {f.variableHasTargetedVendorList && <li>✅ Targeted Vendor List Attached</li>}
+            {f.variableHasTargetedMfdList && <li>✅ Targeted MFD List Attached</li>}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
