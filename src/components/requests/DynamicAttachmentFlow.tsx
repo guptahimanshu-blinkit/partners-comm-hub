@@ -638,6 +638,8 @@ export function DynamicAttachmentSections() {
               )}
             </div>
 
+          ) : f.attachmentType === "dynamic_attachment" ? (
+            <FileAttachmentSections />
           ) : (
             <div className="space-y-3">
               {f.blocks.map((b, i) => (
@@ -660,6 +662,7 @@ export function DynamicAttachmentSections() {
               </Button>
             </div>
           )}
+
         </section>
       )}
 
