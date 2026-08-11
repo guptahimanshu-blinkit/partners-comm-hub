@@ -90,13 +90,39 @@ const newBlock = (): AttachmentBlock => ({
 });
 
 let gid = 1;
-const newGroup = (): AudienceGroup => ({
-  id: `grp-${++gid}`,
+const newEntityBlock = (): EntityBlock => ({
+  id: `ent-${++gid}`,
   entity: "",
-  subType: "",
-  pdfFiles: [],
-  hasTargetedList: false,
+  hasPdfs: false,
+  hasMfdList: false,
 });
+
+let uid = 1;
+const newUserBlock = (): UserCombinationBlock => ({
+  id: `usr-${++uid}`,
+  vendorScope: "Not included",
+  mfdScope: "Not included",
+  resolvedName: "",
+  hasPdf: false,
+  hasTargetedVendorList: false,
+  hasTargetedMfdList: false,
+});
+
+export function resolveCombinationName(v: VendorScope, m: MfdScope) {
+  const parts: string[] = [];
+  if (v !== "Not included") parts.push(v);
+  if (m !== "Not included") parts.push(m);
+  return parts.join(" + ");
+}
+
+function userBlockReady(b: UserCombinationBlock) {
+  if (b.vendorScope === "Not included" && b.mfdScope === "Not included") return false;
+  if (!b.hasPdf) return false;
+  if (b.vendorScope === "Targeted Vendors" && !b.hasTargetedVendorList) return false;
+  if (b.mfdScope === "Targeted MFDs" && !b.hasTargetedMfdList) return false;
+  return true;
+}
+
 
 let cid = 1;
 
