@@ -38,13 +38,28 @@ import { cn } from "@/lib/utils";
 
 export type AttachmentType = "none" | "dynamic_attachment" | "dynamic_table" | "dynamic_pdf";
 
-export interface AudienceGroup {
+export type PdfMode = "entity" | "user" | null;
+
+export type VendorScope = "Not included" | "All Vendors" | "Targeted Vendors";
+export type MfdScope = "Not included" | "All MFDs" | "Targeted MFDs";
+
+export interface EntityBlock {
   id: string;
   entity: string;
-  subType: string;
-  pdfFiles: string[];
-  hasTargetedList: boolean;
+  hasPdfs: boolean;
+  hasMfdList: boolean;
 }
+
+export interface UserCombinationBlock {
+  id: string;
+  vendorScope: VendorScope;
+  mfdScope: MfdScope;
+  resolvedName: string;
+  hasPdf: boolean;
+  hasTargetedVendorList: boolean;
+  hasTargetedMfdList: boolean;
+}
+
 
 export interface MappedColumn {
   id: string;
@@ -75,13 +90,39 @@ const newBlock = (): AttachmentBlock => ({
 });
 
 let gid = 1;
-const newGroup = (): AudienceGroup => ({
-  id: `grp-${++gid}`,
+const newEntityBlock = (): EntityBlock => ({
+  id: `ent-${++gid}`,
   entity: "",
-  subType: "",
-  pdfFiles: [],
-  hasTargetedList: false,
+  hasPdfs: false,
+  hasMfdList: false,
 });
+
+let uid = 1;
+const newUserBlock = (): UserCombinationBlock => ({
+  id: `usr-${++uid}`,
+  vendorScope: "Not included",
+  mfdScope: "Not included",
+  resolvedName: "",
+  hasPdf: false,
+  hasTargetedVendorList: false,
+  hasTargetedMfdList: false,
+});
+
+export function resolveCombinationName(v: VendorScope, m: MfdScope) {
+  const parts: string[] = [];
+  if (v !== "Not included") parts.push(v);
+  if (m !== "Not included") parts.push(m);
+  return parts.join(" + ");
+}
+
+function userBlockReady(b: UserCombinationBlock) {
+  if (b.vendorScope === "Not included" && b.mfdScope === "Not included") return false;
+  if (!b.hasPdf) return false;
+  if (b.vendorScope === "Targeted Vendors" && !b.hasTargetedVendorList) return false;
+  if (b.mfdScope === "Targeted MFDs" && !b.hasTargetedMfdList) return false;
+  return true;
+}
+
 
 let cid = 1;
 
@@ -113,8 +154,9 @@ const B1_OPTIONS = [
   "Targeted Vendor IDs",
   "Targeted Manufacturer IDs",
 ];
-const ENTITIES = ["BPCL", "Moonstone", "ZHPL"];
-const SUB_TYPES = ["Non-Food", "Food"];
+const ENTITIES = ["BPCL", "ZHPL", "Moonstone", "Sunshine"];
+const VENDOR_SCOPES: VendorScope[] = ["Not included", "All Vendors", "Targeted Vendors"];
+const MFD_SCOPES: MfdScope[] = ["Not included", "All MFDs", "Targeted MFDs"];
 
 const TYPE_LABEL: Record<AttachmentType, string> = {
   none: "None",
@@ -128,8 +170,20 @@ const TYPE_LABEL: Record<AttachmentType, string> = {
 function useFlowState() {
   const [attachmentType, setAttachmentType] = useState<AttachmentType>("none");
   const [b1Audience, setB1Audience] = useState<string[]>([]);
-  const [b2AudienceGroups, setB2AudienceGroups] = useState<AudienceGroup[]>([
-    { id: "grp-1", entity: "", subType: "", pdfFiles: [], hasTargetedList: false },
+  const [pdfMode, setPdfModeRaw] = useState<PdfMode>(null);
+  const [entityBlocks, setEntityBlocks] = useState<EntityBlock[]>([
+    { id: "ent-1", entity: "", hasPdfs: false, hasMfdList: false },
+  ]);
+  const [userBlocks, setUserBlocks] = useState<UserCombinationBlock[]>([
+    {
+      id: "usr-1",
+      vendorScope: "Not included",
+      mfdScope: "Not included",
+      resolvedName: "",
+      hasPdf: false,
+      hasTargetedVendorList: false,
+      hasTargetedMfdList: false,
+    },
   ]);
   const [blocks, setBlocks] = useState<AttachmentBlock[]>([
     {
@@ -150,62 +204,109 @@ function useFlowState() {
   const varsRequired = templateId.includes("9") || templateId.trim() === "1234567";
   const isPdf = attachmentType === "dynamic_pdf";
 
-  const groupsDirty = b2AudienceGroups.some(
-    (g) => g.entity || g.subType || g.pdfFiles.length > 0 || g.hasTargetedList,
-  );
+  const pdfDirty =
+    entityBlocks.some((b) => b.entity || b.hasPdfs || b.hasMfdList) ||
+    userBlocks.some(
+      (b) =>
+        b.vendorScope !== "Not included" ||
+        b.mfdScope !== "Not included" ||
+        b.hasPdf ||
+        b.hasTargetedVendorList ||
+        b.hasTargetedMfdList,
+    );
   const blocksDirty = blocks.some((b) => b.query.trim() || b.columns.length > 0);
+
+  function resetPdfState() {
+    setEntityBlocks([newEntityBlock()]);
+    setUserBlocks([newUserBlock()]);
+  }
 
   function patchBlock(id: string, patch: Partial<AttachmentBlock>) {
     setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   }
-  function patchGroup(id: string, patch: Partial<AudienceGroup>) {
-    setB2AudienceGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)));
+  function patchEntityBlock(id: string, patch: Partial<EntityBlock>) {
+    setEntityBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  }
+  function patchUserBlock(id: string, patch: Partial<UserCombinationBlock>) {
+    setUserBlocks((prev) =>
+      prev.map((b) => {
+        if (b.id !== id) return b;
+        const next = { ...b, ...patch };
+        next.resolvedName = resolveCombinationName(next.vendorScope, next.mfdScope);
+        if (next.vendorScope !== "Targeted Vendors") next.hasTargetedVendorList = false;
+        if (next.mfdScope !== "Targeted MFDs") next.hasTargetedMfdList = false;
+        return next;
+      }),
+    );
+  }
+
+  function setPdfMode(next: PdfMode) {
+    if (next === pdfMode) return;
+    if (pdfMode && pdfDirty) {
+      if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
+      resetPdfState();
+    }
+    setPdfModeRaw(next);
   }
 
   function selectType(next: AttachmentType) {
     if (next === attachmentType) return;
-    if (attachmentType === "dynamic_pdf" && groupsDirty) {
-      if (
-        !window.confirm(
-          "Switching attachment type will clear your entity audience groups. Continue?",
-        )
-      )
-        return;
-      setB2AudienceGroups([newGroup()]);
+    if (attachmentType === "dynamic_pdf" && (pdfDirty || pdfMode)) {
+      if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
+      resetPdfState();
+      setPdfModeRaw(null);
     }
     if (
       (attachmentType === "dynamic_attachment" || attachmentType === "dynamic_table") &&
       blocksDirty
     ) {
-      if (
-        !window.confirm(
-          "Switching attachment type will clear your configured queries and tables. Continue?",
-        )
-      )
-        return;
+      if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
       setBlocks([newBlock()]);
     }
     setAttachmentType(next);
   }
 
-  const duplicateOf = useMemo(() => {
+  const entityDuplicateOf = useMemo(() => {
     const map: Record<string, number | null> = {};
-    b2AudienceGroups.forEach((g, i) => {
-      map[g.id] = null;
-      if (!g.entity || !g.subType) return;
-      const prior = b2AudienceGroups.findIndex(
-        (o, oi) => oi < i && o.entity === g.entity && o.subType === g.subType,
-      );
-      map[g.id] = prior >= 0 ? prior + 1 : null;
+    entityBlocks.forEach((b, i) => {
+      map[b.id] = null;
+      if (!b.entity) return;
+      const prior = entityBlocks.findIndex((o, oi) => oi < i && o.entity === b.entity);
+      map[b.id] = prior >= 0 ? prior + 1 : null;
     });
     return map;
-  }, [b2AudienceGroups]);
+  }, [entityBlocks]);
+
+  const userDuplicateOf = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    userBlocks.forEach((b, i) => {
+      map[b.id] = null;
+      if (b.vendorScope === "Not included" && b.mfdScope === "Not included") return;
+      const prior = userBlocks.findIndex(
+        (o, oi) => oi < i && o.vendorScope === b.vendorScope && o.mfdScope === b.mfdScope,
+      );
+      map[b.id] = prior >= 0 ? prior + 1 : null;
+    });
+    return map;
+  }, [userBlocks]);
+
+  const entityReady = (b: EntityBlock) => Boolean(b.entity) && b.hasPdfs && b.hasMfdList;
 
   const blockers = useMemo(() => {
     const out: string[] = [];
     if (isPdf) {
-      if (!b2AudienceGroups.every((g) => g.pdfFiles.length > 0 && g.hasTargetedList))
-        out.push("Every audience group must be Ready (at least 1 PDF + MFD list uploaded).");
+      if (!pdfMode) out.push("Pick a Dynamic PDF mode (Entity Level or User Level).");
+      else if (pdfMode === "entity") {
+        if (!entityBlocks.every(entityReady))
+          out.push("Every entity block must be Ready (entity selected + PDFs + MFD list).");
+        if (Object.values(entityDuplicateOf).some(Boolean))
+          out.push("Duplicate entities configured.");
+      } else {
+        if (!userBlocks.every(userBlockReady))
+          out.push("Every user combination block must be Ready (PDF + required targeted lists).");
+        if (Object.values(userDuplicateOf).some(Boolean))
+          out.push("Duplicate audience combinations configured.");
+      }
     } else if (attachmentType !== "none") {
       if (!blocks.every((b) => b.checked && b.queryValid))
         out.push("Every attachment block needs a passing query check.");
@@ -220,8 +321,12 @@ function useFlowState() {
     return out;
   }, [
     isPdf,
+    pdfMode,
+    entityBlocks,
+    userBlocks,
+    entityDuplicateOf,
+    userDuplicateOf,
     attachmentType,
-    b2AudienceGroups,
     blocks,
     varChecked,
     varsRequired,
@@ -235,10 +340,18 @@ function useFlowState() {
     isPdf,
     b1Audience,
     setB1Audience,
-    b2AudienceGroups,
-    setB2AudienceGroups,
-    patchGroup,
-    duplicateOf,
+    pdfMode,
+    setPdfMode,
+    entityBlocks,
+    setEntityBlocks,
+    patchEntityBlock,
+    entityDuplicateOf,
+    entityReady,
+    userBlocks,
+    setUserBlocks,
+    patchUserBlock,
+    userDuplicateOf,
+    userBlockReady,
     blocks,
     setBlocks,
     patchBlock,
@@ -256,6 +369,7 @@ function useFlowState() {
     blockers,
   };
 }
+
 
 type FlowCtx = ReturnType<typeof useFlowState>;
 const Ctx = createContext<FlowCtx | null>(null);
@@ -373,139 +487,7 @@ export function DynamicAttachmentSections() {
           </div>
         )}
 
-        {f.isPdf && (
-          <div className="space-y-3">
-            {f.b2AudienceGroups.map((g, i) => {
-              const dup = f.duplicateOf[g.id];
-              const ready = g.pdfFiles.length > 0 && g.hasTargetedList;
-              return (
-                <div
-                  key={g.id}
-                  className="space-y-3 rounded-xl border-2 bg-card p-4"
-                  style={{ borderColor: ready ? ACCENT : "hsl(var(--border))" }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold">Audience Group {i + 1}</div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                          ready ? "bg-cat-green-soft" : "bg-muted text-muted-foreground",
-                        )}
-                        style={ready ? { color: ACCENT } : undefined}
-                      >
-                        {ready ? "🟢 Ready" : "⚪ Incomplete"}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={f.b2AudienceGroups.length === 1}
-                        onClick={() =>
-                          f.setB2AudienceGroups((prev) => prev.filter((p) => p.id !== g.id))
-                        }
-                        aria-label={`Remove audience group ${i + 1}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <div className="text-[12px] text-muted-foreground">Entity</div>
-                      <Select value={g.entity} onValueChange={(v) => f.patchGroup(g.id, { entity: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select entity" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ENTITIES.map((e) => (
-                            <SelectItem key={e} value={e}>
-                              {e}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-[12px] text-muted-foreground">Sub-type</div>
-                      <Select
-                        value={g.subType}
-                        onValueChange={(v) => f.patchGroup(g.id, { subType: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select sub-type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SUB_TYPES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {dup && (
-                    <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      Combination already used in Group {dup}.
-                    </div>
-                  )}
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <UploadButton
-                        label="Upload PDF set"
-                        done={g.pdfFiles.length > 0}
-                        doneLabel={`Upload PDF set · ${g.pdfFiles.length} file${g.pdfFiles.length === 1 ? "" : "s"}`}
-                        onClick={() =>
-                          f.patchGroup(g.id, {
-                            pdfFiles: [
-                              ...g.pdfFiles,
-                              `${(g.entity || "entity").toLowerCase()}_${(g.subType || "doc").toLowerCase()}_${g.pdfFiles.length + 1}.pdf`,
-                            ],
-                          })
-                        }
-                      />
-                      {g.pdfFiles.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
-                          >
-                            {g.pdfFiles.length} file{g.pdfFiles.length === 1 ? "" : "s"} uploaded
-                          </span>
-                          <button
-                            type="button"
-                            className="text-[11px] text-muted-foreground underline hover:text-destructive"
-                            onClick={() => f.patchGroup(g.id, { pdfFiles: [] })}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <UploadButton
-                      label="Upload MFD list"
-                      done={g.hasTargetedList}
-                      onClick={() => f.patchGroup(g.id, { hasTargetedList: !g.hasTargetedList })}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => f.setB2AudienceGroups((prev) => [...prev, newGroup()])}
-            >
-              <Plus className="mr-1.5 h-4 w-4" /> Add another audience group
-            </Button>
-          </div>
-        )}
+        {f.isPdf && <PdfModeSections />}
       </section>
 
       {/* Part C */}
@@ -515,14 +497,31 @@ export function DynamicAttachmentSections() {
 
           {f.isPdf ? (
             <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-              PDF attachments are configured per audience group above.{" "}
-              <span className="font-medium text-foreground">{f.b2AudienceGroups.length}</span>{" "}
-              group(s) configured,{" "}
-              <span className="font-medium text-foreground">
-                {f.b2AudienceGroups.filter((g) => g.pdfFiles.length > 0 && g.hasTargetedList).length}
-              </span>{" "}
-              ready.
+              {!f.pdfMode ? (
+                "Pick a Dynamic PDF mode above to configure attachments."
+              ) : f.pdfMode === "entity" ? (
+                <>
+                  Entity level ·{" "}
+                  <span className="font-medium text-foreground">{f.entityBlocks.length}</span>{" "}
+                  entity block(s),{" "}
+                  <span className="font-medium text-foreground">
+                    {f.entityBlocks.filter(f.entityReady).length}
+                  </span>{" "}
+                  ready.
+                </>
+              ) : (
+                <>
+                  User level ·{" "}
+                  <span className="font-medium text-foreground">{f.userBlocks.length}</span>{" "}
+                  combination(s),{" "}
+                  <span className="font-medium text-foreground">
+                    {f.userBlocks.filter(userBlockReady).length}
+                  </span>{" "}
+                  ready.
+                </>
+              )}
             </div>
+
           ) : (
             <div className="space-y-3">
               {f.blocks.map((b, i) => (
@@ -657,6 +656,324 @@ export function DynamicAttachmentSections() {
     </div>
   );
 }
+
+/* ---------------- Dynamic PDF: Step 0 + branching flows ---------------- */
+
+function StatusBadge({ ready }: { ready: boolean }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px] font-medium",
+        ready ? "bg-cat-green-soft" : "bg-muted text-muted-foreground",
+      )}
+      style={ready ? { color: ACCENT } : undefined}
+    >
+      {ready ? "🟢 Ready" : "⚪ Incomplete"}
+    </span>
+  );
+}
+
+function PdfModeSections() {
+  const f = useFlow();
+
+  const MODE_CARDS: { id: Exclude<PdfMode, null>; label: string; desc: string }[] = [
+    {
+      id: "entity",
+      label: "Entity Level",
+      desc: "Same PDF set goes to everyone mapped to a selected entity.",
+    },
+    {
+      id: "user",
+      label: "User Level",
+      desc: "Different PDF sets go to different combinations of vendors and MFDs.",
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Step 0 */}
+      <div className="space-y-2">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Step 0 · How should PDFs be mapped?
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {MODE_CARDS.map((c) => {
+            const active = f.pdfMode === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => f.setPdfMode(c.id)}
+                style={active ? { borderColor: ACCENT, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
+                className={cn(
+                  "rounded-xl border p-4 text-left transition",
+                  active ? "bg-cat-green-soft/40" : "border-border bg-card hover:border-primary/50",
+                )}
+              >
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <FileText className="h-4 w-4" style={{ color: active ? ACCENT : undefined }} />
+                  {c.label}
+                </div>
+                <div className="mt-1 text-[12px] leading-snug text-muted-foreground">{c.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {!f.pdfMode && (
+        <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-[13px] text-muted-foreground">
+          <Info className="h-4 w-4" />
+          Select a mapping mode to configure the PDF audience.
+        </div>
+      )}
+
+      {f.pdfMode === "entity" && <EntityLevelFlow />}
+      {f.pdfMode === "user" && <UserLevelFlow />}
+    </div>
+  );
+}
+
+function EntityLevelFlow() {
+  const f = useFlow();
+  return (
+    <div className="space-y-3">
+      {f.entityBlocks.map((b, i) => {
+        const dup = f.entityDuplicateOf[b.id];
+        const ready = f.entityReady(b);
+        return (
+          <div
+            key={b.id}
+            className="space-y-3 rounded-xl border-2 bg-card p-4"
+            style={{ borderColor: ready ? ACCENT : "hsl(var(--border))" }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold">Entity Block {i + 1}</div>
+              <div className="flex items-center gap-2">
+                <StatusBadge ready={ready} />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={f.entityBlocks.length === 1}
+                  onClick={() => f.setEntityBlocks((prev) => prev.filter((p) => p.id !== b.id))}
+                  aria-label={`Remove entity block ${i + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-[12px] text-muted-foreground">Step 1 · Select entity</div>
+              <Select
+                value={b.entity}
+                onValueChange={(v) => f.patchEntityBlock(b.id, { entity: v })}
+              >
+                <SelectTrigger className="sm:max-w-xs">
+                  <SelectValue placeholder="Select entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ENTITIES.map((e) => (
+                    <SelectItem key={e} value={e}>
+                      {e}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {dup && (
+                <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  This entity is already configured above.
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1">
+                <div className="text-[12px] text-muted-foreground">Step 2 · PDFs</div>
+                <UploadButton
+                  label="Attach PDFs corresponding to the selected entity"
+                  done={b.hasPdfs}
+                  doneLabel="PDF set attached"
+                  onClick={() => f.patchEntityBlock(b.id, { hasPdfs: !b.hasPdfs })}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-[12px] text-muted-foreground">Step 3 · MFD list</div>
+                <UploadButton
+                  label="Attach the list of MFDs corresponding to the selected entity"
+                  done={b.hasMfdList}
+                  doneLabel="MFD list attached"
+                  onClick={() => f.patchEntityBlock(b.id, { hasMfdList: !b.hasMfdList })}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => f.setEntityBlocks((prev) => [...prev, newEntityBlock()])}
+      >
+        <Plus className="mr-1.5 h-4 w-4" /> Add another entity
+      </Button>
+    </div>
+  );
+}
+
+function UserLevelFlow() {
+  const f = useFlow();
+  return (
+    <div className="space-y-3">
+      {f.userBlocks.map((b, i) => {
+        const dup = f.userDuplicateOf[b.id];
+        const noneSelected = b.vendorScope === "Not included" && b.mfdScope === "Not included";
+        const valid = !noneSelected && !dup;
+        const ready = userBlockReady(b) && !dup;
+        const uploaded = b.hasPdf || b.hasTargetedVendorList || b.hasTargetedMfdList;
+
+        function changeScope(patch: Partial<UserCombinationBlock>) {
+          if (uploaded) {
+            if (
+              !window.confirm(
+                "Changing this selection will clear configured data. Continue?",
+              )
+            )
+              return;
+            f.patchUserBlock(b.id, {
+              ...patch,
+              hasPdf: false,
+              hasTargetedVendorList: false,
+              hasTargetedMfdList: false,
+            });
+            return;
+          }
+          f.patchUserBlock(b.id, patch);
+        }
+
+        return (
+          <div
+            key={b.id}
+            className="space-y-3 rounded-xl border-2 bg-card p-4"
+            style={{ borderColor: ready ? ACCENT : "hsl(var(--border))" }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold">Combination {i + 1}</div>
+              <div className="flex items-center gap-2">
+                <StatusBadge ready={ready} />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={f.userBlocks.length === 1}
+                  onClick={() => f.setUserBlocks((prev) => prev.filter((p) => p.id !== b.id))}
+                  aria-label={`Remove combination ${i + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <div className="text-[12px] text-muted-foreground">Vendor scope</div>
+                {VENDOR_SCOPES.map((s) => (
+                  <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                    <input
+                      type="radio"
+                      name={`vendor-${b.id}`}
+                      checked={b.vendorScope === s}
+                      onChange={() => changeScope({ vendorScope: s })}
+                      style={{ accentColor: ACCENT }}
+                    />
+                    {s}
+                  </label>
+                ))}
+              </div>
+              <div className="space-y-1.5">
+                <div className="text-[12px] text-muted-foreground">MFD scope</div>
+                {MFD_SCOPES.map((s) => (
+                  <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                    <input
+                      type="radio"
+                      name={`mfd-${b.id}`}
+                      checked={b.mfdScope === s}
+                      onChange={() => changeScope({ mfdScope: s })}
+                      style={{ accentColor: ACCENT }}
+                    />
+                    {s}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {noneSelected && (
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Select at least one audience type
+              </div>
+            )}
+            {dup && (
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                This combination is already configured in Combination {dup}.
+              </div>
+            )}
+
+            {valid && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="text-[13px] font-semibold">{b.resolvedName}</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <UploadButton
+                    label="Upload PDF for this combination"
+                    done={b.hasPdf}
+                    doneLabel="PDF uploaded"
+                    onClick={() => f.patchUserBlock(b.id, { hasPdf: !b.hasPdf })}
+                  />
+                  {b.vendorScope === "Targeted Vendors" && (
+                    <UploadButton
+                      label="Upload targeted vendor list (.csv, .xlsx)"
+                      done={b.hasTargetedVendorList}
+                      doneLabel="Vendor list uploaded"
+                      onClick={() =>
+                        f.patchUserBlock(b.id, {
+                          hasTargetedVendorList: !b.hasTargetedVendorList,
+                        })
+                      }
+                    />
+                  )}
+                  {b.mfdScope === "Targeted MFDs" && (
+                    <UploadButton
+                      label="Upload targeted MFD list (.csv, .xlsx)"
+                      done={b.hasTargetedMfdList}
+                      doneLabel="MFD list uploaded"
+                      onClick={() =>
+                        f.patchUserBlock(b.id, { hasTargetedMfdList: !b.hasTargetedMfdList })
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => f.setUserBlocks((prev) => [...prev, newUserBlock()])}
+      >
+        <Plus className="mr-1.5 h-4 w-4" /> Add another combination
+      </Button>
+    </div>
+  );
+}
+
+
 
 function UploadButton({
   label,
@@ -916,7 +1233,6 @@ function AttachmentBlockCard({
 
 export function DynamicAttachmentApproverSummary() {
   const f = useFlow();
-  const groups = f.b2AudienceGroups;
   const passed = f.blocks.filter((b) => b.checked && b.queryValid);
   const varsMapped = f.varChecked && f.varsRequired && f.varQueryChecked && f.varQueryValid;
 
@@ -941,31 +1257,61 @@ export function DynamicAttachmentApproverSummary() {
           </p>
         )}
 
-        {f.attachmentType === "dynamic_pdf" && (
-          <ul className="space-y-1.5">
-            {groups.map((g, i) => {
-              const clear = g.pdfFiles.length > 0 && g.hasTargetedList;
-              return (
-                <li key={g.id} className="flex flex-wrap items-center gap-2 text-[13px]">
-                  {clear ? (
-                    <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className={clear ? "font-medium" : "text-muted-foreground"}>
-                    {g.entity || "—"} ({g.subType || "—"} MFDs) — {g.pdfFiles.length} PDF
-                    {g.pdfFiles.length === 1 ? "" : "s"} attached
-                  </span>
-                  {!clear && (
-                    <span className="text-[11px] text-muted-foreground">
-                      (Group {i + 1} pending uploads)
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+        {f.attachmentType === "dynamic_pdf" && !f.pdfMode && (
+          <p className="text-[13px] text-muted-foreground">
+            Dynamic PDF selected — submitter has not picked a mode yet.
+          </p>
         )}
+
+        {f.attachmentType === "dynamic_pdf" && f.pdfMode === "entity" && (
+          <div className="space-y-2.5">
+            <div className="text-[12px] font-semibold" style={{ color: ACCENT }}>
+              Dynamic PDF (Entity Level)
+            </div>
+            {f.entityBlocks.map((b, i) => (
+              <div key={b.id} className="rounded-lg border border-border bg-background p-2.5">
+                <div className="text-[13px] font-medium">
+                  Entity: {b.entity || `— (block ${i + 1})`}
+                </div>
+                <ul className="mt-1 space-y-1 text-[12px]">
+                  <li className={b.hasPdfs ? "font-medium" : "text-muted-foreground"}>
+                    {b.hasPdfs ? "✅ PDF set attached" : "⚠️ PDF set missing"}
+                  </li>
+                  <li className={b.hasMfdList ? "font-medium" : "text-muted-foreground"}>
+                    {b.hasMfdList ? "✅ MFD list attached" : "⚠️ MFD list missing"}
+                  </li>
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {f.attachmentType === "dynamic_pdf" && f.pdfMode === "user" && (
+          <div className="space-y-2">
+            <div className="text-[12px] font-semibold" style={{ color: ACCENT }}>
+              Dynamic PDF (User Level)
+            </div>
+            <ul className="space-y-1.5">
+              {f.userBlocks.map((b, i) => {
+                const ready = userBlockReady(b);
+                return (
+                  <li key={b.id} className="flex flex-wrap items-center gap-2 text-[13px]">
+                    {ready ? (
+                      <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className={ready ? "font-medium" : "text-muted-foreground"}>
+                      {b.resolvedName || `Combination ${i + 1} not configured`}
+                      {ready ? " — PDFs and lists attached" : " — pending uploads"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
 
         {f.attachmentType === "dynamic_attachment" && (
           <p className="text-[13px]">
