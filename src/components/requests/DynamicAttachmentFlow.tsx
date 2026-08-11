@@ -349,13 +349,80 @@ function useFlowState() {
     },
   ]);
 
-  const [templateId, setTemplateId] = useState("");
-  const [varChecked, setVarChecked] = useState(false);
-  const [varQuery, setVarQuery] = useState("");
-  const [varQueryChecked, setVarQueryChecked] = useState(false);
-  const [varQueryValid, setVarQueryValid] = useState(false);
+  /* --- Template variables (independent of attachment configuration) --- */
+  const [templateHasVariables, setTemplateHasVariables] = useState<boolean | null>(null);
+  const [variableMode, setVariableModeRaw] = useState<VariableMode>(null);
+  const [variableQueryName, setVariableQueryName] = useState<string | null>(null);
+  const [variableVendorScope, setVariableVendorScope] = useState<VendorScope>("Not included");
+  const [variableMfdScope, setVariableMfdScope] = useState<MfdScope>("Not included");
+  const [variableHasTargetedVendorList, setVariableHasTargetedVendorList] = useState(false);
+  const [variableHasTargetedMfdList, setVariableHasTargetedMfdList] = useState(false);
+  const [variableHasBulkCsv, setVariableHasBulkCsv] = useState(false);
 
-  const varsRequired = templateId.includes("9") || templateId.trim() === "1234567";
+  function resetVariableConfig() {
+    setVariableQueryName(null);
+    setVariableVendorScope("Not included");
+    setVariableMfdScope("Not included");
+    setVariableHasTargetedVendorList(false);
+    setVariableHasTargetedMfdList(false);
+    setVariableHasBulkCsv(false);
+  }
+
+  const variableDirty =
+    Boolean(variableQueryName) ||
+    variableVendorScope !== "Not included" ||
+    variableMfdScope !== "Not included" ||
+    variableHasTargetedVendorList ||
+    variableHasTargetedMfdList ||
+    variableHasBulkCsv;
+
+  function setVariableMode(mode: Exclude<VariableMode, null>) {
+    if (variableMode === mode) return;
+    if (variableMode && variableDirty) {
+      if (!window.confirm("Changing this mode will clear your variable configurations. Continue?"))
+        return;
+    }
+    resetVariableConfig();
+    setVariableModeRaw(mode);
+  }
+
+  /** Simulated Apollo variable check, fired by the top-of-form "Check Template" button. */
+  function runTemplateVariableCheck(id: string) {
+    const trimmed = id.trim();
+    const hasVars = trimmed.includes("9") || trimmed === "1234567";
+    setTemplateHasVariables(hasVars);
+    if (!hasVars) {
+      setVariableModeRaw(null);
+      resetVariableConfig();
+    }
+  }
+
+  function resetTemplateVariableCheck() {
+    setTemplateHasVariables(null);
+    setVariableModeRaw(null);
+    resetVariableConfig();
+  }
+
+  const variableResolvedAudienceName = resolveCombinationName(
+    variableVendorScope,
+    variableMfdScope,
+  );
+
+  const isVariableBlockReady = (() => {
+    if (templateHasVariables !== true) return false;
+    if (variableMode === "query") return Boolean(variableQueryName);
+    if (variableMode === "bulk") {
+      if (variableVendorScope === "Not included" && variableMfdScope === "Not included")
+        return false;
+      if (variableVendorScope === "Targeted Vendors" && !variableHasTargetedVendorList)
+        return false;
+      if (variableMfdScope === "Targeted MFDs" && !variableHasTargetedMfdList) return false;
+      return variableHasBulkCsv;
+    }
+    return false;
+  })();
+
+
   const isPdf = attachmentType === "dynamic_pdf";
 
   const pdfDirty =
