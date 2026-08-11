@@ -846,6 +846,8 @@ function NewRequestForm({
   intent?: FormIntent;
   onDone: () => void;
 }) {
+  const attachmentBlockers = useDynamicAttachmentBlockers();
+
   const src = intent.mode === "new" ? null : intent.source;
   const isEdit = intent.mode === "edit";
   const isFollowUpClone = intent.mode === "clone" && intent.followUp;
