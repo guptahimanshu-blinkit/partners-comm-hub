@@ -295,6 +295,33 @@ function useFlowState() {
         b.hasTargetedMfdList,
     );
   const blocksDirty = blocks.some((b) => b.query.trim() || b.columns.length > 0);
+  const fileBlocksDirty = fileBlocks.some((b) => b.attachmentMode !== null || fileBlockDirty(b));
+
+  function patchFileBlock(id: string, patch: Partial<FileAttachmentBlock>) {
+    setFileBlocks((prev) =>
+      prev.map((b) => {
+        if (b.id !== id) return b;
+        const next = { ...b, ...patch };
+        next.resolvedAudienceName = resolveCombinationName(next.vendorScope, next.mfdScope);
+        if (next.vendorScope !== "Targeted Vendors") next.hasTargetedVendorList = false;
+        if (next.mfdScope !== "Targeted MFDs") next.hasTargetedMfdList = false;
+        next.isReady = computeFileBlockReady(next);
+        return next;
+      }),
+    );
+  }
+
+  function setFileBlockMode(id: string, mode: Exclude<FileAttachmentMode, null>) {
+    const block = fileBlocks.find((b) => b.id === id);
+    if (!block || block.attachmentMode === mode) return;
+    if (block.attachmentMode && fileBlockDirty(block)) {
+      if (!window.confirm("Changing this mode will clear data for this block. Continue?")) return;
+    }
+    setFileBlocks((prev) =>
+      prev.map((b) => (b.id === id ? { ...newFileBlock(), id: b.id, attachmentMode: mode } : b)),
+    );
+  }
+
 
   function resetPdfState() {
     setEntityBlocks([newEntityBlock()]);
