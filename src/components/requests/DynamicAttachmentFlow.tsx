@@ -38,13 +38,28 @@ import { cn } from "@/lib/utils";
 
 export type AttachmentType = "none" | "dynamic_attachment" | "dynamic_table" | "dynamic_pdf";
 
-export interface AudienceGroup {
+export type PdfMode = "entity" | "user" | null;
+
+export type VendorScope = "Not included" | "All Vendors" | "Targeted Vendors";
+export type MfdScope = "Not included" | "All MFDs" | "Targeted MFDs";
+
+export interface EntityBlock {
   id: string;
   entity: string;
-  subType: string;
-  pdfFiles: string[];
-  hasTargetedList: boolean;
+  hasPdfs: boolean;
+  hasMfdList: boolean;
 }
+
+export interface UserCombinationBlock {
+  id: string;
+  vendorScope: VendorScope;
+  mfdScope: MfdScope;
+  resolvedName: string;
+  hasPdf: boolean;
+  hasTargetedVendorList: boolean;
+  hasTargetedMfdList: boolean;
+}
+
 
 export interface MappedColumn {
   id: string;
