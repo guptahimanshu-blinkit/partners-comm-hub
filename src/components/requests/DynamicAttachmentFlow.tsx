@@ -487,139 +487,7 @@ export function DynamicAttachmentSections() {
           </div>
         )}
 
-        {f.isPdf && (
-          <div className="space-y-3">
-            {f.b2AudienceGroups.map((g, i) => {
-              const dup = f.duplicateOf[g.id];
-              const ready = g.pdfFiles.length > 0 && g.hasTargetedList;
-              return (
-                <div
-                  key={g.id}
-                  className="space-y-3 rounded-xl border-2 bg-card p-4"
-                  style={{ borderColor: ready ? ACCENT : "hsl(var(--border))" }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold">Audience Group {i + 1}</div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                          ready ? "bg-cat-green-soft" : "bg-muted text-muted-foreground",
-                        )}
-                        style={ready ? { color: ACCENT } : undefined}
-                      >
-                        {ready ? "🟢 Ready" : "⚪ Incomplete"}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={f.b2AudienceGroups.length === 1}
-                        onClick={() =>
-                          f.setB2AudienceGroups((prev) => prev.filter((p) => p.id !== g.id))
-                        }
-                        aria-label={`Remove audience group ${i + 1}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <div className="text-[12px] text-muted-foreground">Entity</div>
-                      <Select value={g.entity} onValueChange={(v) => f.patchGroup(g.id, { entity: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select entity" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ENTITIES.map((e) => (
-                            <SelectItem key={e} value={e}>
-                              {e}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-[12px] text-muted-foreground">Sub-type</div>
-                      <Select
-                        value={g.subType}
-                        onValueChange={(v) => f.patchGroup(g.id, { subType: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select sub-type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SUB_TYPES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {dup && (
-                    <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      Combination already used in Group {dup}.
-                    </div>
-                  )}
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <UploadButton
-                        label="Upload PDF set"
-                        done={g.pdfFiles.length > 0}
-                        doneLabel={`Upload PDF set · ${g.pdfFiles.length} file${g.pdfFiles.length === 1 ? "" : "s"}`}
-                        onClick={() =>
-                          f.patchGroup(g.id, {
-                            pdfFiles: [
-                              ...g.pdfFiles,
-                              `${(g.entity || "entity").toLowerCase()}_${(g.subType || "doc").toLowerCase()}_${g.pdfFiles.length + 1}.pdf`,
-                            ],
-                          })
-                        }
-                      />
-                      {g.pdfFiles.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
-                          >
-                            {g.pdfFiles.length} file{g.pdfFiles.length === 1 ? "" : "s"} uploaded
-                          </span>
-                          <button
-                            type="button"
-                            className="text-[11px] text-muted-foreground underline hover:text-destructive"
-                            onClick={() => f.patchGroup(g.id, { pdfFiles: [] })}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <UploadButton
-                      label="Upload MFD list"
-                      done={g.hasTargetedList}
-                      onClick={() => f.patchGroup(g.id, { hasTargetedList: !g.hasTargetedList })}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => f.setB2AudienceGroups((prev) => [...prev, newGroup()])}
-            >
-              <Plus className="mr-1.5 h-4 w-4" /> Add another audience group
-            </Button>
-          </div>
-        )}
+        {f.isPdf && <PdfModeSections />}
       </section>
 
       {/* Part C */}
@@ -629,14 +497,31 @@ export function DynamicAttachmentSections() {
 
           {f.isPdf ? (
             <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
-              PDF attachments are configured per audience group above.{" "}
-              <span className="font-medium text-foreground">{f.b2AudienceGroups.length}</span>{" "}
-              group(s) configured,{" "}
-              <span className="font-medium text-foreground">
-                {f.b2AudienceGroups.filter((g) => g.pdfFiles.length > 0 && g.hasTargetedList).length}
-              </span>{" "}
-              ready.
+              {!f.pdfMode ? (
+                "Pick a Dynamic PDF mode above to configure attachments."
+              ) : f.pdfMode === "entity" ? (
+                <>
+                  Entity level ·{" "}
+                  <span className="font-medium text-foreground">{f.entityBlocks.length}</span>{" "}
+                  entity block(s),{" "}
+                  <span className="font-medium text-foreground">
+                    {f.entityBlocks.filter(f.entityReady).length}
+                  </span>{" "}
+                  ready.
+                </>
+              ) : (
+                <>
+                  User level ·{" "}
+                  <span className="font-medium text-foreground">{f.userBlocks.length}</span>{" "}
+                  combination(s),{" "}
+                  <span className="font-medium text-foreground">
+                    {f.userBlocks.filter(userBlockReady).length}
+                  </span>{" "}
+                  ready.
+                </>
+              )}
             </div>
+
           ) : (
             <div className="space-y-3">
               {f.blocks.map((b, i) => (
