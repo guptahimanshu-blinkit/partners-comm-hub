@@ -657,6 +657,324 @@ export function DynamicAttachmentSections() {
   );
 }
 
+/* ---------------- Dynamic PDF: Step 0 + branching flows ---------------- */
+
+function StatusBadge({ ready }: { ready: boolean }) {
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px] font-medium",
+        ready ? "bg-cat-green-soft" : "bg-muted text-muted-foreground",
+      )}
+      style={ready ? { color: ACCENT } : undefined}
+    >
+      {ready ? "🟢 Ready" : "⚪ Incomplete"}
+    </span>
+  );
+}
+
+function PdfModeSections() {
+  const f = useFlow();
+
+  const MODE_CARDS: { id: Exclude<PdfMode, null>; label: string; desc: string }[] = [
+    {
+      id: "entity",
+      label: "Entity Level",
+      desc: "Same PDF set goes to everyone mapped to a selected entity.",
+    },
+    {
+      id: "user",
+      label: "User Level",
+      desc: "Different PDF sets go to different combinations of vendors and MFDs.",
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Step 0 */}
+      <div className="space-y-2">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Step 0 · How should PDFs be mapped?
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {MODE_CARDS.map((c) => {
+            const active = f.pdfMode === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => f.setPdfMode(c.id)}
+                style={active ? { borderColor: ACCENT, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
+                className={cn(
+                  "rounded-xl border p-4 text-left transition",
+                  active ? "bg-cat-green-soft/40" : "border-border bg-card hover:border-primary/50",
+                )}
+              >
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <FileText className="h-4 w-4" style={{ color: active ? ACCENT : undefined }} />
+                  {c.label}
+                </div>
+                <div className="mt-1 text-[12px] leading-snug text-muted-foreground">{c.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {!f.pdfMode && (
+        <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-[13px] text-muted-foreground">
+          <Info className="h-4 w-4" />
+          Select a mapping mode to configure the PDF audience.
+        </div>
+      )}
+
+      {f.pdfMode === "entity" && <EntityLevelFlow />}
+      {f.pdfMode === "user" && <UserLevelFlow />}
+    </div>
+  );
+}
+
+function EntityLevelFlow() {
+  const f = useFlow();
+  return (
+    <div className="space-y-3">
+      {f.entityBlocks.map((b, i) => {
+        const dup = f.entityDuplicateOf[b.id];
+        const ready = f.entityReady(b);
+        return (
+          <div
+            key={b.id}
+            className="space-y-3 rounded-xl border-2 bg-card p-4"
+            style={{ borderColor: ready ? ACCENT : "hsl(var(--border))" }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold">Entity Block {i + 1}</div>
+              <div className="flex items-center gap-2">
+                <StatusBadge ready={ready} />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={f.entityBlocks.length === 1}
+                  onClick={() => f.setEntityBlocks((prev) => prev.filter((p) => p.id !== b.id))}
+                  aria-label={`Remove entity block ${i + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-[12px] text-muted-foreground">Step 1 · Select entity</div>
+              <Select
+                value={b.entity}
+                onValueChange={(v) => f.patchEntityBlock(b.id, { entity: v })}
+              >
+                <SelectTrigger className="sm:max-w-xs">
+                  <SelectValue placeholder="Select entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ENTITIES.map((e) => (
+                    <SelectItem key={e} value={e}>
+                      {e}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {dup && (
+                <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  This entity is already configured above.
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1">
+                <div className="text-[12px] text-muted-foreground">Step 2 · PDFs</div>
+                <UploadButton
+                  label="Attach PDFs corresponding to the selected entity"
+                  done={b.hasPdfs}
+                  doneLabel="PDF set attached"
+                  onClick={() => f.patchEntityBlock(b.id, { hasPdfs: !b.hasPdfs })}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-[12px] text-muted-foreground">Step 3 · MFD list</div>
+                <UploadButton
+                  label="Attach the list of MFDs corresponding to the selected entity"
+                  done={b.hasMfdList}
+                  doneLabel="MFD list attached"
+                  onClick={() => f.patchEntityBlock(b.id, { hasMfdList: !b.hasMfdList })}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => f.setEntityBlocks((prev) => [...prev, newEntityBlock()])}
+      >
+        <Plus className="mr-1.5 h-4 w-4" /> Add another entity
+      </Button>
+    </div>
+  );
+}
+
+function UserLevelFlow() {
+  const f = useFlow();
+  return (
+    <div className="space-y-3">
+      {f.userBlocks.map((b, i) => {
+        const dup = f.userDuplicateOf[b.id];
+        const noneSelected = b.vendorScope === "Not included" && b.mfdScope === "Not included";
+        const valid = !noneSelected && !dup;
+        const ready = userBlockReady(b) && !dup;
+        const uploaded = b.hasPdf || b.hasTargetedVendorList || b.hasTargetedMfdList;
+
+        function changeScope(patch: Partial<UserCombinationBlock>) {
+          if (uploaded) {
+            if (
+              !window.confirm(
+                "Changing this selection will clear configured data. Continue?",
+              )
+            )
+              return;
+            f.patchUserBlock(b.id, {
+              ...patch,
+              hasPdf: false,
+              hasTargetedVendorList: false,
+              hasTargetedMfdList: false,
+            });
+            return;
+          }
+          f.patchUserBlock(b.id, patch);
+        }
+
+        return (
+          <div
+            key={b.id}
+            className="space-y-3 rounded-xl border-2 bg-card p-4"
+            style={{ borderColor: ready ? ACCENT : "hsl(var(--border))" }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold">Combination {i + 1}</div>
+              <div className="flex items-center gap-2">
+                <StatusBadge ready={ready} />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={f.userBlocks.length === 1}
+                  onClick={() => f.setUserBlocks((prev) => prev.filter((p) => p.id !== b.id))}
+                  aria-label={`Remove combination ${i + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <div className="text-[12px] text-muted-foreground">Vendor scope</div>
+                {VENDOR_SCOPES.map((s) => (
+                  <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                    <input
+                      type="radio"
+                      name={`vendor-${b.id}`}
+                      checked={b.vendorScope === s}
+                      onChange={() => changeScope({ vendorScope: s })}
+                      style={{ accentColor: ACCENT }}
+                    />
+                    {s}
+                  </label>
+                ))}
+              </div>
+              <div className="space-y-1.5">
+                <div className="text-[12px] text-muted-foreground">MFD scope</div>
+                {MFD_SCOPES.map((s) => (
+                  <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                    <input
+                      type="radio"
+                      name={`mfd-${b.id}`}
+                      checked={b.mfdScope === s}
+                      onChange={() => changeScope({ mfdScope: s })}
+                      style={{ accentColor: ACCENT }}
+                    />
+                    {s}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {noneSelected && (
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Select at least one audience type
+              </div>
+            )}
+            {dup && (
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                This combination is already configured in Combination {dup}.
+              </div>
+            )}
+
+            {valid && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="text-[13px] font-semibold">{b.resolvedName}</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <UploadButton
+                    label="Upload PDF for this combination"
+                    done={b.hasPdf}
+                    doneLabel="PDF uploaded"
+                    onClick={() => f.patchUserBlock(b.id, { hasPdf: !b.hasPdf })}
+                  />
+                  {b.vendorScope === "Targeted Vendors" && (
+                    <UploadButton
+                      label="Upload targeted vendor list (.csv, .xlsx)"
+                      done={b.hasTargetedVendorList}
+                      doneLabel="Vendor list uploaded"
+                      onClick={() =>
+                        f.patchUserBlock(b.id, {
+                          hasTargetedVendorList: !b.hasTargetedVendorList,
+                        })
+                      }
+                    />
+                  )}
+                  {b.mfdScope === "Targeted MFDs" && (
+                    <UploadButton
+                      label="Upload targeted MFD list (.csv, .xlsx)"
+                      done={b.hasTargetedMfdList}
+                      doneLabel="MFD list uploaded"
+                      onClick={() =>
+                        f.patchUserBlock(b.id, { hasTargetedMfdList: !b.hasTargetedMfdList })
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => f.setUserBlocks((prev) => [...prev, newUserBlock()])}
+      >
+        <Plus className="mr-1.5 h-4 w-4" /> Add another combination
+      </Button>
+    </div>
+  );
+}
+
+
+
 function UploadButton({
   label,
   done,
