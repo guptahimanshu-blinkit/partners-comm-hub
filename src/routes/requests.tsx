@@ -3586,6 +3586,8 @@ function RequestDetail({
           <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">{purposeValue}</p>
         </div>
 
+        <TemplateVariableApproverSummary />
+
         <div className="mt-3 space-y-2">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Apollo Template Preview
