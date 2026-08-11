@@ -363,13 +363,15 @@ function useFlowState() {
       resetPdfState();
       setPdfModeRaw(null);
     }
-    if (
-      (attachmentType === "dynamic_attachment" || attachmentType === "dynamic_table") &&
-      blocksDirty
-    ) {
+    if (attachmentType === "dynamic_table" && blocksDirty) {
       if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
       setBlocks([newBlock()]);
     }
+    if (attachmentType === "dynamic_attachment" && fileBlocksDirty) {
+      if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
+      setFileBlocks([newFileBlock()]);
+    }
+
     setAttachmentType(next);
   }
 
