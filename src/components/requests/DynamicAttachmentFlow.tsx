@@ -154,8 +154,9 @@ const B1_OPTIONS = [
   "Targeted Vendor IDs",
   "Targeted Manufacturer IDs",
 ];
-const ENTITIES = ["BPCL", "Moonstone", "ZHPL"];
-const SUB_TYPES = ["Non-Food", "Food"];
+const ENTITIES = ["BPCL", "ZHPL", "Moonstone", "Sunshine"];
+const VENDOR_SCOPES: VendorScope[] = ["Not included", "All Vendors", "Targeted Vendors"];
+const MFD_SCOPES: MfdScope[] = ["Not included", "All MFDs", "Targeted MFDs"];
 
 const TYPE_LABEL: Record<AttachmentType, string> = {
   none: "None",
@@ -169,8 +170,20 @@ const TYPE_LABEL: Record<AttachmentType, string> = {
 function useFlowState() {
   const [attachmentType, setAttachmentType] = useState<AttachmentType>("none");
   const [b1Audience, setB1Audience] = useState<string[]>([]);
-  const [b2AudienceGroups, setB2AudienceGroups] = useState<AudienceGroup[]>([
-    { id: "grp-1", entity: "", subType: "", pdfFiles: [], hasTargetedList: false },
+  const [pdfMode, setPdfModeRaw] = useState<PdfMode>(null);
+  const [entityBlocks, setEntityBlocks] = useState<EntityBlock[]>([
+    { id: "ent-1", entity: "", hasPdfs: false, hasMfdList: false },
+  ]);
+  const [userBlocks, setUserBlocks] = useState<UserCombinationBlock[]>([
+    {
+      id: "usr-1",
+      vendorScope: "Not included",
+      mfdScope: "Not included",
+      resolvedName: "",
+      hasPdf: false,
+      hasTargetedVendorList: false,
+      hasTargetedMfdList: false,
+    },
   ]);
   const [blocks, setBlocks] = useState<AttachmentBlock[]>([
     {
@@ -191,62 +204,109 @@ function useFlowState() {
   const varsRequired = templateId.includes("9") || templateId.trim() === "1234567";
   const isPdf = attachmentType === "dynamic_pdf";
 
-  const groupsDirty = b2AudienceGroups.some(
-    (g) => g.entity || g.subType || g.pdfFiles.length > 0 || g.hasTargetedList,
-  );
+  const pdfDirty =
+    entityBlocks.some((b) => b.entity || b.hasPdfs || b.hasMfdList) ||
+    userBlocks.some(
+      (b) =>
+        b.vendorScope !== "Not included" ||
+        b.mfdScope !== "Not included" ||
+        b.hasPdf ||
+        b.hasTargetedVendorList ||
+        b.hasTargetedMfdList,
+    );
   const blocksDirty = blocks.some((b) => b.query.trim() || b.columns.length > 0);
+
+  function resetPdfState() {
+    setEntityBlocks([newEntityBlock()]);
+    setUserBlocks([newUserBlock()]);
+  }
 
   function patchBlock(id: string, patch: Partial<AttachmentBlock>) {
     setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   }
-  function patchGroup(id: string, patch: Partial<AudienceGroup>) {
-    setB2AudienceGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)));
+  function patchEntityBlock(id: string, patch: Partial<EntityBlock>) {
+    setEntityBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  }
+  function patchUserBlock(id: string, patch: Partial<UserCombinationBlock>) {
+    setUserBlocks((prev) =>
+      prev.map((b) => {
+        if (b.id !== id) return b;
+        const next = { ...b, ...patch };
+        next.resolvedName = resolveCombinationName(next.vendorScope, next.mfdScope);
+        if (next.vendorScope !== "Targeted Vendors") next.hasTargetedVendorList = false;
+        if (next.mfdScope !== "Targeted MFDs") next.hasTargetedMfdList = false;
+        return next;
+      }),
+    );
+  }
+
+  function setPdfMode(next: PdfMode) {
+    if (next === pdfMode) return;
+    if (pdfMode && pdfDirty) {
+      if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
+      resetPdfState();
+    }
+    setPdfModeRaw(next);
   }
 
   function selectType(next: AttachmentType) {
     if (next === attachmentType) return;
-    if (attachmentType === "dynamic_pdf" && groupsDirty) {
-      if (
-        !window.confirm(
-          "Switching attachment type will clear your entity audience groups. Continue?",
-        )
-      )
-        return;
-      setB2AudienceGroups([newGroup()]);
+    if (attachmentType === "dynamic_pdf" && (pdfDirty || pdfMode)) {
+      if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
+      resetPdfState();
+      setPdfModeRaw(null);
     }
     if (
       (attachmentType === "dynamic_attachment" || attachmentType === "dynamic_table") &&
       blocksDirty
     ) {
-      if (
-        !window.confirm(
-          "Switching attachment type will clear your configured queries and tables. Continue?",
-        )
-      )
-        return;
+      if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
       setBlocks([newBlock()]);
     }
     setAttachmentType(next);
   }
 
-  const duplicateOf = useMemo(() => {
+  const entityDuplicateOf = useMemo(() => {
     const map: Record<string, number | null> = {};
-    b2AudienceGroups.forEach((g, i) => {
-      map[g.id] = null;
-      if (!g.entity || !g.subType) return;
-      const prior = b2AudienceGroups.findIndex(
-        (o, oi) => oi < i && o.entity === g.entity && o.subType === g.subType,
-      );
-      map[g.id] = prior >= 0 ? prior + 1 : null;
+    entityBlocks.forEach((b, i) => {
+      map[b.id] = null;
+      if (!b.entity) return;
+      const prior = entityBlocks.findIndex((o, oi) => oi < i && o.entity === b.entity);
+      map[b.id] = prior >= 0 ? prior + 1 : null;
     });
     return map;
-  }, [b2AudienceGroups]);
+  }, [entityBlocks]);
+
+  const userDuplicateOf = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    userBlocks.forEach((b, i) => {
+      map[b.id] = null;
+      if (b.vendorScope === "Not included" && b.mfdScope === "Not included") return;
+      const prior = userBlocks.findIndex(
+        (o, oi) => oi < i && o.vendorScope === b.vendorScope && o.mfdScope === b.mfdScope,
+      );
+      map[b.id] = prior >= 0 ? prior + 1 : null;
+    });
+    return map;
+  }, [userBlocks]);
+
+  const entityReady = (b: EntityBlock) => Boolean(b.entity) && b.hasPdfs && b.hasMfdList;
 
   const blockers = useMemo(() => {
     const out: string[] = [];
     if (isPdf) {
-      if (!b2AudienceGroups.every((g) => g.pdfFiles.length > 0 && g.hasTargetedList))
-        out.push("Every audience group must be Ready (at least 1 PDF + MFD list uploaded).");
+      if (!pdfMode) out.push("Pick a Dynamic PDF mode (Entity Level or User Level).");
+      else if (pdfMode === "entity") {
+        if (!entityBlocks.every(entityReady))
+          out.push("Every entity block must be Ready (entity selected + PDFs + MFD list).");
+        if (Object.values(entityDuplicateOf).some(Boolean))
+          out.push("Duplicate entities configured.");
+      } else {
+        if (!userBlocks.every(userBlockReady))
+          out.push("Every user combination block must be Ready (PDF + required targeted lists).");
+        if (Object.values(userDuplicateOf).some(Boolean))
+          out.push("Duplicate audience combinations configured.");
+      }
     } else if (attachmentType !== "none") {
       if (!blocks.every((b) => b.checked && b.queryValid))
         out.push("Every attachment block needs a passing query check.");
@@ -261,8 +321,12 @@ function useFlowState() {
     return out;
   }, [
     isPdf,
+    pdfMode,
+    entityBlocks,
+    userBlocks,
+    entityDuplicateOf,
+    userDuplicateOf,
     attachmentType,
-    b2AudienceGroups,
     blocks,
     varChecked,
     varsRequired,
@@ -276,10 +340,18 @@ function useFlowState() {
     isPdf,
     b1Audience,
     setB1Audience,
-    b2AudienceGroups,
-    setB2AudienceGroups,
-    patchGroup,
-    duplicateOf,
+    pdfMode,
+    setPdfMode,
+    entityBlocks,
+    setEntityBlocks,
+    patchEntityBlock,
+    entityDuplicateOf,
+    entityReady,
+    userBlocks,
+    setUserBlocks,
+    patchUserBlock,
+    userDuplicateOf,
+    userBlockReady,
     blocks,
     setBlocks,
     patchBlock,
@@ -297,6 +369,7 @@ function useFlowState() {
     blockers,
   };
 }
+
 
 type FlowCtx = ReturnType<typeof useFlowState>;
 const Ctx = createContext<FlowCtx | null>(null);
