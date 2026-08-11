@@ -594,16 +594,22 @@ function useFlowState() {
           out.push("Duplicate audience combinations configured.");
       }
     } else if (attachmentType === "dynamic_attachment") {
+      if (fileBlocks.some((b) => b.attachmentMode === null))
+        out.push("Pick a mode (Query or Bulk Upload) for every file attachment block.");
       if (!fileBlocks.every((b) => b.isReady))
         out.push("Every file attachment block must be Ready (query selected, or bulk CSV + audience).");
     } else if (attachmentType === "dynamic_table") {
+      if (tableBlocks.some((b) => b.tableMode === null))
+        out.push("Pick a mode (Query or Bulk Upload) for every dynamic table block.");
       if (!tableBlocks.every((b) => b.isReady))
         out.push(
           "Every table block must be Ready (JIS query + named columns, or bulk CSV + audience).",
         );
     }
 
-    if (templateHasVariables === true && !isVariableBlockReady)
+    if (templateHasVariables === true && variableMode === null)
+      out.push("Pick a source for the template variables (Query or Bulk Upload).");
+    else if (templateHasVariables === true && !isVariableBlockReady)
       out.push("Template variable values must be configured (JIS query or bulk CSV).");
     return out;
   }, [
@@ -619,6 +625,7 @@ function useFlowState() {
     fileBlocks,
 
     templateHasVariables,
+    variableMode,
     isVariableBlockReady,
   ]);
 
@@ -1834,6 +1841,54 @@ function TableAttachmentBlockCard({
 }
 
 
+
+const AMBER = "#B45309";
+const AMBER_BG = "#FFFBEB";
+
+function IncompleteBadge() {
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+      style={{ backgroundColor: `${AMBER}1A`, color: AMBER }}
+    >
+      ⚠️ Incomplete
+    </span>
+  );
+}
+
+function ApproverBlockCard({
+  ready,
+  children,
+}: {
+  ready: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="rounded-lg border border-border bg-background p-2.5"
+      style={
+        ready
+          ? { borderLeft: `3px solid ${ACCENT}` }
+          : { borderLeft: `3px solid ${AMBER}`, backgroundColor: AMBER_BG }
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
+function ReadyCountLine({ ready, total }: { ready: number; total: number }) {
+  const complete = total > 0 && ready === total;
+  return (
+    <p
+      className="text-[12px] font-semibold"
+      style={{ color: complete ? ACCENT : AMBER }}
+    >
+      {ready} of {total} blocks ready.
+    </p>
+  );
+}
+
 /* ---------------- Approver-side attachment summary (bound to global flow state) ---------------- */
 
 export function DynamicAttachmentApproverSummary() {
@@ -1872,21 +1927,31 @@ export function DynamicAttachmentApproverSummary() {
             <div className="text-[12px] font-semibold" style={{ color: ACCENT }}>
               Dynamic PDF (Entity Level)
             </div>
-            {f.entityBlocks.map((b, i) => (
-              <div key={b.id} className="rounded-lg border border-border bg-background p-2.5">
-                <div className="text-[13px] font-medium">
-                  Entity: {b.entity || `— (block ${i + 1})`}
-                </div>
-                <ul className="mt-1 space-y-1 text-[12px]">
-                  <li className={b.hasPdfs ? "font-medium" : "text-muted-foreground"}>
-                    {b.hasPdfs ? "✅ PDF set attached" : "⚠️ PDF set missing"}
-                  </li>
-                  <li className={b.hasMfdList ? "font-medium" : "text-muted-foreground"}>
-                    {b.hasMfdList ? "✅ MFD list attached" : "⚠️ MFD list missing"}
-                  </li>
-                </ul>
-              </div>
-            ))}
+            <ReadyCountLine
+              ready={f.entityBlocks.filter(f.entityReady).length}
+              total={f.entityBlocks.length}
+            />
+            {f.entityBlocks.map((b, i) => {
+              const ready = f.entityReady(b);
+              return (
+                <ApproverBlockCard key={b.id} ready={ready}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-[13px] font-medium">
+                      Entity: {b.entity || `— (block ${i + 1})`}
+                    </div>
+                    {!ready && <IncompleteBadge />}
+                  </div>
+                  <ul className="mt-1 space-y-1 text-[12px]">
+                    <li className={b.hasPdfs ? "font-medium" : "text-muted-foreground"}>
+                      {b.hasPdfs ? "✅ PDF set attached" : "⚠️ PDF set missing"}
+                    </li>
+                    <li className={b.hasMfdList ? "font-medium" : "text-muted-foreground"}>
+                      {b.hasMfdList ? "✅ MFD list attached" : "⚠️ MFD list missing"}
+                    </li>
+                  </ul>
+                </ApproverBlockCard>
+              );
+            })}
           </div>
         )}
 
@@ -1895,45 +1960,68 @@ export function DynamicAttachmentApproverSummary() {
             <div className="text-[12px] font-semibold" style={{ color: ACCENT }}>
               Dynamic PDF (User Level)
             </div>
-            <ul className="space-y-1.5">
+            <ReadyCountLine
+              ready={f.userBlocks.filter(userBlockReady).length}
+              total={f.userBlocks.length}
+            />
+            <div className="space-y-2">
               {f.userBlocks.map((b, i) => {
                 const ready = userBlockReady(b);
                 return (
-                  <li key={b.id} className="flex flex-wrap items-center gap-2 text-[13px]">
-                    {ready ? (
-                      <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span className={ready ? "font-medium" : "text-muted-foreground"}>
-                      {b.resolvedName || `Combination ${i + 1} not configured`}
-                      {ready ? " — PDFs and lists attached" : " — pending uploads"}
-                    </span>
-                  </li>
+                  <ApproverBlockCard key={b.id} ready={ready}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-[13px]">
+                        {ready ? (
+                          <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
+                        ) : (
+                          <XCircle className="h-4 w-4" style={{ color: AMBER }} />
+                        )}
+                        <span className={ready ? "font-medium" : "text-muted-foreground"}>
+                          {b.resolvedName || `Combination ${i + 1} not configured`}
+                          {ready ? " — PDFs and lists attached" : " — pending uploads"}
+                        </span>
+                      </div>
+                      {!ready && <IncompleteBadge />}
+                    </div>
+                  </ApproverBlockCard>
                 );
               })}
-            </ul>
+            </div>
           </div>
         )}
 
 
         {f.attachmentType === "dynamic_attachment" && (
           <div className="space-y-2.5">
-            {f.fileBlocks.filter((b) => b.isReady).length === 0 && (
+            <ReadyCountLine
+              ready={f.fileBlocks.filter((b) => b.isReady).length}
+              total={f.fileBlocks.length}
+            />
+            {f.fileBlocks.length === 0 && (
               <p className="text-[13px] text-muted-foreground">
                 Awaiting a configured raw file attachment (JIS query or bulk CSV).
               </p>
             )}
             {f.fileBlocks
-              .filter((b) => b.isReady)
               .map((b) => (
-                <div key={b.id} className="rounded-lg border border-border bg-background p-2.5">
+                <ApproverBlockCard key={b.id} ready={b.isReady}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-[13px] font-semibold">
                     {b.attachmentMode === "query"
                       ? "Raw File Attachment (JIS Query)"
-                      : "Raw File Attachment (Bulk CSV Upload)"}
+                      : b.attachmentMode === "bulk"
+                        ? "Raw File Attachment (Bulk CSV Upload)"
+                        : "Raw File Attachment (mode not selected)"}
                   </div>
-                  {b.attachmentMode === "query" ? (
+                  {!b.isReady && <IncompleteBadge />}
+                  </div>
+                  {!b.isReady ? (
+                    <p className="mt-1.5 text-[12px]" style={{ color: AMBER }}>
+                      {b.attachmentMode === null
+                        ? "Submitter has not picked Query vs Bulk Upload for this block."
+                        : "Configuration incomplete — missing query selection or required uploads."}
+                    </p>
+                  ) : b.attachmentMode === "query" ? (
                     <div className="mt-1.5 space-y-1.5">
                       <div className="text-[12px]">
                         <span className="text-muted-foreground">Selected Query: </span>
@@ -1960,7 +2048,7 @@ export function DynamicAttachmentApproverSummary() {
                       </ul>
                     </div>
                   )}
-                </div>
+                </ApproverBlockCard>
               ))}
           </div>
         )}
@@ -1968,16 +2056,37 @@ export function DynamicAttachmentApproverSummary() {
 
         {f.attachmentType === "dynamic_table" && (
           <div className="space-y-3">
-            {readyTables.length === 0 && (
+            <ReadyCountLine ready={readyTables.length} total={f.tableBlocks.length} />
+            {f.tableBlocks.length === 0 && (
               <p className="text-[13px] text-muted-foreground">
                 Awaiting a configured dynamic table (JIS query mapping or bulk CSV).
               </p>
             )}
-            {readyTables.map((b) =>
-              b.tableMode === "query" ? (
+            {f.tableBlocks.map((b, i) =>
+              !b.isReady ? (
+                <ApproverBlockCard key={b.id} ready={false}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-[13px] font-semibold">
+                      Dynamic Table {i + 1}
+                      {b.tableMode === "query"
+                        ? " (JIS Query)"
+                        : b.tableMode === "bulk"
+                          ? " (Bulk CSV Upload)"
+                          : " (mode not selected)"}
+                    </div>
+                    <IncompleteBadge />
+                  </div>
+                  <p className="mt-1.5 text-[12px]" style={{ color: AMBER }}>
+                    {b.tableMode === null
+                      ? "Submitter has not picked Query vs Bulk Upload for this table."
+                      : "Configuration incomplete — missing query mapping, column names or required uploads."}
+                  </p>
+                </ApproverBlockCard>
+              ) : b.tableMode === "query" ? (
                 <div
                   key={b.id}
                   className="overflow-x-auto rounded-lg border border-border bg-background p-3"
+                  style={{ borderLeft: `3px solid ${ACCENT}` }}
                 >
                   <div className="mb-2 text-[13px] font-semibold">
                     Dynamic Table (JIS Query): {b.selectedQueryName}
@@ -2012,7 +2121,11 @@ export function DynamicAttachmentApproverSummary() {
                   </table>
                 </div>
               ) : (
-                <div key={b.id} className="rounded-lg border border-border bg-background p-3">
+                <div
+                  key={b.id}
+                  className="rounded-lg border border-border bg-background p-3"
+                  style={{ borderLeft: `3px solid ${ACCENT}` }}
+                >
                   <div className="text-[13px] font-semibold">Dynamic Table (Bulk CSV Upload)</div>
                   <div className="mt-1 text-[12px]">
                     <span className="text-muted-foreground">Audience Scope: </span>
