@@ -20,12 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
+
   Select,
   SelectContent,
   SelectItem,
@@ -61,20 +56,34 @@ export interface UserCombinationBlock {
 }
 
 
-export interface MappedColumn {
+/* --- Dynamic Table (inline table in email body) — block-level Query vs Bulk branching --- */
+
+export type TableMode = "query" | "bulk" | null;
+
+export interface TableColumn {
   id: string;
-  field: string;
+  originalTag: string;
   displayName: string;
 }
 
-export interface AttachmentBlock {
+export interface TableAttachmentBlock {
   id: string;
-  query: string;
-  checked: boolean;
-  queryValid: boolean;
-  detectedFields: string[];
-  columns: MappedColumn[];
+  tableMode: TableMode;
+  isReady: boolean;
+  /* query mode */
+  selectedQueryId: string | null;
+  selectedQueryName: string | null;
+  availableTags: string[];
+  tableColumns: TableColumn[];
+  /* bulk mode */
+  vendorScope: VendorScope;
+  mfdScope: MfdScope;
+  resolvedAudienceName: string;
+  hasTargetedVendorList: boolean;
+  hasTargetedMfdList: boolean;
+  hasBulkCsv: boolean;
 }
+
 
 /* --- Normal Dynamic Attachment (raw CSV/Excel export) — separate from Dynamic Tables --- */
 
@@ -105,15 +114,72 @@ export const JIS_QUERIES: { id: string; name: string }[] = [
 const ACCENT = "#2F7D32";
 const AUDIENCE_ID_RE = /(vendor_id|manufacturer_id)/i;
 
+export const TABLE_QUERIES: { id: string; name: string; tags: string[] }[] = [
+  {
+    id: "tq-201",
+    name: "Vendor GRN Charges Summary",
+    tags: ["vendor_id", "grn_date", "instance_charges", "total_deduction", "city_name"],
+  },
+  {
+    id: "tq-202",
+    name: "Weekly Fill Rate Scorecard",
+    tags: ["vendor_id", "week_start", "fill_rate", "po_count", "line_items"],
+  },
+  {
+    id: "tq-203",
+    name: "Invoice Ageing (Vendor Level)",
+    tags: ["vendor_id", "invoice_no", "invoice_amount", "due_date", "ageing_bucket"],
+  },
+  {
+    id: "tq-204",
+    name: "MFD Appointment Adherence",
+    tags: ["manufacturer_id", "appointment_date", "adherence_pct", "slot_missed"],
+  },
+];
+
 let bid = 1;
-const newBlock = (): AttachmentBlock => ({
-  id: `blk-${++bid}`,
-  query: "",
-  checked: false,
-  queryValid: false,
-  detectedFields: [],
-  columns: [],
+const newTableBlock = (): TableAttachmentBlock => ({
+  id: `tbl-${++bid}`,
+  tableMode: null,
+  isReady: false,
+  selectedQueryId: null,
+  selectedQueryName: null,
+  availableTags: [],
+  tableColumns: [],
+  vendorScope: "Not included",
+  mfdScope: "Not included",
+  resolvedAudienceName: "",
+  hasTargetedVendorList: false,
+  hasTargetedMfdList: false,
+  hasBulkCsv: false,
 });
+
+function computeTableBlockReady(b: TableAttachmentBlock): boolean {
+  if (b.tableMode === "query") {
+    if (!b.selectedQueryId) return false;
+    return b.tableColumns.length > 0 && b.tableColumns.every((c) => c.displayName.trim().length > 0);
+  }
+  if (b.tableMode === "bulk") {
+    if (b.vendorScope === "Not included" && b.mfdScope === "Not included") return false;
+    if (b.vendorScope === "Targeted Vendors" && !b.hasTargetedVendorList) return false;
+    if (b.mfdScope === "Targeted MFDs" && !b.hasTargetedMfdList) return false;
+    return b.hasBulkCsv;
+  }
+  return false;
+}
+
+function tableBlockDirty(b: TableAttachmentBlock): boolean {
+  return Boolean(
+    b.selectedQueryId ||
+      b.tableColumns.length > 0 ||
+      b.hasBulkCsv ||
+      b.hasTargetedVendorList ||
+      b.hasTargetedMfdList ||
+      b.vendorScope !== "Not included" ||
+      b.mfdScope !== "Not included",
+  );
+}
+
 
 let fid = 1;
 const newFileBlock = (): FileAttachmentBlock => ({
@@ -249,16 +315,24 @@ function useFlowState() {
       hasTargetedMfdList: false,
     },
   ]);
-  const [blocks, setBlocks] = useState<AttachmentBlock[]>([
+  const [tableBlocks, setTableBlocks] = useState<TableAttachmentBlock[]>([
     {
-      id: "blk-1",
-      query: "",
-      checked: false,
-      queryValid: false,
-      detectedFields: [],
-      columns: [],
+      id: "tbl-1",
+      tableMode: null,
+      isReady: false,
+      selectedQueryId: null,
+      selectedQueryName: null,
+      availableTags: [],
+      tableColumns: [],
+      vendorScope: "Not included",
+      mfdScope: "Not included",
+      resolvedAudienceName: "",
+      hasTargetedVendorList: false,
+      hasTargetedMfdList: false,
+      hasBulkCsv: false,
     },
   ]);
+
   const [fileBlocks, setFileBlocks] = useState<FileAttachmentBlock[]>([
     {
       id: "file-1",
@@ -294,7 +368,7 @@ function useFlowState() {
         b.hasTargetedVendorList ||
         b.hasTargetedMfdList,
     );
-  const blocksDirty = blocks.some((b) => b.query.trim() || b.columns.length > 0);
+  const tableBlocksDirty = tableBlocks.some((b) => b.tableMode !== null || tableBlockDirty(b));
   const fileBlocksDirty = fileBlocks.some((b) => b.attachmentMode !== null || fileBlockDirty(b));
 
   function patchFileBlock(id: string, patch: Partial<FileAttachmentBlock>) {
@@ -328,9 +402,31 @@ function useFlowState() {
     setUserBlocks([newUserBlock()]);
   }
 
-  function patchBlock(id: string, patch: Partial<AttachmentBlock>) {
-    setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  function patchTableBlock(id: string, patch: Partial<TableAttachmentBlock>) {
+    setTableBlocks((prev) =>
+      prev.map((b) => {
+        if (b.id !== id) return b;
+        const next = { ...b, ...patch };
+        next.resolvedAudienceName = resolveCombinationName(next.vendorScope, next.mfdScope);
+        if (next.vendorScope !== "Targeted Vendors") next.hasTargetedVendorList = false;
+        if (next.mfdScope !== "Targeted MFDs") next.hasTargetedMfdList = false;
+        next.isReady = computeTableBlockReady(next);
+        return next;
+      }),
+    );
   }
+
+  function setTableBlockMode(id: string, mode: Exclude<TableMode, null>) {
+    const block = tableBlocks.find((b) => b.id === id);
+    if (!block || block.tableMode === mode) return;
+    if (block.tableMode && tableBlockDirty(block)) {
+      if (!window.confirm("Changing this mode will clear data for this block. Continue?")) return;
+    }
+    setTableBlocks((prev) =>
+      prev.map((b) => (b.id === id ? { ...newTableBlock(), id: b.id, tableMode: mode } : b)),
+    );
+  }
+
   function patchEntityBlock(id: string, patch: Partial<EntityBlock>) {
     setEntityBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   }
@@ -363,10 +459,11 @@ function useFlowState() {
       resetPdfState();
       setPdfModeRaw(null);
     }
-    if (attachmentType === "dynamic_table" && blocksDirty) {
+    if (attachmentType === "dynamic_table" && tableBlocksDirty) {
       if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
-      setBlocks([newBlock()]);
+      setTableBlocks([newTableBlock()]);
     }
+
     if (attachmentType === "dynamic_attachment" && fileBlocksDirty) {
       if (!window.confirm("Changing this selection will clear configured data. Continue?")) return;
       setFileBlocks([newFileBlock()]);
@@ -420,11 +517,12 @@ function useFlowState() {
       if (!fileBlocks.every((b) => b.isReady))
         out.push("Every file attachment block must be Ready (query selected, or bulk CSV + audience).");
     } else if (attachmentType === "dynamic_table") {
-      if (!blocks.every((b) => b.checked && b.queryValid))
-        out.push("Every attachment block needs a passing query check.");
-      if (!blocks.every((b) => b.columns.length > 0 && b.columns.every((c) => c.displayName.trim())))
-        out.push("Every mapped table column needs a display name.");
+      if (!tableBlocks.every((b) => b.isReady))
+        out.push(
+          "Every table block must be Ready (JIS query + named columns, or bulk CSV + audience).",
+        );
     }
+
     if (varChecked && varsRequired && !(varQueryChecked && varQueryValid))
       out.push("Template variable query must pass the check.");
     return out;
@@ -436,7 +534,8 @@ function useFlowState() {
     entityDuplicateOf,
     userDuplicateOf,
     attachmentType,
-    blocks,
+    tableBlocks,
+
     fileBlocks,
 
     varChecked,
@@ -463,9 +562,11 @@ function useFlowState() {
     patchUserBlock,
     userDuplicateOf,
     userBlockReady,
-    blocks,
-    setBlocks,
-    patchBlock,
+    tableBlocks,
+    setTableBlocks,
+    patchTableBlock,
+    setTableBlockMode,
+
     fileBlocks,
     setFileBlocks,
     patchFileBlock,
@@ -641,27 +742,9 @@ export function DynamicAttachmentSections() {
           ) : f.attachmentType === "dynamic_attachment" ? (
             <FileAttachmentSections />
           ) : (
-            <div className="space-y-3">
-              {f.blocks.map((b, i) => (
-                <AttachmentBlockCard
-                  key={b.id}
-                  index={i}
-                  block={b}
-                  isTableMode={f.attachmentType === "dynamic_table"}
-                  canRemove={f.blocks.length > 1}
-                  onPatch={(patch) => f.patchBlock(b.id, patch)}
-                  onRemove={() => f.setBlocks((prev) => prev.filter((p) => p.id !== b.id))}
-                />
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => f.setBlocks((prev) => [...prev, newBlock()])}
-              >
-                <Plus className="mr-1.5 h-4 w-4" /> Add another attachment
-              </Button>
-            </div>
+            <TableAttachmentSections />
           )}
+
 
         </section>
       )}
@@ -1390,238 +1473,390 @@ function UploadButton({
   );
 }
 
-function AttachmentBlockCard({
+/* ---------------- Dynamic Table: Query vs Bulk branching ---------------- */
+
+function TableAttachmentSections() {
+  const f = useFlow();
+  return (
+    <div className="space-y-3">
+      {f.tableBlocks.map((b, i) => (
+        <TableAttachmentBlockCard
+          key={b.id}
+          index={i}
+          block={b}
+          canRemove={f.tableBlocks.length > 1}
+          onMode={(m) => f.setTableBlockMode(b.id, m)}
+          onPatch={(patch) => f.patchTableBlock(b.id, patch)}
+          onRemove={() => f.setTableBlocks((prev) => prev.filter((p) => p.id !== b.id))}
+        />
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => f.setTableBlocks((prev) => [...prev, newTableBlock()])}
+      >
+        <Plus className="mr-1.5 h-4 w-4" /> Add another attachment
+      </Button>
+    </div>
+  );
+}
+
+function TableAttachmentBlockCard({
   index,
   block,
-  isTableMode,
   canRemove,
+  onMode,
   onPatch,
   onRemove,
 }: {
   index: number;
-  block: AttachmentBlock;
-  isTableMode: boolean;
+  block: TableAttachmentBlock;
   canRemove: boolean;
-  onPatch: (patch: Partial<AttachmentBlock>) => void;
+  onMode: (mode: Exclude<TableMode, null>) => void;
+  onPatch: (patch: Partial<TableAttachmentBlock>) => void;
   onRemove: () => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
 
-  function runCheck() {
-    const valid = AUDIENCE_ID_RE.test(block.query);
-    const detected = valid
-      ? Array.from(
-          new Set(
-            block.query
-              .split(/[\s,();]+/)
-              .map((w) => w.replace(/^[^a-z0-9_]+|[^a-z0-9_]+$/gi, ""))
-              .filter((w) => w.includes("_") && /^[a-z0-9_]+$/i.test(w)),
-          ),
-        )
-      : [];
-    onPatch({ checked: true, queryValid: valid, detectedFields: detected });
-  }
+  const noAudience =
+    block.tableMode === "bulk" &&
+    block.vendorScope === "Not included" &&
+    block.mfdScope === "Not included";
 
-  function addColumn(field: string) {
-    if (block.columns.some((c) => c.field === field)) return;
-    onPatch({ columns: [...block.columns, { id: `col-${++cid}`, field, displayName: "" }] });
-  }
+  const MODE_CARDS: { id: "query" | "bulk"; label: string; desc: string; icon: typeof Table2 }[] = [
+    {
+      id: "query",
+      label: "Query Attachment",
+      desc: "Use a query already approved on JIS Analytics.",
+      icon: Table2,
+    },
+    {
+      id: "bulk",
+      label: "Bulk Upload Attachment",
+      desc: "For urgent templates with no time to get a query approved on JIS — upload data directly.",
+      icon: Upload,
+    },
+  ];
 
-  const ready =
-    block.queryValid &&
-    (!isTableMode || (block.columns.length > 0 && block.columns.every((c) => c.displayName.trim())));
+  function addColumn(tag: string) {
+    if (block.tableColumns.some((c) => c.originalTag === tag)) return;
+    onPatch({
+      tableColumns: [
+        ...block.tableColumns,
+        { id: `col-${++cid}`, originalTag: tag, displayName: "" },
+      ],
+    });
+  }
 
   return (
     <div
       className="space-y-3 rounded-xl border-2 bg-card p-4"
-      style={{
-        borderColor: ready
-          ? ACCENT
-          : block.checked && !block.queryValid
-            ? "hsl(var(--destructive))"
-            : "hsl(var(--border))",
-      }}
+      style={{ borderColor: block.isReady ? ACCENT : "hsl(var(--border))" }}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold">Attachment Block {index + 1}</div>
+        <div className="text-sm font-semibold">Table Block {index + 1}</div>
         <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[11px] font-medium",
-              ready ? "bg-cat-green-soft" : "bg-muted text-muted-foreground",
-            )}
-            style={ready ? { color: ACCENT } : undefined}
-          >
-            {ready ? "🟢 Ready" : "⚪ Incomplete"}
-          </span>
+          <StatusBadge ready={block.isReady} />
           <Button
             type="button"
             variant="ghost"
             size="icon"
             disabled={!canRemove}
             onClick={onRemove}
-            aria-label={`Remove attachment block ${index + 1}`}
+            aria-label={`Remove table block ${index + 1}`}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[12px] font-medium text-muted-foreground">Query</span>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" aria-label="Query requirements">
-                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Make sure audience ID is included</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      {/* Step 0 · Mode */}
+      <div className="space-y-2">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Step 0 · How is this table's data produced?
         </div>
-        <Textarea
-          rows={5}
-          value={block.query}
-          placeholder="Paste your query here"
-          className="font-mono text-[12px]"
-          onChange={(e) =>
-            onPatch({
-              query: e.target.value,
-              checked: false,
-              queryValid: false,
-              detectedFields: [],
-              columns: [],
-            })
-          }
-        />
-        <div className="flex items-center gap-3">
-          <Button type="button" variant="outline" size="sm" onClick={runCheck}>
-            Check Query
-          </Button>
-          {block.checked && (
-            <span
-              className="flex items-center gap-1.5 text-[12px] font-medium"
-              style={{ color: block.queryValid ? ACCENT : "hsl(var(--destructive))" }}
-            >
-              {block.queryValid ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" /> Audience ID column found
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-4 w-4" /> No audience ID column detected
-                </>
-              )}
-            </span>
-          )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {MODE_CARDS.map((c) => {
+            const Icon = c.icon;
+            const active = block.tableMode === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onMode(c.id)}
+                style={active ? { borderColor: ACCENT, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  active ? "bg-cat-green-soft/40" : "border-border bg-card hover:border-primary/50",
+                )}
+              >
+                <div className="flex items-center gap-2 text-[13px] font-semibold">
+                  <Icon className="h-4 w-4" style={{ color: active ? ACCENT : undefined }} />
+                  {c.label}
+                </div>
+                <div className="mt-1 text-[12px] leading-snug text-muted-foreground">{c.desc}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {isTableMode && block.queryValid && (
-        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
-          <div className="text-[12px] font-medium text-muted-foreground">
-            Detected fields — drag into table below.
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {block.detectedFields.length === 0 && (
-              <span className="text-[12px] text-muted-foreground">
-                No underscore fields detected in the query.
+      {!block.tableMode && (
+        <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-[13px] text-muted-foreground">
+          <Info className="h-4 w-4" />
+          Pick how this table will be sourced to continue.
+        </div>
+      )}
+
+      {/* Query mode */}
+      {block.tableMode === "query" && (
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <div className="text-[12px] text-muted-foreground">Select your query</div>
+            <Select
+              value={block.selectedQueryId ?? ""}
+              onValueChange={(v) => {
+                const q = TABLE_QUERIES.find((x) => x.id === v);
+                onPatch({
+                  selectedQueryId: v,
+                  selectedQueryName: q?.name ?? null,
+                  availableTags: q?.tags ?? [],
+                  tableColumns: [],
+                });
+              }}
+            >
+              <SelectTrigger className="sm:max-w-md">
+                <SelectValue placeholder="Select a JIS-approved query" />
+              </SelectTrigger>
+              <SelectContent>
+                {TABLE_QUERIES.map((q) => (
+                  <SelectItem key={q.id} value={q.id}>
+                    {q.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {block.selectedQueryId && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
+                style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Audience ID column found
               </span>
             )}
-            {block.detectedFields.map((f) => {
-              const used = block.columns.some((c) => c.field === f);
-              return (
-                <button
-                  key={f}
-                  type="button"
-                  draggable={!used}
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", f)}
-                  onClick={() => addColumn(f)}
-                  disabled={used}
-                  style={!used ? { borderColor: `${ACCENT}66`, backgroundColor: `${ACCENT}0D` } : undefined}
-                  className={cn(
-                    "flex items-center gap-1 rounded-md border px-2 py-1 font-mono text-[11px]",
-                    used
-                      ? "cursor-not-allowed border-border bg-muted text-muted-foreground/60"
-                      : "cursor-grab text-foreground",
-                  )}
-                >
-                  <GripVertical className="h-3 w-3 opacity-60" />
-                  {f}
-                </button>
-              );
-            })}
           </div>
 
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              const fld = e.dataTransfer.getData("text/plain");
-              if (fld) addColumn(fld);
-            }}
-            style={dragOver ? { borderColor: ACCENT, backgroundColor: `${ACCENT}0D` } : undefined}
-            className={cn(
-              "flex min-h-[110px] gap-3 overflow-x-auto rounded-lg border-2 border-dashed p-3 transition",
-              !dragOver && "border-border bg-card",
-            )}
-          >
-            {block.columns.length === 0 && (
-              <div className="m-auto text-[12px] text-muted-foreground">
-                Table Builder — drop fields here to create columns
+          {block.selectedQueryId && (
+            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="text-[12px] font-medium text-muted-foreground">
+                Fields returned by this query — drag into the table below.
               </div>
-            )}
-            {block.columns.map((c) => (
+              <div className="flex flex-wrap gap-2">
+                {block.availableTags.map((tag) => {
+                  const used = block.tableColumns.some((c) => c.originalTag === tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      draggable={!used}
+                      onDragStart={(e) => e.dataTransfer.setData("text/plain", tag)}
+                      onClick={() => addColumn(tag)}
+                      disabled={used}
+                      style={
+                        !used ? { borderColor: `${ACCENT}66`, backgroundColor: `${ACCENT}0D` } : undefined
+                      }
+                      className={cn(
+                        "flex items-center gap-1 rounded-md border px-2 py-1 font-mono text-[11px]",
+                        used
+                          ? "cursor-not-allowed border-border bg-muted text-muted-foreground/60"
+                          : "cursor-grab text-foreground",
+                      )}
+                    >
+                      <GripVertical className="h-3 w-3 opacity-60" />
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+
               <div
-                key={c.id}
-                className="w-48 shrink-0 space-y-2 rounded-lg border border-border bg-background p-2"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const tag = e.dataTransfer.getData("text/plain");
+                  if (tag) addColumn(tag);
+                }}
+                style={dragOver ? { borderColor: ACCENT, backgroundColor: `${ACCENT}0D` } : undefined}
+                className={cn(
+                  "flex min-h-[110px] gap-3 overflow-x-auto rounded-lg border-2 border-dashed p-3 transition",
+                  !dragOver && "border-border bg-card",
+                )}
               >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-                    {c.field}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`Remove column ${c.field}`}
-                    onClick={() => onPatch({ columns: block.columns.filter((x) => x.id !== c.id) })}
-                    className="text-muted-foreground hover:text-destructive"
+                {block.tableColumns.length === 0 && (
+                  <div className="m-auto text-[12px] text-muted-foreground">
+                    Table Builder — drop fields here to create columns
+                  </div>
+                )}
+                {block.tableColumns.map((c) => (
+                  <div
+                    key={c.id}
+                    className="w-48 shrink-0 space-y-2 rounded-lg border border-border bg-background p-2"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <Input
-                  value={c.displayName}
-                  placeholder="Display name"
-                  className="h-8 text-[12px]"
-                  onChange={(e) =>
-                    onPatch({
-                      columns: block.columns.map((x) =>
-                        x.id === c.id ? { ...x, displayName: e.target.value } : x,
-                      ),
-                    })
-                  }
-                />
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+                        {c.originalTag}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove column ${c.originalTag}`}
+                        onClick={() =>
+                          onPatch({ tableColumns: block.tableColumns.filter((x) => x.id !== c.id) })
+                        }
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <Input
+                      value={c.displayName}
+                      placeholder="Display name"
+                      className="h-8 text-[12px]"
+                      onChange={(e) =>
+                        onPatch({
+                          tableColumns: block.tableColumns.map((x) =>
+                            x.id === c.id ? { ...x, displayName: e.target.value } : x,
+                          ),
+                        })
+                      }
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+              {block.tableColumns.length > 0 &&
+                block.tableColumns.some((c) => !c.displayName.trim()) && (
+                  <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Every mapped column needs a display name.
+                  </div>
+                )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bulk mode */}
+      {block.tableMode === "bulk" && (
+        <div className="space-y-3">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <div className="text-[12px] text-muted-foreground">Vendor scope</div>
+              {VENDOR_SCOPES.map((s) => (
+                <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                  <input
+                    type="radio"
+                    name={`table-vendor-${block.id}`}
+                    checked={block.vendorScope === s}
+                    onChange={() => onPatch({ vendorScope: s })}
+                    style={{ accentColor: ACCENT }}
+                  />
+                  {s}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-1.5">
+              <div className="text-[12px] text-muted-foreground">MFD scope</div>
+              {MFD_SCOPES.map((s) => (
+                <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                  <input
+                    type="radio"
+                    name={`table-mfd-${block.id}`}
+                    checked={block.mfdScope === s}
+                    onChange={() => onPatch({ mfdScope: s })}
+                    style={{ accentColor: ACCENT }}
+                  />
+                  {s}
+                </label>
+              ))}
+            </div>
           </div>
+
+          {noAudience && (
+            <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Select at least one audience type
+            </div>
+          )}
+
+          {!noAudience && (
+            <>
+              <div className="text-[13px] font-semibold">{block.resolvedAudienceName}</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {block.vendorScope === "Targeted Vendors" && (
+                  <UploadButton
+                    label="Upload targeted vendor list (.csv, .xlsx)"
+                    done={block.hasTargetedVendorList}
+                    doneLabel="Vendor list uploaded"
+                    onClick={() => onPatch({ hasTargetedVendorList: !block.hasTargetedVendorList })}
+                  />
+                )}
+                {block.mfdScope === "Targeted MFDs" && (
+                  <UploadButton
+                    label="Upload targeted MFD list (.csv, .xlsx)"
+                    done={block.hasTargetedMfdList}
+                    doneLabel="MFD list uploaded"
+                    onClick={() => onPatch({ hasTargetedMfdList: !block.hasTargetedMfdList })}
+                  />
+                )}
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onPatch({ hasBulkCsv: !block.hasBulkCsv })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") onPatch({ hasBulkCsv: !block.hasBulkCsv });
+                }}
+                className="cursor-pointer rounded-lg border border-dashed p-5 text-center"
+                style={{
+                  borderColor: block.hasBulkCsv ? ACCENT : `${ACCENT}80`,
+                  backgroundColor: `${ACCENT}0D`,
+                }}
+              >
+                {block.hasBulkCsv ? (
+                  <CheckCircle2 className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+                ) : (
+                  <Upload className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+                )}
+                <div className="mt-2 text-[13px] font-medium">
+                  {block.hasBulkCsv
+                    ? "Bulk CSV uploaded"
+                    : "Upload your query output as a CSV. This file must contain every vendor's row together, not one file per vendor."}
+                </div>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  At send time, the system will filter this file to find each vendor's row using
+                  vendor_id and render it as the inline table. The query behind this file should
+                  already have been run once, before uploading.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
 
+
 /* ---------------- Approver-side attachment summary (bound to global flow state) ---------------- */
 
 export function DynamicAttachmentApproverSummary() {
   const f = useFlow();
-  const passed = f.blocks.filter((b) => b.checked && b.queryValid);
+  const readyTables = f.tableBlocks.filter((b) => b.isReady);
   const varsMapped = f.varChecked && f.varsRequired && f.varQueryChecked && f.varQueryValid;
 
   return (
@@ -1752,26 +1987,29 @@ export function DynamicAttachmentApproverSummary() {
 
         {f.attachmentType === "dynamic_table" && (
           <div className="space-y-3">
-            {passed.length === 0 && (
-              <p className="text-[13px] text-muted-foreground">No validated table queries yet.</p>
+            {readyTables.length === 0 && (
+              <p className="text-[13px] text-muted-foreground">
+                Awaiting a configured dynamic table (JIS query mapping or bulk CSV).
+              </p>
             )}
-            {passed.map((b, i) => (
-              <div key={b.id} className="overflow-x-auto rounded-lg border border-border bg-background p-3">
-                <div className="mb-2 text-[12px] font-medium text-muted-foreground">
-                  Table preview · Block {i + 1}
-                </div>
-                {b.columns.length === 0 ? (
-                  <div className="text-[12px] text-muted-foreground">No columns mapped yet.</div>
-                ) : (
+            {readyTables.map((b) =>
+              b.tableMode === "query" ? (
+                <div
+                  key={b.id}
+                  className="overflow-x-auto rounded-lg border border-border bg-background p-3"
+                >
+                  <div className="mb-2 text-[13px] font-semibold">
+                    Dynamic Table (JIS Query): {b.selectedQueryName}
+                  </div>
                   <table className="w-full border-collapse text-[12px]">
                     <thead>
                       <tr>
-                        {b.columns.map((c) => (
+                        {b.tableColumns.map((c) => (
                           <th
                             key={c.id}
                             className="border border-border bg-muted/50 px-2 py-1 text-left font-semibold"
                           >
-                            {c.displayName.trim() || c.field}
+                            {c.displayName.trim() || c.originalTag}
                           </th>
                         ))}
                       </tr>
@@ -1779,20 +2017,37 @@ export function DynamicAttachmentApproverSummary() {
                     <tbody>
                       {[1, 2].map((r) => (
                         <tr key={r}>
-                          {b.columns.map((c) => (
-                            <td key={c.id} className="border border-border px-2 py-1 text-muted-foreground">
-                              {`${c.field}_${r}`}
+                          {b.tableColumns.map((c) => (
+                            <td
+                              key={c.id}
+                              className="border border-border px-2 py-1 text-muted-foreground"
+                            >
+                              {`${c.originalTag}_${r}`}
                             </td>
                           ))}
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                )}
-              </div>
-            ))}
+                </div>
+              ) : (
+                <div key={b.id} className="rounded-lg border border-border bg-background p-3">
+                  <div className="text-[13px] font-semibold">Dynamic Table (Bulk CSV Upload)</div>
+                  <div className="mt-1 text-[12px]">
+                    <span className="text-muted-foreground">Audience Scope: </span>
+                    <span className="font-medium">{b.resolvedAudienceName}</span>
+                  </div>
+                  <ul className="mt-1.5 space-y-0.5 text-[12px] font-medium">
+                    <li>✅ Master Bulk CSV Data Attached</li>
+                    {b.hasTargetedVendorList && <li>✅ Targeted Vendor List Attached</li>}
+                    {b.hasTargetedMfdList && <li>✅ Targeted MFD List Attached</li>}
+                  </ul>
+                </div>
+              ),
+            )}
           </div>
         )}
+
 
         {varsMapped && (
           <span
