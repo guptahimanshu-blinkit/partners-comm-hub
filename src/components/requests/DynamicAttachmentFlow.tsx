@@ -103,6 +103,19 @@ export interface FileAttachmentBlock {
   hasBulkCsv: boolean;
 }
 
+/* --- Template variables (independent of any attachment configuration) --- */
+
+export type VariableMode = "query" | "bulk" | null;
+
+export const TEMPLATE_VARIABLES = ["{{vendor_name}}"];
+
+export const VARIABLE_QUERIES: { id: string; name: string }[] = [
+  { id: "vq-301", name: "Vendor Master — Name & Legal Entity" },
+  { id: "vq-302", name: "Vendor Contact Directory (Active)" },
+  { id: "vq-303", name: "Vendor Onboarding Snapshot" },
+  { id: "vq-304", name: "MFD Master — Name & Site" },
+];
+
 export const JIS_QUERIES: { id: string; name: string }[] = [
   { id: "jis-101", name: "Vendor GRN Charges Summary" },
   { id: "jis-102", name: "Pending Rebates Output" },
@@ -1826,7 +1839,6 @@ function TableAttachmentBlockCard({
 export function DynamicAttachmentApproverSummary() {
   const f = useFlow();
   const readyTables = f.tableBlocks.filter((b) => b.isReady);
-  const varsMapped = f.varChecked && f.varsRequired && f.varQueryChecked && f.varQueryValid;
 
   return (
     <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
@@ -2018,15 +2030,6 @@ export function DynamicAttachmentApproverSummary() {
         )}
 
 
-        {varsMapped && (
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium"
-            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Template Variables: Query Mapped Successfully
-          </span>
-        )}
       </div>
     </div>
   );
