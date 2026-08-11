@@ -103,6 +103,19 @@ export interface FileAttachmentBlock {
   hasBulkCsv: boolean;
 }
 
+/* --- Template variables (independent of any attachment configuration) --- */
+
+export type VariableMode = "query" | "bulk" | null;
+
+export const TEMPLATE_VARIABLES = ["{{vendor_name}}"];
+
+export const VARIABLE_QUERIES: { id: string; name: string }[] = [
+  { id: "vq-301", name: "Vendor Master — Name & Legal Entity" },
+  { id: "vq-302", name: "Vendor Contact Directory (Active)" },
+  { id: "vq-303", name: "Vendor Onboarding Snapshot" },
+  { id: "vq-304", name: "MFD Master — Name & Site" },
+];
+
 export const JIS_QUERIES: { id: string; name: string }[] = [
   { id: "jis-101", name: "Vendor GRN Charges Summary" },
   { id: "jis-102", name: "Pending Rebates Output" },
@@ -349,13 +362,80 @@ function useFlowState() {
     },
   ]);
 
-  const [templateId, setTemplateId] = useState("");
-  const [varChecked, setVarChecked] = useState(false);
-  const [varQuery, setVarQuery] = useState("");
-  const [varQueryChecked, setVarQueryChecked] = useState(false);
-  const [varQueryValid, setVarQueryValid] = useState(false);
+  /* --- Template variables (independent of attachment configuration) --- */
+  const [templateHasVariables, setTemplateHasVariables] = useState<boolean | null>(null);
+  const [variableMode, setVariableModeRaw] = useState<VariableMode>(null);
+  const [variableQueryName, setVariableQueryName] = useState<string | null>(null);
+  const [variableVendorScope, setVariableVendorScope] = useState<VendorScope>("Not included");
+  const [variableMfdScope, setVariableMfdScope] = useState<MfdScope>("Not included");
+  const [variableHasTargetedVendorList, setVariableHasTargetedVendorList] = useState(false);
+  const [variableHasTargetedMfdList, setVariableHasTargetedMfdList] = useState(false);
+  const [variableHasBulkCsv, setVariableHasBulkCsv] = useState(false);
 
-  const varsRequired = templateId.includes("9") || templateId.trim() === "1234567";
+  function resetVariableConfig() {
+    setVariableQueryName(null);
+    setVariableVendorScope("Not included");
+    setVariableMfdScope("Not included");
+    setVariableHasTargetedVendorList(false);
+    setVariableHasTargetedMfdList(false);
+    setVariableHasBulkCsv(false);
+  }
+
+  const variableDirty =
+    Boolean(variableQueryName) ||
+    variableVendorScope !== "Not included" ||
+    variableMfdScope !== "Not included" ||
+    variableHasTargetedVendorList ||
+    variableHasTargetedMfdList ||
+    variableHasBulkCsv;
+
+  function setVariableMode(mode: Exclude<VariableMode, null>) {
+    if (variableMode === mode) return;
+    if (variableMode && variableDirty) {
+      if (!window.confirm("Changing this mode will clear your variable configurations. Continue?"))
+        return;
+    }
+    resetVariableConfig();
+    setVariableModeRaw(mode);
+  }
+
+  /** Simulated Apollo variable check, fired by the top-of-form "Check Template" button. */
+  function runTemplateVariableCheck(id: string) {
+    const trimmed = id.trim();
+    const hasVars = trimmed.includes("9") || trimmed === "1234567";
+    setTemplateHasVariables(hasVars);
+    if (!hasVars) {
+      setVariableModeRaw(null);
+      resetVariableConfig();
+    }
+  }
+
+  function resetTemplateVariableCheck() {
+    setTemplateHasVariables(null);
+    setVariableModeRaw(null);
+    resetVariableConfig();
+  }
+
+  const variableResolvedAudienceName = resolveCombinationName(
+    variableVendorScope,
+    variableMfdScope,
+  );
+
+  const isVariableBlockReady = (() => {
+    if (templateHasVariables !== true) return false;
+    if (variableMode === "query") return Boolean(variableQueryName);
+    if (variableMode === "bulk") {
+      if (variableVendorScope === "Not included" && variableMfdScope === "Not included")
+        return false;
+      if (variableVendorScope === "Targeted Vendors" && !variableHasTargetedVendorList)
+        return false;
+      if (variableMfdScope === "Targeted MFDs" && !variableHasTargetedMfdList) return false;
+      return variableHasBulkCsv;
+    }
+    return false;
+  })();
+
+
   const isPdf = attachmentType === "dynamic_pdf";
 
   const pdfDirty =
@@ -523,8 +603,8 @@ function useFlowState() {
         );
     }
 
-    if (varChecked && varsRequired && !(varQueryChecked && varQueryValid))
-      out.push("Template variable query must pass the check.");
+    if (templateHasVariables === true && !isVariableBlockReady)
+      out.push("Template variable values must be configured (JIS query or bulk CSV).");
     return out;
   }, [
     isPdf,
@@ -538,11 +618,10 @@ function useFlowState() {
 
     fileBlocks,
 
-    varChecked,
-    varsRequired,
-    varQueryChecked,
-    varQueryValid,
+    templateHasVariables,
+    isVariableBlockReady,
   ]);
+
 
   return {
     attachmentType,
@@ -572,17 +651,26 @@ function useFlowState() {
     patchFileBlock,
     setFileBlockMode,
 
-    templateId,
-    setTemplateId,
-    varChecked,
-    setVarChecked,
-    varQuery,
-    setVarQuery,
-    varQueryChecked,
-    setVarQueryChecked,
-    varQueryValid,
-    setVarQueryValid,
-    varsRequired,
+    templateHasVariables,
+    runTemplateVariableCheck,
+    resetTemplateVariableCheck,
+    variableMode,
+    setVariableMode,
+    variableQueryName,
+    setVariableQueryName,
+    variableVendorScope,
+    setVariableVendorScope,
+    variableMfdScope,
+    setVariableMfdScope,
+    variableHasTargetedVendorList,
+    setVariableHasTargetedVendorList,
+    variableHasTargetedMfdList,
+    setVariableHasTargetedMfdList,
+    variableHasBulkCsv,
+    setVariableHasBulkCsv,
+    variableResolvedAudienceName,
+    isVariableBlockReady,
+
     blockers,
   };
 }
@@ -749,112 +837,6 @@ export function DynamicAttachmentSections() {
         </section>
       )}
 
-      {/* Part D */}
-      <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-        <h3 className="text-sm font-semibold">D · Template variable check</h3>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <div className="text-[12px] text-muted-foreground">Template ID</div>
-            <Input
-              value={f.templateId}
-              placeholder="e.g. 1234567"
-              className="h-9 w-56"
-              onChange={(e) => {
-                f.setTemplateId(e.target.value);
-                f.setVarChecked(false);
-                f.setVarQueryChecked(false);
-                f.setVarQueryValid(false);
-              }}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => f.setVarChecked(true)}
-            disabled={!f.templateId.trim()}
-          >
-            Check Template Variables
-          </Button>
-        </div>
-        <p className="text-[12px] text-muted-foreground">
-          Note: manual button exists only for demo.
-        </p>
-
-        {f.varChecked && !f.varsRequired && (
-          <div className="rounded-lg border border-border bg-muted/30 p-3 text-[13px] text-muted-foreground">
-            No variables detected in this template.
-          </div>
-        )}
-
-        {f.varChecked && f.varsRequired && (
-          <div
-            className="space-y-3 rounded-lg border-2 p-3"
-            style={{
-              borderColor:
-                f.varQueryChecked && f.varQueryValid
-                  ? ACCENT
-                  : f.varQueryChecked
-                    ? "hsl(var(--destructive))"
-                    : "#f0b100",
-              backgroundColor:
-                f.varQueryChecked && f.varQueryValid ? `${ACCENT}0D` : "transparent",
-            }}
-          >
-            <div className="text-[13px]">
-              This template requires values for:{" "}
-              {["{{vendor_name}}", "{{invoice_amount}}", "{{due_date}}"].map((v, i) => (
-                <span key={v}>
-                  {i === 2 ? "and " : ""}
-                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">{v}</code>
-                  {i < 2 ? ", " : ""}
-                </span>
-              ))}
-              . Attach a query to fill this per recipient.
-            </div>
-
-            <Textarea
-              rows={4}
-              value={f.varQuery}
-              placeholder="Paste your query here"
-              className="bg-background font-mono text-[12px]"
-              onChange={(e) => {
-                f.setVarQuery(e.target.value);
-                f.setVarQueryChecked(false);
-                f.setVarQueryValid(false);
-              }}
-            />
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  f.setVarQueryValid(AUDIENCE_ID_RE.test(f.varQuery));
-                  f.setVarQueryChecked(true);
-                }}
-              >
-                Check Query
-              </Button>
-              {f.varQueryChecked && (
-                <span
-                  className="flex items-center gap-1.5 text-[12px] font-medium"
-                  style={{ color: f.varQueryValid ? ACCENT : "hsl(var(--destructive))" }}
-                >
-                  {f.varQueryValid ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" /> Audience ID column found
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-4 w-4" /> No audience ID column detected
-                    </>
-                  )}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
     </div>
   );
 }
@@ -1857,7 +1839,6 @@ function TableAttachmentBlockCard({
 export function DynamicAttachmentApproverSummary() {
   const f = useFlow();
   const readyTables = f.tableBlocks.filter((b) => b.isReady);
-  const varsMapped = f.varChecked && f.varsRequired && f.varQueryChecked && f.varQueryValid;
 
   return (
     <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
@@ -2049,16 +2030,301 @@ export function DynamicAttachmentApproverSummary() {
         )}
 
 
-        {varsMapped && (
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium"
-            style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Template Variables: Query Mapped Successfully
-          </span>
-        )}
       </div>
+    </div>
+  );
+}
+
+/* ---------------- Template Variables (triggered by top "Check Template") ---------------- */
+
+/** Exposes the variable-check trigger + status to the submitter form header. */
+export function useTemplateVariables() {
+  const f = useFlow();
+  return {
+    templateHasVariables: f.templateHasVariables,
+    runTemplateVariableCheck: f.runTemplateVariableCheck,
+    resetTemplateVariableCheck: f.resetTemplateVariableCheck,
+    isVariableBlockReady: f.isVariableBlockReady,
+  };
+}
+
+function VarList() {
+  return (
+    <>
+      {TEMPLATE_VARIABLES.map((v, i) => (
+        <span key={v}>
+          {i > 0 ? ", " : ""}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">{v}</code>
+        </span>
+      ))}
+    </>
+  );
+}
+
+function ScopeRadios<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[12px] font-medium">{label}</div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => {
+          const active = value === opt;
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(opt)}
+              style={active ? { borderColor: ACCENT, color: ACCENT, backgroundColor: `${ACCENT}0D` } : undefined}
+              className={cn(
+                "rounded-full border px-3 py-1 text-[12px] font-medium transition",
+                active ? "" : "border-border text-muted-foreground hover:border-primary/50",
+              )}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function UploadTile({
+  done,
+  title,
+  hint,
+  onToggle,
+}: {
+  done: boolean;
+  title: string;
+  hint?: string;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className="rounded-lg border border-dashed p-4 text-center"
+      style={{ borderColor: `${ACCENT}80`, backgroundColor: `${ACCENT}0D` }}
+    >
+      {done ? (
+        <CheckCircle2 className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+      ) : (
+        <Upload className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+      )}
+      <div className="mt-2 text-[13px] font-medium">{done ? `${title} — uploaded` : title}</div>
+      {hint && <p className="mt-1 text-[12px] text-muted-foreground">{hint}</p>}
+      <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onToggle}>
+        {done ? "Remove file" : "Choose file"}
+      </Button>
+    </div>
+  );
+}
+
+/** Submitter-side variable configuration card. Render directly under the fetched Template Name. */
+export function TemplateVariableSection() {
+  const f = useFlow();
+
+  if (f.templateHasVariables === null) return null;
+
+  if (f.templateHasVariables === false) {
+    return (
+      <p className="mt-2 text-[12px] text-muted-foreground">
+        No variables detected in this template.
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className="mt-3 space-y-4 rounded-xl border-2 p-4"
+      style={{ borderColor: f.isVariableBlockReady ? ACCENT : "#f0b100" }}
+    >
+      <div>
+        <div className="text-sm font-semibold">
+          This template requires values for: <VarList />
+        </div>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          Attach a source so these values can be filled in per recipient at send time.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(
+          [
+            ["query", "Query Attachment", "Use a query already approved on JIS Analytics."],
+            [
+              "bulk",
+              "Bulk Upload Attachment",
+              "For urgent templates with no time to get a query approved on JIS — upload values directly.",
+            ],
+          ] as const
+        ).map(([mode, title, desc]) => {
+          const active = f.variableMode === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => f.setVariableMode(mode)}
+              style={active ? { borderColor: ACCENT, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
+              className={cn(
+                "rounded-lg border p-3 text-left transition",
+                active ? "bg-cat-green-soft/40" : "border-border bg-card hover:border-primary/50",
+              )}
+            >
+              <div className="text-[13px] font-semibold">{title}</div>
+              <div className="mt-1 text-[12px] leading-snug text-muted-foreground">{desc}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {f.variableMode === "query" && (
+        <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+          <div className="space-y-1.5">
+            <div className="text-[12px] font-medium">Select your query</div>
+            <Select
+              value={f.variableQueryName ?? ""}
+              onValueChange={(v) => f.setVariableQueryName(v)}
+            >
+              <SelectTrigger className="h-9 w-full sm:w-96">
+                <SelectValue placeholder="Pick a JIS-approved query" />
+              </SelectTrigger>
+              <SelectContent>
+                {VARIABLE_QUERIES.map((q) => (
+                  <SelectItem key={q.id} value={q.name}>
+                    {q.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {f.variableQueryName && (
+            <div className="space-y-1.5">
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
+                style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Audience ID column found
+              </span>
+              <p className="text-[12px] text-muted-foreground">
+                Selected query will supply values for: <VarList />
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {f.variableMode === "bulk" && (
+        <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+          <ScopeRadios
+            label="Vendor Scope"
+            value={f.variableVendorScope}
+            options={VENDOR_SCOPES}
+            onChange={f.setVariableVendorScope}
+          />
+          <ScopeRadios
+            label="MFD Scope"
+            value={f.variableMfdScope}
+            options={MFD_SCOPES}
+            onChange={f.setVariableMfdScope}
+          />
+          {f.variableVendorScope === "Not included" && f.variableMfdScope === "Not included" && (
+            <p className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5" /> Select at least one audience type
+            </p>
+          )}
+
+          {f.variableVendorScope === "Targeted Vendors" && (
+            <UploadTile
+              done={f.variableHasTargetedVendorList}
+              title="Upload Targeted Vendor List (.csv, .xlsx, .xls)"
+              onToggle={() => f.setVariableHasTargetedVendorList(!f.variableHasTargetedVendorList)}
+            />
+          )}
+          {f.variableMfdScope === "Targeted MFDs" && (
+            <UploadTile
+              done={f.variableHasTargetedMfdList}
+              title="Upload Targeted MFD List (.csv, .xlsx, .xls)"
+              onToggle={() => f.setVariableHasTargetedMfdList(!f.variableHasTargetedMfdList)}
+            />
+          )}
+
+          <UploadTile
+            done={f.variableHasBulkCsv}
+            title="Upload a CSV with one row per recipient, including the values for the template variables."
+            hint="Accepts .csv, .xlsx, .xls. At send time, the system will filter this file to find each vendor's row using vendor_id and fill in their values individually."
+            onToggle={() => f.setVariableHasBulkCsv(!f.variableHasBulkCsv)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Approver-side mirror of the template variable configuration. */
+export function TemplateVariableApproverSummary() {
+  const f = useFlow();
+  if (f.templateHasVariables !== true) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Template Variables Configuration
+      </div>
+
+      {!f.variableMode && (
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          Variables detected — submitter has not picked a source mode yet.
+        </p>
+      )}
+
+      {f.variableMode === "query" && (
+        <div className="mt-2 space-y-1.5">
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Mode: </span>
+            <span className="font-medium">JIS Query Attachment</span>
+          </div>
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Query Name: </span>
+            <span className="font-medium">{f.variableQueryName ?? "—"}</span>
+          </div>
+          {f.isVariableBlockReady && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
+              style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Variables mapped successfully via query.
+            </span>
+          )}
+        </div>
+      )}
+
+      {f.variableMode === "bulk" && (
+        <div className="mt-2 space-y-1.5">
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Mode: </span>
+            <span className="font-medium">Bulk CSV Upload</span>
+          </div>
+          <div className="text-[13px]">
+            <span className="text-muted-foreground">Scope: </span>
+            <span className="font-medium">{f.variableResolvedAudienceName || "—"}</span>
+          </div>
+          <ul className="space-y-0.5 text-[12px] font-medium">
+            {f.variableHasBulkCsv && <li>✅ Master Values CSV Attached</li>}
+            {f.variableHasTargetedVendorList && <li>✅ Targeted Vendor List Attached</li>}
+            {f.variableHasTargetedMfdList && <li>✅ Targeted MFD List Attached</li>}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

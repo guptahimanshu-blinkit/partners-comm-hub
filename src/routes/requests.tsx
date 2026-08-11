@@ -39,6 +39,9 @@ import {
   DynamicAttachmentProvider,
   DynamicAttachmentSections,
   DynamicAttachmentApproverSummary,
+  TemplateVariableSection,
+  TemplateVariableApproverSummary,
+  useTemplateVariables,
   useDynamicAttachmentBlockers,
 
 } from "@/components/requests/DynamicAttachmentFlow";
@@ -792,12 +795,14 @@ function CheckTemplateButton({
   label = "Check Template",
   subject,
   bodyHtml,
+  onCheck,
 }: {
   templateId: string;
   variant?: "outline" | "default";
   label?: string;
   subject?: string;
   bodyHtml?: string;
+  onCheck?: (templateId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const id = templateId.trim();
@@ -810,7 +815,10 @@ function CheckTemplateButton({
         variant={variant}
         disabled={!id}
         className="shrink-0 gap-1.5 whitespace-nowrap"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          onCheck?.(id);
+          setOpen(true);
+        }}
       >
         <Search className="h-3.5 w-3.5" />
         {label}
@@ -849,6 +857,7 @@ function NewRequestForm({
   onDone: () => void;
 }) {
   const attachmentBlockers = useDynamicAttachmentBlockers();
+  const { runTemplateVariableCheck, resetTemplateVariableCheck } = useTemplateVariables();
 
   const src = intent.mode === "new" ? null : intent.source;
   const isEdit = intent.mode === "edit";
@@ -1197,10 +1206,13 @@ function NewRequestForm({
           <div className="flex items-center gap-2">
             <Input
               value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
+              onChange={(e) => {
+                setTemplateId(e.target.value);
+                resetTemplateVariableCheck();
+              }}
               placeholder="Paste the Template ID copied from Apollo"
             />
-            <CheckTemplateButton templateId={templateId} />
+            <CheckTemplateButton templateId={templateId} onCheck={runTemplateVariableCheck} />
           </div>
           {apolloTemplate && (
             <p className="mt-2 text-[11px] text-muted-foreground">
@@ -1223,6 +1235,7 @@ function NewRequestForm({
               ? `ℹ️ Auto-fetched from Apollo Service for Template ID: ${templateId.trim()}`
               : "ℹ️ Will be auto-fetched from Apollo Service based on the Template ID entered above."}
           </p>
+          <TemplateVariableSection />
         </FormRow>
         <FormRow label="Submitted By">
           <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
@@ -3572,6 +3585,8 @@ function RequestDetail({
           </div>
           <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">{purposeValue}</p>
         </div>
+
+        <TemplateVariableApproverSummary />
 
         <div className="mt-3 space-y-2">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
