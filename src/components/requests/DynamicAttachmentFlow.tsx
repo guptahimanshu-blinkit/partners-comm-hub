@@ -259,6 +259,22 @@ function useFlowState() {
       columns: [],
     },
   ]);
+  const [fileBlocks, setFileBlocks] = useState<FileAttachmentBlock[]>([
+    {
+      id: "file-1",
+      attachmentMode: null,
+      isReady: false,
+      selectedQueryId: null,
+      selectedQueryName: null,
+      vendorScope: "Not included",
+      mfdScope: "Not included",
+      resolvedAudienceName: "",
+      hasTargetedVendorList: false,
+      hasTargetedMfdList: false,
+      hasBulkCsv: false,
+    },
+  ]);
+
   const [templateId, setTemplateId] = useState("");
   const [varChecked, setVarChecked] = useState(false);
   const [varQuery, setVarQuery] = useState("");
