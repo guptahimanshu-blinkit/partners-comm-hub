@@ -76,6 +76,32 @@ export interface AttachmentBlock {
   columns: MappedColumn[];
 }
 
+/* --- Normal Dynamic Attachment (raw CSV/Excel export) — separate from Dynamic Tables --- */
+
+export type FileAttachmentMode = "query" | "bulk" | null;
+
+export interface FileAttachmentBlock {
+  id: string;
+  attachmentMode: FileAttachmentMode;
+  isReady: boolean;
+  selectedQueryId: string | null;
+  selectedQueryName: string | null;
+  vendorScope: VendorScope;
+  mfdScope: MfdScope;
+  resolvedAudienceName: string;
+  hasTargetedVendorList: boolean;
+  hasTargetedMfdList: boolean;
+  hasBulkCsv: boolean;
+}
+
+export const JIS_QUERIES: { id: string; name: string }[] = [
+  { id: "jis-101", name: "Vendor GRN Charges Summary" },
+  { id: "jis-102", name: "Pending Rebates Output" },
+  { id: "jis-103", name: "Fill Rate Weekly Extract" },
+  { id: "jis-104", name: "Invoice Ageing (Vendor Level)" },
+  { id: "jis-105", name: "MFD Appointment Adherence" },
+];
+
 const ACCENT = "#2F7D32";
 const AUDIENCE_ID_RE = /(vendor_id|manufacturer_id)/i;
 
@@ -88,6 +114,44 @@ const newBlock = (): AttachmentBlock => ({
   detectedFields: [],
   columns: [],
 });
+
+let fid = 1;
+const newFileBlock = (): FileAttachmentBlock => ({
+  id: `file-${++fid}`,
+  attachmentMode: null,
+  isReady: false,
+  selectedQueryId: null,
+  selectedQueryName: null,
+  vendorScope: "Not included",
+  mfdScope: "Not included",
+  resolvedAudienceName: "",
+  hasTargetedVendorList: false,
+  hasTargetedMfdList: false,
+  hasBulkCsv: false,
+});
+
+function computeFileBlockReady(b: FileAttachmentBlock): boolean {
+  if (b.attachmentMode === "query") return Boolean(b.selectedQueryId);
+  if (b.attachmentMode === "bulk") {
+    if (b.vendorScope === "Not included" && b.mfdScope === "Not included") return false;
+    if (b.vendorScope === "Targeted Vendors" && !b.hasTargetedVendorList) return false;
+    if (b.mfdScope === "Targeted MFDs" && !b.hasTargetedMfdList) return false;
+    return b.hasBulkCsv;
+  }
+  return false;
+}
+
+function fileBlockDirty(b: FileAttachmentBlock): boolean {
+  return Boolean(
+    b.selectedQueryId ||
+      b.hasBulkCsv ||
+      b.hasTargetedVendorList ||
+      b.hasTargetedMfdList ||
+      b.vendorScope !== "Not included" ||
+      b.mfdScope !== "Not included",
+  );
+}
+
 
 let gid = 1;
 const newEntityBlock = (): EntityBlock => ({
