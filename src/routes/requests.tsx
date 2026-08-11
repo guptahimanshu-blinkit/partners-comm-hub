@@ -1653,12 +1653,24 @@ function NewRequestForm({
         waMetaId={waMetaId}
       />
 
+      {attachmentBlockers.length > 0 && (
+        <div className="rounded-lg border border-cat-amber/40 bg-cat-amber/10 p-3 text-[12px]">
+          <div className="font-semibold">Complete the attachment configuration to submit:</div>
+          <ul className="mt-1 list-disc pl-4 text-muted-foreground">
+            {attachmentBlockers.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onDone}>
           Cancel
         </Button>
         <Button
           onClick={submit}
+          disabled={attachmentBlockers.length > 0}
           className={
             audienceCount > 1000 ? "bg-cat-amber text-white hover:bg-cat-amber/90" : undefined
           }
@@ -1674,6 +1686,7 @@ function NewRequestForm({
                 : "Submit Request"}
         </Button>
       </div>
+
 
       </div>
 
