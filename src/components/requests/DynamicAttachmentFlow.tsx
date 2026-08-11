@@ -915,7 +915,6 @@ function AttachmentBlockCard({
 
 export function DynamicAttachmentApproverSummary() {
   const f = useFlow();
-  const groups = f.b2AudienceGroups;
   const passed = f.blocks.filter((b) => b.checked && b.queryValid);
   const varsMapped = f.varChecked && f.varsRequired && f.varQueryChecked && f.varQueryValid;
 
@@ -940,31 +939,61 @@ export function DynamicAttachmentApproverSummary() {
           </p>
         )}
 
-        {f.attachmentType === "dynamic_pdf" && (
-          <ul className="space-y-1.5">
-            {groups.map((g, i) => {
-              const clear = g.pdfFiles.length > 0 && g.hasTargetedList;
-              return (
-                <li key={g.id} className="flex flex-wrap items-center gap-2 text-[13px]">
-                  {clear ? (
-                    <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className={clear ? "font-medium" : "text-muted-foreground"}>
-                    {g.entity || "—"} ({g.subType || "—"} MFDs) — {g.pdfFiles.length} PDF
-                    {g.pdfFiles.length === 1 ? "" : "s"} attached
-                  </span>
-                  {!clear && (
-                    <span className="text-[11px] text-muted-foreground">
-                      (Group {i + 1} pending uploads)
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+        {f.attachmentType === "dynamic_pdf" && !f.pdfMode && (
+          <p className="text-[13px] text-muted-foreground">
+            Dynamic PDF selected — submitter has not picked a mode yet.
+          </p>
         )}
+
+        {f.attachmentType === "dynamic_pdf" && f.pdfMode === "entity" && (
+          <div className="space-y-2.5">
+            <div className="text-[12px] font-semibold" style={{ color: ACCENT }}>
+              Dynamic PDF (Entity Level)
+            </div>
+            {f.entityBlocks.map((b, i) => (
+              <div key={b.id} className="rounded-lg border border-border bg-background p-2.5">
+                <div className="text-[13px] font-medium">
+                  Entity: {b.entity || `— (block ${i + 1})`}
+                </div>
+                <ul className="mt-1 space-y-1 text-[12px]">
+                  <li className={b.hasPdfs ? "font-medium" : "text-muted-foreground"}>
+                    {b.hasPdfs ? "✅ PDF set attached" : "⚠️ PDF set missing"}
+                  </li>
+                  <li className={b.hasMfdList ? "font-medium" : "text-muted-foreground"}>
+                    {b.hasMfdList ? "✅ MFD list attached" : "⚠️ MFD list missing"}
+                  </li>
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {f.attachmentType === "dynamic_pdf" && f.pdfMode === "user" && (
+          <div className="space-y-2">
+            <div className="text-[12px] font-semibold" style={{ color: ACCENT }}>
+              Dynamic PDF (User Level)
+            </div>
+            <ul className="space-y-1.5">
+              {f.userBlocks.map((b, i) => {
+                const ready = userBlockReady(b);
+                return (
+                  <li key={b.id} className="flex flex-wrap items-center gap-2 text-[13px]">
+                    {ready ? (
+                      <CheckCircle2 className="h-4 w-4" style={{ color: ACCENT }} />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className={ready ? "font-medium" : "text-muted-foreground"}>
+                      {b.resolvedName || `Combination ${i + 1} not configured`}
+                      {ready ? " — PDFs and lists attached" : " — pending uploads"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
 
         {f.attachmentType === "dynamic_attachment" && (
           <p className="text-[13px]">
