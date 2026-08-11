@@ -590,8 +590,8 @@ function useFlowState() {
         );
     }
 
-    if (varChecked && varsRequired && !(varQueryChecked && varQueryValid))
-      out.push("Template variable query must pass the check.");
+    if (templateHasVariables === true && !isVariableBlockReady)
+      out.push("Template variable values must be configured (JIS query or bulk CSV).");
     return out;
   }, [
     isPdf,
@@ -605,11 +605,10 @@ function useFlowState() {
 
     fileBlocks,
 
-    varChecked,
-    varsRequired,
-    varQueryChecked,
-    varQueryValid,
+    templateHasVariables,
+    isVariableBlockReady,
   ]);
+
 
   return {
     attachmentType,
