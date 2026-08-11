@@ -416,13 +416,13 @@ function useFlowState() {
         if (Object.values(userDuplicateOf).some(Boolean))
           out.push("Duplicate audience combinations configured.");
       }
-    } else if (attachmentType !== "none") {
+    } else if (attachmentType === "dynamic_attachment") {
+      if (!fileBlocks.every((b) => b.isReady))
+        out.push("Every file attachment block must be Ready (query selected, or bulk CSV + audience).");
+    } else if (attachmentType === "dynamic_table") {
       if (!blocks.every((b) => b.checked && b.queryValid))
         out.push("Every attachment block needs a passing query check.");
-      if (
-        attachmentType === "dynamic_table" &&
-        !blocks.every((b) => b.columns.length > 0 && b.columns.every((c) => c.displayName.trim()))
-      )
+      if (!blocks.every((b) => b.columns.length > 0 && b.columns.every((c) => c.displayName.trim())))
         out.push("Every mapped table column needs a display name.");
     }
     if (varChecked && varsRequired && !(varQueryChecked && varQueryValid))
@@ -437,6 +437,8 @@ function useFlowState() {
     userDuplicateOf,
     attachmentType,
     blocks,
+    fileBlocks,
+
     varChecked,
     varsRequired,
     varQueryChecked,
