@@ -1094,7 +1094,276 @@ function UserLevelFlow() {
 
 
 
+/* ---------------- Normal Dynamic Attachment: Query vs Bulk branching ---------------- */
+
+function FileAttachmentSections() {
+  const f = useFlow();
+  return (
+    <div className="space-y-3">
+      {f.fileBlocks.map((b, i) => (
+        <FileAttachmentBlockCard
+          key={b.id}
+          index={i}
+          block={b}
+          canRemove={f.fileBlocks.length > 1}
+          onMode={(m) => f.setFileBlockMode(b.id, m)}
+          onPatch={(patch) => f.patchFileBlock(b.id, patch)}
+          onRemove={() => f.setFileBlocks((prev) => prev.filter((p) => p.id !== b.id))}
+        />
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => f.setFileBlocks((prev) => [...prev, newFileBlock()])}
+      >
+        <Plus className="mr-1.5 h-4 w-4" /> Add another attachment
+      </Button>
+    </div>
+  );
+}
+
+function FileAttachmentBlockCard({
+  index,
+  block,
+  canRemove,
+  onMode,
+  onPatch,
+  onRemove,
+}: {
+  index: number;
+  block: FileAttachmentBlock;
+  canRemove: boolean;
+  onMode: (mode: Exclude<FileAttachmentMode, null>) => void;
+  onPatch: (patch: Partial<FileAttachmentBlock>) => void;
+  onRemove: () => void;
+}) {
+  const noAudience =
+    block.attachmentMode === "bulk" &&
+    block.vendorScope === "Not included" &&
+    block.mfdScope === "Not included";
+
+  const MODE_CARDS: { id: "query" | "bulk"; label: string; desc: string; icon: typeof Paperclip }[] =
+    [
+      {
+        id: "query",
+        label: "Query Attachment",
+        desc: "Use a query already approved on JIS Analytics.",
+        icon: Paperclip,
+      },
+      {
+        id: "bulk",
+        label: "Bulk Upload Attachment",
+        desc: "For urgent templates with no time to get a query approved on JIS — upload data directly.",
+        icon: Upload,
+      },
+    ];
+
+  return (
+    <div
+      className="space-y-3 rounded-xl border-2 bg-card p-4"
+      style={{ borderColor: block.isReady ? ACCENT : "hsl(var(--border))" }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">Attachment Block {index + 1}</div>
+        <div className="flex items-center gap-2">
+          <StatusBadge ready={block.isReady} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={!canRemove}
+            onClick={onRemove}
+            aria-label={`Remove attachment block ${index + 1}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Step 0 · Mode */}
+      <div className="space-y-2">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Step 0 · How is the file produced?
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {MODE_CARDS.map((c) => {
+            const Icon = c.icon;
+            const active = block.attachmentMode === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onMode(c.id)}
+                style={active ? { borderColor: ACCENT, boxShadow: `0 0 0 1px ${ACCENT}` } : undefined}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  active ? "bg-cat-green-soft/40" : "border-border bg-card hover:border-primary/50",
+                )}
+              >
+                <div className="flex items-center gap-2 text-[13px] font-semibold">
+                  <Icon className="h-4 w-4" style={{ color: active ? ACCENT : undefined }} />
+                  {c.label}
+                </div>
+                <div className="mt-1 text-[12px] leading-snug text-muted-foreground">{c.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {!block.attachmentMode && (
+        <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-[13px] text-muted-foreground">
+          <Info className="h-4 w-4" />
+          Pick how this file will be sourced to continue.
+        </div>
+      )}
+
+      {/* Query mode */}
+      {block.attachmentMode === "query" && (
+        <div className="space-y-2">
+          <div className="text-[12px] text-muted-foreground">Select your query</div>
+          <Select
+            value={block.selectedQueryId ?? ""}
+            onValueChange={(v) =>
+              onPatch({
+                selectedQueryId: v,
+                selectedQueryName: JIS_QUERIES.find((q) => q.id === v)?.name ?? null,
+              })
+            }
+          >
+            <SelectTrigger className="sm:max-w-md">
+              <SelectValue placeholder="Select a JIS-approved query" />
+            </SelectTrigger>
+            <SelectContent>
+              {JIS_QUERIES.map((q) => (
+                <SelectItem key={q.id} value={q.id}>
+                  {q.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {block.selectedQueryId && (
+            <div className="space-y-1.5">
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
+                style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Audience ID column found
+              </span>
+              <p className="text-[12px] text-muted-foreground">
+                The output file corresponding to this query will be attached with this template.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bulk mode */}
+      {block.attachmentMode === "bulk" && (
+        <div className="space-y-3">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <div className="text-[12px] text-muted-foreground">Vendor scope</div>
+              {VENDOR_SCOPES.map((s) => (
+                <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                  <input
+                    type="radio"
+                    name={`file-vendor-${block.id}`}
+                    checked={block.vendorScope === s}
+                    onChange={() => onPatch({ vendorScope: s })}
+                    style={{ accentColor: ACCENT }}
+                  />
+                  {s}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-1.5">
+              <div className="text-[12px] text-muted-foreground">MFD scope</div>
+              {MFD_SCOPES.map((s) => (
+                <label key={s} className="flex cursor-pointer items-center gap-2 text-[13px]">
+                  <input
+                    type="radio"
+                    name={`file-mfd-${block.id}`}
+                    checked={block.mfdScope === s}
+                    onChange={() => onPatch({ mfdScope: s })}
+                    style={{ accentColor: ACCENT }}
+                  />
+                  {s}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {noAudience && (
+            <div className="flex items-center gap-1.5 text-[12px] font-medium text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Select at least one audience type
+            </div>
+          )}
+
+          {!noAudience && (
+            <>
+              <div className="text-[13px] font-semibold">{block.resolvedAudienceName}</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {block.vendorScope === "Targeted Vendors" && (
+                  <UploadButton
+                    label="Upload targeted vendor list (.csv, .xlsx)"
+                    done={block.hasTargetedVendorList}
+                    doneLabel="Vendor list uploaded"
+                    onClick={() =>
+                      onPatch({ hasTargetedVendorList: !block.hasTargetedVendorList })
+                    }
+                  />
+                )}
+                {block.mfdScope === "Targeted MFDs" && (
+                  <UploadButton
+                    label="Upload targeted MFD list (.csv, .xlsx)"
+                    done={block.hasTargetedMfdList}
+                    doneLabel="MFD list uploaded"
+                    onClick={() => onPatch({ hasTargetedMfdList: !block.hasTargetedMfdList })}
+                  />
+                )}
+              </div>
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onPatch({ hasBulkCsv: !block.hasBulkCsv })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") onPatch({ hasBulkCsv: !block.hasBulkCsv });
+                }}
+                className="cursor-pointer rounded-lg border border-dashed p-5 text-center"
+                style={{
+                  borderColor: block.hasBulkCsv ? ACCENT : `${ACCENT}80`,
+                  backgroundColor: `${ACCENT}0D`,
+                }}
+              >
+                {block.hasBulkCsv ? (
+                  <CheckCircle2 className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+                ) : (
+                  <Upload className="mx-auto h-5 w-5" style={{ color: ACCENT }} />
+                )}
+                <div className="mt-2 text-[13px] font-medium">
+                  {block.hasBulkCsv
+                    ? "Bulk CSV uploaded"
+                    : "Upload your query output as a CSV. This file must contain every vendor's row together, not one file per vendor."}
+                </div>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  At send time, the system will filter this file to find each vendor's row using
+                  vendor_id and attach it individually. The query behind this file should already
+                  have been run once, before uploading.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UploadButton({
+
   label,
   done,
   doneLabel,
