@@ -466,6 +466,11 @@ function useFlowState() {
     blocks,
     setBlocks,
     patchBlock,
+    fileBlocks,
+    setFileBlocks,
+    patchFileBlock,
+    setFileBlockMode,
+
     templateId,
     setTemplateId,
     varChecked,
