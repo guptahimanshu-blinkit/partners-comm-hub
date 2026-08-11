@@ -1702,20 +1702,53 @@ export function DynamicAttachmentApproverSummary() {
 
 
         {f.attachmentType === "dynamic_attachment" && (
-          <p className="text-[13px]">
-            {passed.length > 0 ? (
-              <>
-                <span className="font-medium">Data Export Configured:</span> Validated query
-                attached.
-                {passed.length > 1 ? ` (${passed.length} exports)` : ""}
-              </>
-            ) : (
-              <span className="text-muted-foreground">
-                Awaiting a validated query with audience IDs.
-              </span>
+          <div className="space-y-2.5">
+            {f.fileBlocks.filter((b) => b.isReady).length === 0 && (
+              <p className="text-[13px] text-muted-foreground">
+                Awaiting a configured raw file attachment (JIS query or bulk CSV).
+              </p>
             )}
-          </p>
+            {f.fileBlocks
+              .filter((b) => b.isReady)
+              .map((b) => (
+                <div key={b.id} className="rounded-lg border border-border bg-background p-2.5">
+                  <div className="text-[13px] font-semibold">
+                    {b.attachmentMode === "query"
+                      ? "Raw File Attachment (JIS Query)"
+                      : "Raw File Attachment (Bulk CSV Upload)"}
+                  </div>
+                  {b.attachmentMode === "query" ? (
+                    <div className="mt-1.5 space-y-1.5">
+                      <div className="text-[12px]">
+                        <span className="text-muted-foreground">Selected Query: </span>
+                        <span className="font-medium">{b.selectedQueryName}</span>
+                      </div>
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
+                        style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Raw CSV/Excel output file configured for attachment.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-1.5 space-y-1">
+                      <div className="text-[12px]">
+                        <span className="text-muted-foreground">Audience Scope: </span>
+                        <span className="font-medium">{b.resolvedAudienceName}</span>
+                      </div>
+                      <ul className="space-y-0.5 text-[12px] font-medium">
+                        <li>✅ Master Bulk CSV Data Attached</li>
+                        {b.hasTargetedVendorList && <li>✅ Targeted Vendor List Attached</li>}
+                        {b.hasTargetedMfdList && <li>✅ Targeted MFD List Attached</li>}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
         )}
+
 
         {f.attachmentType === "dynamic_table" && (
           <div className="space-y-3">
