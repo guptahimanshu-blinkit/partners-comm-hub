@@ -1990,9 +1990,8 @@ function NewCampaignWizard({
                 className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 <Zap className="h-3.5 w-3.5" />
-                {s.trigger === "One-time" || s.trigger === "Recurring"
-                  ? "Schedule campaign"
-                  : "Launch campaign"}
+                Launch campaign
+
               </button>
             )}
           </div>
