@@ -2623,6 +2623,105 @@ function SequenceStepModal({
   );
 }
 
+function TemplatePicker({
+  campCat,
+  channel,
+  onBack,
+  onPick,
+}: {
+  campCat: CampaignCategory;
+  channel: string;
+  onBack: () => void;
+  onPick: (t: CampaignTemplate) => void;
+}) {
+  const meta = CAMP_CATS[campCat];
+  const [filter, setFilter] = useState("All");
+  const [q, setQ] = useState("");
+
+  const pool = eligibleTemplates(campCat, channel);
+  const shown = pool.filter((t) => {
+    if (filter !== "All" && t.templateCategory !== filter) return false;
+    const needle = q.trim().toLowerCase();
+    if (!needle) return true;
+    return (
+      t.name.toLowerCase().includes(needle) ||
+      t.id.toLowerCase().includes(needle)
+    );
+  });
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-3 w-3" /> Change channel
+      </button>
+
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        {["All", ...meta.tplCats].map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setFilter(c)}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition",
+              filter === c
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-background text-foreground hover:bg-muted",
+            )}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search templates"
+          className="h-9 pl-8"
+        />
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-5 text-center text-xs text-muted-foreground">
+          No approved {channel} templates match this filter under{" "}
+          {meta.tplCats.join(", ")}.
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {shown.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onPick(t)}
+                className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-foreground">
+                    {t.name}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                    <span className="font-mono">{t.id}</span>
+                    <span>· {t.templateCategory}</span>
+                  </div>
+                  <div className="mt-1 text-[11px] font-medium text-cat-blue">
+                    {templateStatLine(campCat, t)}
+                  </div>
+                </div>
+                <Plus className="h-4 w-4 shrink-0 text-primary" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 
 function StepSchedule({
