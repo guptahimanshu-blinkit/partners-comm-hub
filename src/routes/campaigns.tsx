@@ -1932,6 +1932,7 @@ function NewCampaignWizard({
               state={s}
               setState={setS}
               approvedTemplates={approvedTemplates}
+              campCat={s.campCat}
             />
           )}
           {s.step === 4 && <StepSchedule state={s} setState={setS} />}
@@ -2332,10 +2333,12 @@ function StepSequencing({
   state,
   setState,
   approvedTemplates,
+  campCat,
 }: {
   state: WizState;
   setState: WizSetter;
   approvedTemplates: TemplateRequest[];
+  campCat: CampaignCategory | "";
 }) {
   const move = (idx: number, dir: -1 | 1) => {
     setState((p) => {
@@ -2486,6 +2489,27 @@ function StepSequencing({
 
       <TemplateLibraryDialog
         open={state.libraryOpen}
+        campCat={campCat}
+        onPickCatalog={(t) =>
+          setState((p) => ({
+            ...p,
+            libraryOpen: false,
+            messages: [
+              ...p.messages,
+              {
+                key: `${t.id}-${p.messages.length}`,
+                requestId: "REQ-PREAPPROVED",
+                templateId: t.id,
+                name: t.name,
+                channel: (t.channel === "Email" ||
+                t.channel === "WhatsApp"
+                  ? t.channel
+                  : "Dashboard") as CampaignChannel,
+                variables: [],
+              },
+            ],
+          }))
+        }
         templates={approvedTemplates}
         onPick={addFromTemplate}
         onClose={() =>
@@ -2547,14 +2571,23 @@ function ChannelBadge({ channel }: { channel: CampaignChannel }) {
 function TemplateLibraryDialog({
   open,
   templates,
+  campCat,
   onPick,
+  onPickCatalog,
   onClose,
 }: {
   open: boolean;
   templates: TemplateRequest[];
+  campCat: CampaignCategory | "";
   onPick: (t: TemplateRequest) => void;
+  onPickCatalog: (t: (typeof CAMPAIGN_TEMPLATES)[number]) => void;
   onClose: () => void;
 }) {
+  const catalog = campCat
+    ? CAMPAIGN_TEMPLATES.filter((t) =>
+        CAMP_CATS[campCat].tplCats.includes(t.templateCategory),
+      )
+    : [];
   const campaigns = useCampaigns();
   const usageByTemplate = useMemo(() => {
     const map = new Map<string, number>();
@@ -2572,6 +2605,41 @@ function TemplateLibraryDialog({
         <DialogHeader>
           <DialogTitle className="text-base">Pick a template</DialogTitle>
         </DialogHeader>
+
+        {catalog.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Pre-approved · {CAMP_CATS[campCat as CampaignCategory].name}
+            </div>
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {catalog.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPickCatalog(t)}
+                    className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground">
+                        {t.name}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className="font-mono">{t.id}</span>
+                        <span>· {t.channel}</span>
+                        <span>· {t.templateCategory}</span>
+                      </div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        Mock stat: {t.stat.ackRate}% ack rate over{" "}
+                        {t.stat.n.toLocaleString("en-IN")} sends
+                      </div>
+                    </div>
+                    <Plus className="h-4 w-4 shrink-0 text-primary" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {templates.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             No approved templates yet — get a request approved in Requests
