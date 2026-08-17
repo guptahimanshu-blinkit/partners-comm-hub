@@ -1689,7 +1689,6 @@ type Owner =
   | "category"
   | "monetisation"
   | "supply";
-type UseCase = "Announcement" | "Actionable Task" | "Payment" | "Promo / Ads";
 type TargetLevel = "Vendor" | "Manufacturer";
 type AudienceMethod = "Role-based" | "Ad-hoc Users" | "Excel Upload";
 type TriggerKind = "One-time" | "Event-based" | "Recurring";
@@ -1713,39 +1712,14 @@ const OWNER_LABEL: Record<Owner, string> = {
   supply: "Supply Chain",
 };
 
-const USE_CASES: {
-  key: UseCase;
-  tag: string;
-  desc: string;
-  Icon: typeof Bell;
-}[] = [
-  {
-    key: "Announcement",
-    tag: "FYI",
-    desc: "Broadcast an update — no action expected.",
-    Icon: Bell,
-  },
-  {
-    key: "Actionable Task",
-    tag: "Needs action",
-    desc: "Vendor must accept, dispute or resolve.",
-    Icon: Zap,
-  },
-  {
-    key: "Payment",
-    tag: "Financial",
-    desc: "Invoice, hold, or payout related.",
-    Icon: Shield,
-  },
-  {
-    key: "Promo / Ads",
-    tag: "Opt-in",
-    desc: "Monetisation nudges vendors have opted into.",
-    Icon: Megaphone,
-  },
-];
-
 const SEGMENTS = CDP_SEGMENTS;
+
+const CAMP_CAT_ICON: Record<CampaignCategory, typeof Bell> = {
+  actionable: Zap,
+  payments: Shield,
+  updates: Bell,
+  promotional: Megaphone,
+};
 
 const CHANNEL_OPTIONS: CampaignChannel[] = ["Email", "WhatsApp", "Dashboard"];
 
@@ -2081,6 +2055,35 @@ function StepBasics({
   state: WizState;
   setState: WizSetter;
 }) {
+  const pickCategory = (key: CampaignCategory) => {
+    if (state.campCat === key) return;
+    const hasDownstreamData =
+      state.messages.length > 0 ||
+      state.strategy !== "Standard" ||
+      state.reminderTemplate.trim().length > 0;
+    if (
+      state.campCat &&
+      hasDownstreamData &&
+      !window.confirm(
+        "Changing the campaign category clears the message sequence and reminder setup. Continue?",
+      )
+    ) {
+      return;
+    }
+    setState((p) => ({
+      ...p,
+      campCat: key,
+      messages: [],
+      strategy: (CAMP_CATS[key].defaultTier === "critical"
+        ? "Critical"
+        : CAMP_CATS[key].defaultTier === "standard"
+          ? "Standard"
+          : "FYI") as StrategyChoice,
+      escalationChannel: "WhatsApp",
+      reminderTemplate: "",
+    }));
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid gap-2">
@@ -2868,17 +2871,17 @@ function StepReview({
         </table>
       </div>
 
-      {requiresApproval ? (
-        <div className="flex items-start gap-2 rounded-lg border border-cat-red/40 bg-cat-red/5 p-3 text-xs">
-          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-cat-red" />
+      {largeAudience ? (
+        <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
           <div>
-            <div className="font-semibold text-cat-red">
-              Approval Required
+            <div className="font-semibold text-foreground">
+              Large audience selected
             </div>
-            <p className="mt-0.5 text-foreground">
-              Target audience ({audienceCount.toLocaleString("en-IN")})
-              exceeds the 1,000 recipient threshold. Launch will route to
-              Comms-Admin as a Pending approval.
+            <p className="mt-0.5 text-muted-foreground">
+              {audienceCount.toLocaleString("en-IN")} recipients — please
+              verify your targeting before launch. No approval required;
+              governance comes from the pre-approved templates you selected.
             </p>
           </div>
         </div>
@@ -2886,11 +2889,10 @@ function StepReview({
         <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <div>
-            <div className="font-semibold text-foreground">
-              Ready to launch
-            </div>
+            <div className="font-semibold text-foreground">Ready to launch</div>
             <p className="mt-0.5 text-muted-foreground">
-              Audience within threshold — no additional approval required.
+              All messages use pre-approved templates — no additional approval
+              required.
             </p>
           </div>
         </div>
