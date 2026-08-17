@@ -85,11 +85,10 @@ import {
   CDP_SEGMENTS,
   eligibleTemplates,
   templateStatLine,
-  REMINDER_STRATEGIES,
-  REMINDER_SCHEDULE_MODES,
-  REMINDER_CHANNELS,
+  CADENCE_DELAY_MODES,
+  SEQUENCE_RECOMMENDATIONS,
   TIER_LABEL,
-  type ReminderStrategy,
+
   type CampaignCategory,
   type CampaignTemplate,
 } from "@/lib/campaign-catalog";
