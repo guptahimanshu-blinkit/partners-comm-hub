@@ -2329,15 +2329,19 @@ function StepAudience({
   );
 }
 
+function toCampaignChannel(ch: string): CampaignChannel {
+  if (ch === "WhatsApp") return "WhatsApp";
+  if (ch === "Email") return "Email";
+  return "Dashboard";
+}
+
 function StepSequencing({
   state,
   setState,
-  approvedTemplates,
   campCat,
 }: {
   state: WizState;
   setState: WizSetter;
-  approvedTemplates: TemplateRequest[];
   campCat: CampaignCategory | "";
 }) {
   const move = (idx: number, dir: -1 | 1) => {
@@ -2354,42 +2358,25 @@ function StepSequencing({
       ...p,
       messages: p.messages.filter((m) => m.key !== key),
     }));
-  const addFromTemplate = (t: TemplateRequest) => {
-    const vars = detectVariables(`${t.subject} ${t.purpose}`);
-    setState((p) => ({
-      ...p,
-      libraryOpen: false,
-      messages: [
-        ...p.messages,
-        {
-          key: `${t.id}-${Date.now()}`,
-          requestId: t.id,
-          templateId: t.templateId,
-          name: t.templateName,
-          channel: inferChannelFromName(t.templateName),
-          variables: vars.length ? vars : ["vendor_name"],
-        },
-      ],
-    }));
-  };
-  const setChannel = (key: string, ch: CampaignChannel) =>
-    setState((p) => ({
-      ...p,
-      messages: p.messages.map((m) =>
-        m.key === key ? { ...m, channel: ch } : m,
-      ),
-    }));
+
+  const meta = campCat ? CAMP_CATS[campCat] : null;
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Drag together the ordered comms chain — each message fires in sequence.
-        Only approved templates from Requests are selectable.
-      </p>
+      {meta && (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span className="text-foreground">
+            {meta.name} maps to template categories:{" "}
+            <strong>{meta.tplCats.join(", ")}</strong>. Only these approved
+            templates, on eligible channels, can be added.
+          </span>
+        </div>
+      )}
 
       {state.messages.length === 0 && (
         <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-xs text-muted-foreground">
-          No messages added yet. Add one from the template library below.
+          No sequence steps yet — add the first touch below.
         </div>
       )}
 
@@ -2399,12 +2386,17 @@ function StepSequencing({
             key={m.key}
             className="flex items-start gap-2 rounded-lg border border-border bg-background p-3"
           >
-            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-              {i + 1}
+            <span className="mt-0.5 shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+              SEQ_{i + 1}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <ChannelBadge channel={m.channel} />
+                {m.channelLabel !== m.channel && (
+                  <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0 text-[10px] font-medium">
+                    {m.channelLabel}
+                  </span>
+                )}
                 <span className="text-sm font-medium text-foreground">
                   {m.name}
                 </span>
@@ -2412,35 +2404,11 @@ function StepSequencing({
                   {m.templateId}
                 </span>
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                {m.variables.map((v) => (
-                  <span
-                    key={v}
-                    className="rounded-full border border-cat-amber/30 bg-cat-amber/10 px-1.5 py-0 font-mono text-[10px] text-cat-amber"
-                  >
-                    {`{{${v}}}`}
-                  </span>
-                ))}
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                {m.templateCategory}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-1">
-                <span className="text-[10px] text-muted-foreground">
-                  Channel:
-                </span>
-                {CHANNEL_OPTIONS.map((ch) => (
-                  <button
-                    key={ch}
-                    type="button"
-                    onClick={() => setChannel(m.key, ch)}
-                    className={cn(
-                      "rounded-md border px-1.5 py-0.5 text-[10px]",
-                      m.channel === ch
-                        ? "border-primary/50 bg-primary/15 text-foreground"
-                        : "border-border bg-background text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    {ch}
-                  </button>
-                ))}
+              <div className="mt-1 text-[11px] font-medium text-primary">
+                {m.statLine}
               </div>
             </div>
             <div className="flex flex-col gap-1">
@@ -2458,19 +2426,7 @@ function StepSequencing({
               >
                 <ArrowDown className="h-3.5 w-3.5" />
               </IconBtn>
-              <IconBtn
-                onClick={() =>
-                  toast.info("Edit template — prototype stub.")
-                }
-                title="Edit template"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </IconBtn>
-              <IconBtn
-                onClick={() => remove(m.key)}
-                title="Remove"
-                danger
-              >
+              <IconBtn onClick={() => remove(m.key)} title="Remove" danger>
                 <X className="h-3.5 w-3.5" />
               </IconBtn>
             </div>
@@ -2484,41 +2440,38 @@ function StepSequencing({
         className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
       >
         <Plus className="h-3.5 w-3.5" />
-        Add Message from Template Library
+        Add sequence step
       </button>
 
-      <TemplateLibraryDialog
+      <SequenceStepModal
         open={state.libraryOpen}
         campCat={campCat}
-        onPickCatalog={(t) =>
+        onClose={() => setState((p) => ({ ...p, libraryOpen: false }))}
+        onPick={(channel, t) =>
           setState((p) => ({
             ...p,
             libraryOpen: false,
             messages: [
               ...p.messages,
               {
-                key: `${t.id}-${p.messages.length}`,
+                key: `${t.id}-${Date.now()}`,
                 requestId: "REQ-PREAPPROVED",
                 templateId: t.id,
                 name: t.name,
-                channel: (t.channel === "Email" ||
-                t.channel === "WhatsApp"
-                  ? t.channel
-                  : "Dashboard") as CampaignChannel,
+                channel: toCampaignChannel(channel),
+                channelLabel: channel,
+                templateCategory: t.templateCategory,
+                statLine: campCat ? templateStatLine(campCat, t) : "",
                 variables: [],
               },
             ],
           }))
         }
-        templates={approvedTemplates}
-        onPick={addFromTemplate}
-        onClose={() =>
-          setState((p) => ({ ...p, libraryOpen: false }))
-        }
       />
     </div>
   );
 }
+
 
 function IconBtn({
   onClick,
