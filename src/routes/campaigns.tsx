@@ -2784,6 +2784,9 @@ function StepReminders({
   setState: WizSetter;
   disabled: boolean;
 }) {
+  const cat = state.campCat as CampaignCategory;
+  const catMeta = cat ? CAMP_CATS[cat] : null;
+
   if (disabled) {
     return (
       <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
@@ -2796,110 +2799,43 @@ function StepReminders({
     );
   }
 
-  const cat = state.campCat as CampaignCategory;
-  const catMeta = cat ? CAMP_CATS[cat] : null;
-  const strategies: ReminderStrategy[] = cat ? REMINDER_STRATEGIES[cat] : [];
-
-  const applyStrategy = (str: ReminderStrategy) => {
-    setState((p) => ({
-      ...p,
-      appliedStrategyId: str.id,
-      strategy: TIER_LABEL[str.tier],
-      reminderScheduleMode: str.scheduleMode,
-      reminderChannel: str.channel,
-      reminderContent: str.content,
-      reminderAudience: str.audience,
-      portalAck: str.portalAck,
-      escalationChannel:
-        str.channel === "Dashboard" || str.channel === "Portal Push"
-          ? "Dashboard Banner"
-          : "WhatsApp",
-    }));
-    toast.success(`Strategy applied — "${str.title}" pre-filled below.`);
-  };
-
-  const tiers: { key: StrategyChoice; tag: string; Icon: typeof Bell; summary: string }[] = [
+  const tiers: {
+    key: StrategyChoice;
+    Icon: typeof Bell;
+    summary: string;
+  }[] = [
     {
       key: "FYI",
-      tag: "Low touch",
       Icon: Bell,
-      summary: "Max 1 reminder · same channel · no escalation.",
+      summary: "Max 1 reminder · no escalation beyond the first sequence step.",
     },
     {
       key: "Standard",
-      tag: "Backoff",
       Icon: Zap,
-      summary: "Up to 3 reminders · backoff cadence · single escalation hop.",
+      summary: "Up to 3 reminders · walks the sequence built in Step 3.",
     },
     {
       key: "Critical",
-      tag: "SLA enforced",
       Icon: Shield,
-      summary: "Every 2d ×5 · multi-channel · broadens audience · auto-ticket.",
+      summary: "Up to 5 reminders · SLA enforced · auto-ticket on expiry.",
     },
   ];
 
   return (
     <div className="space-y-5">
-      {/* A — Recommendation layer */}
-      <section>
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          How other {catMeta?.name ?? "similar"} campaigns remind vendors
-        </h4>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          {strategies.map((str) => {
-            const applied = state.appliedStrategyId === str.id;
-            return (
-              <div
-                key={str.id}
-                className={cn(
-                  "flex flex-col rounded-lg border p-3",
-                  applied
-                    ? "border-primary/60 bg-primary/5"
-                    : "border-border bg-background",
-                )}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-semibold leading-snug">
-                    {str.title}
-                  </span>
-                  <span className="ml-auto shrink-0 rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] uppercase text-muted-foreground">
-                    {TIER_LABEL[str.tier]}
-                  </span>
-                </div>
-                <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
-                  {str.rules.map((r) => (
-                    <li key={r} className="flex gap-1.5">
-                      <Circle className="mt-1 h-1.5 w-1.5 shrink-0 fill-current" />
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 rounded-md bg-muted/50 px-2 py-1 text-[10px] text-foreground">
-                  {str.performance}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => applyStrategy(str)}
-                  className={cn(
-                    "mt-2 rounded-md border px-2 py-1 text-[11px] font-semibold",
-                    applied
-                      ? "border-primary/40 bg-primary text-primary-foreground"
-                      : "border-border bg-background hover:bg-muted",
-                  )}
-                >
-                  {applied ? "Strategy applied" : "Use this strategy"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <span className="text-foreground">
+          Channels and message content come from the sequence you built in
+          Step 3. Here you only define <strong>when</strong> each step fires and{" "}
+          <strong>who</strong> receives it.
+        </span>
+      </div>
 
-      {/* B — Editable strategy form */}
-      <section className="space-y-3">
+      {/* A — Strategy tiers */}
+      <section className="space-y-2">
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Reminder strategy (editable)
+          Strategy tier
         </h4>
         <div className="grid gap-2 sm:grid-cols-3">
           {tiers.map((t) => {
@@ -2934,87 +2870,66 @@ function StepReminders({
             );
           })}
         </div>
+      </section>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label htmlFor="rem-sched">Schedule mode</Label>
-            <select
-              id="rem-sched"
-              value={state.reminderScheduleMode}
-              onChange={(e) =>
-                setState((p) => ({ ...p, reminderScheduleMode: e.target.value }))
-              }
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {REMINDER_SCHEDULE_MODES.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
-              {!REMINDER_SCHEDULE_MODES.includes(state.reminderScheduleMode) && (
-                <option>{state.reminderScheduleMode}</option>
-              )}
-            </select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="rem-chan">Reminder channel</Label>
-            <select
-              id="rem-chan"
-              value={state.reminderChannel}
-              onChange={(e) =>
-                setState((p) => ({ ...p, reminderChannel: e.target.value }))
-              }
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {REMINDER_CHANNELS.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+      {/* B — Schedule mode (delays) */}
+      <section className="grid gap-1.5">
+        <Label htmlFor="rem-sched">Schedule mode — delay between steps</Label>
+        <select
+          id="rem-sched"
+          value={state.reminderScheduleMode}
+          onChange={(e) =>
+            setState((p) => ({ ...p, reminderScheduleMode: e.target.value }))
+          }
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          {CADENCE_DELAY_MODES.map((m) => (
+            <option key={m}>{m}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-muted-foreground">
+          Applied between the {state.messages.length || 0} sequence step
+          {state.messages.length === 1 ? "" : "s"} defined in Step 3.
+        </p>
+      </section>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="rem-content">Reminder content</Label>
-          <Textarea
-            id="rem-content"
-            rows={3}
-            placeholder="Short reminder copy shown to the vendor…"
-            value={state.reminderContent}
-            onChange={(e) =>
-              setState((p) => ({ ...p, reminderContent: e.target.value }))
-            }
-          />
-        </div>
-
-        <div className="grid gap-1.5">
-          <Label>Reminder audience</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(
+      {/* C — Reminder audience */}
+      <section className="grid gap-1.5">
+        <Label>Reminder audience</Label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
               [
-                ["same", "Same audience", "Only non-responders from the original send."],
-                ["broaden", "Broaden audience", "Add secondary POC / role fallback contacts."],
-              ] as const
-            ).map(([key, title, desc]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() =>
-                  setState((p) => ({ ...p, reminderAudience: key }))
-                }
-                className={cn(
-                  "rounded-lg border p-3 text-left",
-                  state.reminderAudience === key
-                    ? "border-primary/60 bg-primary/10"
-                    : "border-border bg-background hover:bg-muted/40",
-                )}
-              >
-                <div className="text-sm font-medium">{title}</div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>
-              </button>
-            ))}
-          </div>
+                "same",
+                "Same audience",
+                "Only non-responders from the original send.",
+              ],
+              [
+                "broaden",
+                "Broaden audience",
+                "Add secondary POC / fallback contacts.",
+              ],
+            ] as const
+          ).map(([key, title, desc]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setState((p) => ({ ...p, reminderAudience: key }))}
+              className={cn(
+                "rounded-lg border p-3 text-left",
+                state.reminderAudience === key
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border bg-background hover:bg-muted/40",
+              )}
+            >
+              <div className="text-sm font-medium">{title}</div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>
+            </button>
+          ))}
         </div>
       </section>
 
-      {/* C — Portal acknowledge */}
+      {/* D — Portal acknowledge */}
       <section className="rounded-lg border border-border bg-background p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -3022,14 +2937,12 @@ function StepReminders({
               Also push to portal with Acknowledge CTA
             </div>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Adds a persistent nudge inside PartnersBiz alongside the reminder.
+              Adds a persistent nudge inside PartnersBiz alongside the sequence.
             </p>
           </div>
           <Switch
             checked={state.portalAck}
-            onCheckedChange={(v) =>
-              setState((p) => ({ ...p, portalAck: v }))
-            }
+            onCheckedChange={(v) => setState((p) => ({ ...p, portalAck: v }))}
           />
         </div>
 
@@ -3043,7 +2956,7 @@ function StepReminders({
                 {state.name.trim() || "Action pending on your account"}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {state.reminderContent.trim() ||
+                {state.messages[0]?.name ??
                   "You have a pending item from Blinkit. Review and acknowledge to close this nudge."}
               </p>
               <button
@@ -3054,9 +2967,8 @@ function StepReminders({
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              The nudge stays pinned on the vendor dashboard until acknowledged.
-              An acknowledgement stops all remaining reminder steps for that
-              vendor and is logged in campaign telemetry.
+              Vendors who acknowledge are removed from all subsequent sequence
+              steps automatically.
             </p>
           </div>
         )}
@@ -3064,6 +2976,7 @@ function StepReminders({
     </div>
   );
 }
+
 
 function StepReview({
   state,
