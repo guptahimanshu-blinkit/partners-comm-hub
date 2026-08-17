@@ -1910,7 +1910,7 @@ function NewCampaignWizard({
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="workdesk max-h-[90vh] w-full max-w-3xl overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-lg">New Campaign</DialogTitle>
+          <DialogTitle className="text-lg">Create Campaign</DialogTitle>
         </DialogHeader>
 
         <Stepper current={s.step} />
