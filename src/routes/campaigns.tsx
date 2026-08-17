@@ -2998,9 +2998,9 @@ function StepReview({
 
   const reminderText = recurring
     ? "n/a — each recurrence is a fresh send"
-    : `${state.strategy} · ${state.reminderScheduleMode} · via ${state.reminderChannel} · ${
+    : `${state.strategy} · ${state.reminderScheduleMode} · ${
         state.reminderAudience === "broaden" ? "broadened audience" : "same audience"
-      }`;
+      }${state.portalAck ? " · portal ack on" : ""}`;
 
   const allInCat =
     catMeta !== null &&
@@ -3008,8 +3008,7 @@ function StepReview({
   const channelsOk =
     catMeta !== null &&
     state.messages.every((m) => catMeta.channels.includes(m.channelLabel));
-  const reminderSet =
-    recurring || (!!state.reminderScheduleMode && !!state.reminderChannel);
+  const cadenceSet = recurring || !!state.reminderScheduleMode;
 
   const checks: { ok: boolean; label: string; detail: string }[] = [
     {
@@ -3021,22 +3020,13 @@ function StepReview({
     },
     {
       ok: channelsOk && state.messages.length > 0,
-      label: "Templates match eligible channels",
+      label: "Templates match channels",
       detail: catMeta ? catMeta.channels.join(" · ") : "—",
     },
     {
-      ok: reminderSet,
-      label: "Reminder strategy set",
+      ok: cadenceSet,
+      label: "Cadence rules set",
       detail: reminderText,
-    },
-    {
-      ok: state.portalAck,
-      label: state.portalAck
-        ? "Portal Acknowledge CTA enabled"
-        : "Portal Acknowledge CTA off",
-      detail: state.portalAck
-        ? "Vendors can close the loop from the portal."
-        : "No in-portal acknowledgement — closure tracked via channel replies only.",
     },
   ];
 
@@ -3047,29 +3037,36 @@ function StepReview({
       : audienceCount *
         (state.strategy === "Critical" ? 5 : state.strategy === "Standard" ? 3 : 1));
 
-  const rows: [string, string][] = [
+  const sequenceChain = state.messages.length ? (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {state.messages.map((m, i) => (
+        <span key={m.key} className="flex items-center gap-1.5">
+          {i > 0 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+          <ChannelBadge channel={m.channel} />
+        </span>
+      ))}
+    </span>
+  ) : (
+    "—"
+  );
+
+  const rows: [string, React.ReactNode][] = [
     ["Name", state.name || "—"],
     ["Owner", state.owner ? OWNER_LABEL[state.owner as Owner] : "—"],
     ["Category", catMeta?.name ?? "—"],
     [
       "Audience",
-      `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment}`,
+      `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment || (state.csvFile ? state.csvFile.name : "—")}`,
     ],
-    [
-      "Sequence chain",
-      state.messages.length
-        ? state.messages
-            .map((m, i) => `SEQ_${i + 1} ${m.channelLabel} → ${m.name}`)
-            .join("  ·  ")
-        : "—",
-    ],
+    ["Sequence chain", sequenceChain],
     ["Trigger", scheduleText],
-    ["Reminder config", reminderText],
+    ["Cadence config", reminderText],
     [
       "Est. send volume",
       `${estVolume.toLocaleString("en-IN")} messages (incl. reminders)`,
     ],
   ];
+
 
   return (
     <div className="space-y-4">
