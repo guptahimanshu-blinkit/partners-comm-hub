@@ -2222,22 +2222,56 @@ function StepAudience({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="wiz-segment">Segment</Label>
-        <select
-          id="wiz-segment"
-          value={state.segment}
-          onChange={(e) =>
-            setState((p) => ({ ...p, segment: e.target.value }))
-          }
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-        >
-          {SEGMENTS.map((seg) => (
-            <option key={seg.key} value={seg.key}>
-              {seg.key} · {seg.count.toLocaleString("en-IN")}
-            </option>
-          ))}
-        </select>
+        <Label>Saved segments</Label>
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+          {SEGMENTS.map((seg) => {
+            const active = state.segment === seg.key;
+            return (
+              <button
+                key={seg.key}
+                type="button"
+                onClick={() => setState((p) => ({ ...p, segment: seg.key }))}
+                className={cn(
+                  "flex w-full items-center gap-3 px-3 py-2.5 text-left transition",
+                  active ? "bg-primary/10" : "bg-background hover:bg-muted/40",
+                )}
+              >
+                <span
+                  className={cn(
+                    "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
+                    active ? "border-primary" : "border-border",
+                  )}
+                >
+                  {active && (
+                    <span className="h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-foreground">
+                    {seg.key}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {seg.desc}
+                  </span>
+                </span>
+                <span className="shrink-0 tabular-nums text-xs font-semibold text-foreground">
+                  {seg.count.toLocaleString("en-IN")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {audienceCount > LARGE_AUDIENCE_THRESHOLD && (
+        <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
+          <span className="text-foreground">
+            Large audience selected — please verify your targeting before
+            launch.
+          </span>
+        </div>
+      )}
 
       <div className="grid gap-2">
         <Label>Recipient method</Label>
