@@ -1744,9 +1744,9 @@ const RECURRING_PATTERNS = [
 const STEP_TITLES = [
   "Basics",
   "Seller Audience",
-  "Message sequencing",
+  "Message sequence",
   "Schedule",
-  "Reminders",
+  "Reminder cadence",
   "Review & launch",
 ];
 
