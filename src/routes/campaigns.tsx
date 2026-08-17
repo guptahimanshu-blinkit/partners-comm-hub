@@ -85,11 +85,10 @@ import {
   CDP_SEGMENTS,
   eligibleTemplates,
   templateStatLine,
-  REMINDER_STRATEGIES,
-  REMINDER_SCHEDULE_MODES,
-  REMINDER_CHANNELS,
+  CADENCE_DELAY_MODES,
+  SEQUENCE_RECOMMENDATIONS,
   TIER_LABEL,
-  type ReminderStrategy,
+
   type CampaignCategory,
   type CampaignTemplate,
 } from "@/lib/campaign-catalog";
@@ -1745,9 +1744,9 @@ const RECURRING_PATTERNS = [
 const STEP_TITLES = [
   "Basics",
   "Seller Audience",
-  "Message sequencing",
+  "Message sequence",
   "Schedule",
-  "Reminders",
+  "Reminder cadence",
   "Review & launch",
 ];
 
@@ -1778,10 +1777,8 @@ function initialWizardState() {
     strategy: "Standard" as StrategyChoice,
     escalationChannel: "WhatsApp" as EscalationChannel,
     reminderTemplate: "",
-    appliedStrategyId: "" as string,
-    reminderScheduleMode: REMINDER_SCHEDULE_MODES[2],
-    reminderChannel: REMINDER_CHANNELS[0],
-    reminderContent: "",
+    reminderScheduleMode: CADENCE_DELAY_MODES[0],
+
     reminderAudience: "same" as "same" | "broaden",
     portalAck: false,
     liveEdit: false,
@@ -1993,9 +1990,8 @@ function NewCampaignWizard({
                 className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 <Zap className="h-3.5 w-3.5" />
-                {s.trigger === "One-time" || s.trigger === "Recurring"
-                  ? "Schedule campaign"
-                  : "Launch campaign"}
+                Launch campaign
+
               </button>
             )}
           </div>
@@ -2396,6 +2392,36 @@ function StepSequencing({
 
   const meta = campCat ? CAMP_CATS[campCat] : null;
 
+  const applyRecommendation = (flow: string[]) => {
+    if (!campCat) return;
+    const picked = flow
+      .map((ch) => {
+        const t = eligibleTemplates(campCat, ch)[0];
+        return t ? { ch, t } : null;
+      })
+      .filter(Boolean) as { ch: string; t: CampaignTemplate }[];
+    if (picked.length === 0) {
+      toast.error("No approved templates available for this sequence yet.");
+      return;
+    }
+    setState((p) => ({
+      ...p,
+      messages: picked.map(({ ch, t }, i) => ({
+        key: `${t.id}-rec-${i}-${Date.now()}`,
+        requestId: "REQ-PREAPPROVED",
+        templateId: t.id,
+        name: t.name,
+        channel: toCampaignChannel(ch),
+        channelLabel: ch,
+        templateCategory: t.templateCategory,
+        statLine: templateStatLine(campCat, t),
+        variables: [],
+      })),
+    }));
+    toast.success("Sequence applied — edit or reorder the steps below.");
+  };
+
+
   return (
     <div className="space-y-3">
       {meta && (
@@ -2408,6 +2434,46 @@ function StepSequencing({
           </span>
         </div>
       )}
+
+      {campCat && (
+        <section className="space-y-2">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Widely used escalation sequences for {CAMP_CATS[campCat].name}
+          </h4>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SEQUENCE_RECOMMENDATIONS[campCat].map((rec) => (
+              <div
+                key={rec.id}
+                className="flex flex-col rounded-lg border border-border bg-background p-3"
+              >
+                <div className="text-sm font-semibold">{rec.title}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {rec.flow.map((ch, i) => (
+                    <span key={ch + i} className="flex items-center gap-1.5">
+                      {i > 0 && (
+                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      <ChannelBadge channel={toCampaignChannel(ch)} />
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-cat-blue">
+                  {rec.subtext}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => applyRecommendation(rec.flow)}
+                  className="mt-2 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-semibold hover:bg-muted"
+                >
+                  Use this sequence
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+
 
       {state.messages.length === 0 && (
         <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-xs text-muted-foreground">
@@ -2614,54 +2680,118 @@ function SequenceStepModal({
         )}
 
         {channel && (
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setChannel(null)}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3 w-3" /> Change channel
-            </button>
-            {eligibleTemplates(campCat, channel).length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-5 text-center text-xs text-muted-foreground">
-                No approved {channel} templates exist under{" "}
-                {meta.tplCats.join(", ")}. Create one via Template Request
-                first.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border rounded-lg border border-border">
-                {eligibleTemplates(campCat, channel).map((t) => (
-                  <li key={t.id}>
-                    <button
-                      type="button"
-                      onClick={() => onPick(channel, t)}
-                      className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground">
-                          {t.name}
-                        </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                          <span className="font-mono">{t.id}</span>
-                          <span>· {t.templateCategory}</span>
-                        </div>
-                        <div className="mt-1 text-[11px] font-medium text-primary">
-                          {templateStatLine(campCat, t)}
-                        </div>
-                      </div>
-                      <Plus className="h-4 w-4 shrink-0 text-primary" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <TemplatePicker
+            campCat={campCat}
+            channel={channel}
+            onBack={() => setChannel(null)}
+            onPick={(t) => onPick(channel, t)}
+          />
         )}
+
       </DialogContent>
     </Dialog>
   );
 }
 
+function TemplatePicker({
+  campCat,
+  channel,
+  onBack,
+  onPick,
+}: {
+  campCat: CampaignCategory;
+  channel: string;
+  onBack: () => void;
+  onPick: (t: CampaignTemplate) => void;
+}) {
+  const meta = CAMP_CATS[campCat];
+  const [filter, setFilter] = useState("All");
+  const [q, setQ] = useState("");
+
+  const pool = eligibleTemplates(campCat, channel);
+  const shown = pool.filter((t) => {
+    if (filter !== "All" && t.templateCategory !== filter) return false;
+    const needle = q.trim().toLowerCase();
+    if (!needle) return true;
+    return (
+      t.name.toLowerCase().includes(needle) ||
+      t.id.toLowerCase().includes(needle)
+    );
+  });
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-3 w-3" /> Change channel
+      </button>
+
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        {["All", ...meta.tplCats].map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setFilter(c)}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition",
+              filter === c
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-background text-foreground hover:bg-muted",
+            )}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search templates"
+          className="h-9 pl-8"
+        />
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-5 text-center text-xs text-muted-foreground">
+          No approved {channel} templates match this filter under{" "}
+          {meta.tplCats.join(", ")}.
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {shown.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onPick(t)}
+                className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-foreground">
+                    {t.name}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                    <span className="font-mono">{t.id}</span>
+                    <span>· {t.templateCategory}</span>
+                  </div>
+                  <div className="mt-1 text-[11px] font-medium text-cat-blue">
+                    {templateStatLine(campCat, t)}
+                  </div>
+                </div>
+                <Plus className="h-4 w-4 shrink-0 text-primary" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 
 function StepSchedule({
@@ -2765,13 +2895,25 @@ function StepSchedule({
               ))}
             </select>
           </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="wiz-recur-time">Time (IST)</Label>
+            <Input
+              id="wiz-recur-time"
+              type="time"
+              value={state.triggerTime}
+              onChange={(e) =>
+                setState((p) => ({ ...p, triggerTime: e.target.value }))
+              }
+            />
+          </div>
           <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
             <span className="text-foreground">
-              Each recurrence is a fresh send — reminders will be skipped.
-              Step 5 (Reminders) is disabled and you'll go straight to Review.
+              Each recurrence is a fresh send — sequence escalations will be
+              skipped. Step 5 is greyed out and you'll go straight to Review.
             </span>
           </div>
+
         </>
       )}
     </div>
@@ -2787,6 +2929,9 @@ function StepReminders({
   setState: WizSetter;
   disabled: boolean;
 }) {
+  const cat = state.campCat as CampaignCategory;
+  const catMeta = cat ? CAMP_CATS[cat] : null;
+
   if (disabled) {
     return (
       <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
@@ -2799,110 +2944,43 @@ function StepReminders({
     );
   }
 
-  const cat = state.campCat as CampaignCategory;
-  const catMeta = cat ? CAMP_CATS[cat] : null;
-  const strategies: ReminderStrategy[] = cat ? REMINDER_STRATEGIES[cat] : [];
-
-  const applyStrategy = (str: ReminderStrategy) => {
-    setState((p) => ({
-      ...p,
-      appliedStrategyId: str.id,
-      strategy: TIER_LABEL[str.tier],
-      reminderScheduleMode: str.scheduleMode,
-      reminderChannel: str.channel,
-      reminderContent: str.content,
-      reminderAudience: str.audience,
-      portalAck: str.portalAck,
-      escalationChannel:
-        str.channel === "Dashboard" || str.channel === "Portal Push"
-          ? "Dashboard Banner"
-          : "WhatsApp",
-    }));
-    toast.success(`Strategy applied — "${str.title}" pre-filled below.`);
-  };
-
-  const tiers: { key: StrategyChoice; tag: string; Icon: typeof Bell; summary: string }[] = [
+  const tiers: {
+    key: StrategyChoice;
+    Icon: typeof Bell;
+    summary: string;
+  }[] = [
     {
       key: "FYI",
-      tag: "Low touch",
       Icon: Bell,
-      summary: "Max 1 reminder · same channel · no escalation.",
+      summary: "Max 1 reminder · no escalation beyond the first sequence step.",
     },
     {
       key: "Standard",
-      tag: "Backoff",
       Icon: Zap,
-      summary: "Up to 3 reminders · backoff cadence · single escalation hop.",
+      summary: "Up to 3 reminders · walks the sequence built in Step 3.",
     },
     {
       key: "Critical",
-      tag: "SLA enforced",
       Icon: Shield,
-      summary: "Every 2d ×5 · multi-channel · broadens audience · auto-ticket.",
+      summary: "Up to 5 reminders · SLA enforced · auto-ticket on expiry.",
     },
   ];
 
   return (
     <div className="space-y-5">
-      {/* A — Recommendation layer */}
-      <section>
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          How other {catMeta?.name ?? "similar"} campaigns remind vendors
-        </h4>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          {strategies.map((str) => {
-            const applied = state.appliedStrategyId === str.id;
-            return (
-              <div
-                key={str.id}
-                className={cn(
-                  "flex flex-col rounded-lg border p-3",
-                  applied
-                    ? "border-primary/60 bg-primary/5"
-                    : "border-border bg-background",
-                )}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-sm font-semibold leading-snug">
-                    {str.title}
-                  </span>
-                  <span className="ml-auto shrink-0 rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] uppercase text-muted-foreground">
-                    {TIER_LABEL[str.tier]}
-                  </span>
-                </div>
-                <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
-                  {str.rules.map((r) => (
-                    <li key={r} className="flex gap-1.5">
-                      <Circle className="mt-1 h-1.5 w-1.5 shrink-0 fill-current" />
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 rounded-md bg-muted/50 px-2 py-1 text-[10px] text-foreground">
-                  {str.performance}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => applyStrategy(str)}
-                  className={cn(
-                    "mt-2 rounded-md border px-2 py-1 text-[11px] font-semibold",
-                    applied
-                      ? "border-primary/40 bg-primary text-primary-foreground"
-                      : "border-border bg-background hover:bg-muted",
-                  )}
-                >
-                  {applied ? "Strategy applied" : "Use this strategy"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <span className="text-foreground">
+          Channels and message content come from the sequence you built in
+          Step 3. Here you only define <strong>when</strong> each step fires and{" "}
+          <strong>who</strong> receives it.
+        </span>
+      </div>
 
-      {/* B — Editable strategy form */}
-      <section className="space-y-3">
+      {/* A — Strategy tiers */}
+      <section className="space-y-2">
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Reminder strategy (editable)
+          Strategy tier
         </h4>
         <div className="grid gap-2 sm:grid-cols-3">
           {tiers.map((t) => {
@@ -2937,87 +3015,66 @@ function StepReminders({
             );
           })}
         </div>
+      </section>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <Label htmlFor="rem-sched">Schedule mode</Label>
-            <select
-              id="rem-sched"
-              value={state.reminderScheduleMode}
-              onChange={(e) =>
-                setState((p) => ({ ...p, reminderScheduleMode: e.target.value }))
-              }
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {REMINDER_SCHEDULE_MODES.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
-              {!REMINDER_SCHEDULE_MODES.includes(state.reminderScheduleMode) && (
-                <option>{state.reminderScheduleMode}</option>
-              )}
-            </select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="rem-chan">Reminder channel</Label>
-            <select
-              id="rem-chan"
-              value={state.reminderChannel}
-              onChange={(e) =>
-                setState((p) => ({ ...p, reminderChannel: e.target.value }))
-              }
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {REMINDER_CHANNELS.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+      {/* B — Schedule mode (delays) */}
+      <section className="grid gap-1.5">
+        <Label htmlFor="rem-sched">Schedule mode — delay between steps</Label>
+        <select
+          id="rem-sched"
+          value={state.reminderScheduleMode}
+          onChange={(e) =>
+            setState((p) => ({ ...p, reminderScheduleMode: e.target.value }))
+          }
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          {CADENCE_DELAY_MODES.map((m) => (
+            <option key={m}>{m}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-muted-foreground">
+          Applied between the {state.messages.length || 0} sequence step
+          {state.messages.length === 1 ? "" : "s"} defined in Step 3.
+        </p>
+      </section>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="rem-content">Reminder content</Label>
-          <Textarea
-            id="rem-content"
-            rows={3}
-            placeholder="Short reminder copy shown to the vendor…"
-            value={state.reminderContent}
-            onChange={(e) =>
-              setState((p) => ({ ...p, reminderContent: e.target.value }))
-            }
-          />
-        </div>
-
-        <div className="grid gap-1.5">
-          <Label>Reminder audience</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(
+      {/* C — Reminder audience */}
+      <section className="grid gap-1.5">
+        <Label>Reminder audience</Label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
               [
-                ["same", "Same audience", "Only non-responders from the original send."],
-                ["broaden", "Broaden audience", "Add secondary POC / role fallback contacts."],
-              ] as const
-            ).map(([key, title, desc]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() =>
-                  setState((p) => ({ ...p, reminderAudience: key }))
-                }
-                className={cn(
-                  "rounded-lg border p-3 text-left",
-                  state.reminderAudience === key
-                    ? "border-primary/60 bg-primary/10"
-                    : "border-border bg-background hover:bg-muted/40",
-                )}
-              >
-                <div className="text-sm font-medium">{title}</div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>
-              </button>
-            ))}
-          </div>
+                "same",
+                "Same audience",
+                "Only non-responders from the original send.",
+              ],
+              [
+                "broaden",
+                "Broaden audience",
+                "Add secondary POC / fallback contacts.",
+              ],
+            ] as const
+          ).map(([key, title, desc]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setState((p) => ({ ...p, reminderAudience: key }))}
+              className={cn(
+                "rounded-lg border p-3 text-left",
+                state.reminderAudience === key
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border bg-background hover:bg-muted/40",
+              )}
+            >
+              <div className="text-sm font-medium">{title}</div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>
+            </button>
+          ))}
         </div>
       </section>
 
-      {/* C — Portal acknowledge */}
+      {/* D — Portal acknowledge */}
       <section className="rounded-lg border border-border bg-background p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -3025,14 +3082,12 @@ function StepReminders({
               Also push to portal with Acknowledge CTA
             </div>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Adds a persistent nudge inside PartnersBiz alongside the reminder.
+              Adds a persistent nudge inside PartnersBiz alongside the sequence.
             </p>
           </div>
           <Switch
             checked={state.portalAck}
-            onCheckedChange={(v) =>
-              setState((p) => ({ ...p, portalAck: v }))
-            }
+            onCheckedChange={(v) => setState((p) => ({ ...p, portalAck: v }))}
           />
         </div>
 
@@ -3046,7 +3101,7 @@ function StepReminders({
                 {state.name.trim() || "Action pending on your account"}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {state.reminderContent.trim() ||
+                {state.messages[0]?.name ??
                   "You have a pending item from Blinkit. Review and acknowledge to close this nudge."}
               </p>
               <button
@@ -3057,9 +3112,8 @@ function StepReminders({
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              The nudge stays pinned on the vendor dashboard until acknowledged.
-              An acknowledgement stops all remaining reminder steps for that
-              vendor and is logged in campaign telemetry.
+              Vendors who acknowledge are removed from all subsequent sequence
+              steps automatically.
             </p>
           </div>
         )}
@@ -3067,6 +3121,7 @@ function StepReminders({
     </div>
   );
 }
+
 
 function StepReview({
   state,
@@ -3088,9 +3143,9 @@ function StepReview({
 
   const reminderText = recurring
     ? "n/a — each recurrence is a fresh send"
-    : `${state.strategy} · ${state.reminderScheduleMode} · via ${state.reminderChannel} · ${
+    : `${state.strategy} · ${state.reminderScheduleMode} · ${
         state.reminderAudience === "broaden" ? "broadened audience" : "same audience"
-      }`;
+      }${state.portalAck ? " · portal ack on" : ""}`;
 
   const allInCat =
     catMeta !== null &&
@@ -3098,8 +3153,7 @@ function StepReview({
   const channelsOk =
     catMeta !== null &&
     state.messages.every((m) => catMeta.channels.includes(m.channelLabel));
-  const reminderSet =
-    recurring || (!!state.reminderScheduleMode && !!state.reminderChannel);
+  const cadenceSet = recurring || !!state.reminderScheduleMode;
 
   const checks: { ok: boolean; label: string; detail: string }[] = [
     {
@@ -3111,22 +3165,13 @@ function StepReview({
     },
     {
       ok: channelsOk && state.messages.length > 0,
-      label: "Templates match eligible channels",
+      label: "Templates match channels",
       detail: catMeta ? catMeta.channels.join(" · ") : "—",
     },
     {
-      ok: reminderSet,
-      label: "Reminder strategy set",
+      ok: cadenceSet,
+      label: "Cadence rules set",
       detail: reminderText,
-    },
-    {
-      ok: state.portalAck,
-      label: state.portalAck
-        ? "Portal Acknowledge CTA enabled"
-        : "Portal Acknowledge CTA off",
-      detail: state.portalAck
-        ? "Vendors can close the loop from the portal."
-        : "No in-portal acknowledgement — closure tracked via channel replies only.",
     },
   ];
 
@@ -3137,29 +3182,36 @@ function StepReview({
       : audienceCount *
         (state.strategy === "Critical" ? 5 : state.strategy === "Standard" ? 3 : 1));
 
-  const rows: [string, string][] = [
+  const sequenceChain = state.messages.length ? (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {state.messages.map((m, i) => (
+        <span key={m.key} className="flex items-center gap-1.5">
+          {i > 0 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+          <ChannelBadge channel={m.channel} />
+        </span>
+      ))}
+    </span>
+  ) : (
+    "—"
+  );
+
+  const rows: [string, React.ReactNode][] = [
     ["Name", state.name || "—"],
     ["Owner", state.owner ? OWNER_LABEL[state.owner as Owner] : "—"],
     ["Category", catMeta?.name ?? "—"],
     [
       "Audience",
-      `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment}`,
+      `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment || (state.csvFile ? state.csvFile.name : "—")}`,
     ],
-    [
-      "Sequence chain",
-      state.messages.length
-        ? state.messages
-            .map((m, i) => `SEQ_${i + 1} ${m.channelLabel} → ${m.name}`)
-            .join("  ·  ")
-        : "—",
-    ],
+    ["Sequence chain", sequenceChain],
     ["Trigger", scheduleText],
-    ["Reminder config", reminderText],
+    ["Cadence config", reminderText],
     [
       "Est. send volume",
       `${estVolume.toLocaleString("en-IN")} messages (incl. reminders)`,
     ],
   ];
+
 
   return (
     <div className="space-y-4">
