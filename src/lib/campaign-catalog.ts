@@ -146,11 +146,13 @@ export interface CdpSegment {
 }
 
 export const CDP_SEGMENTS: CdpSegment[] = [
-  { key: "All vendors", count: 3880, desc: "Every active vendor on PartnersBiz" },
-  { key: "Tech Enabled Vendors", count: 1240, desc: "API / portal-active vendors" },
-  { key: "Low Tech Vendors", count: 640, desc: "WhatsApp-first, low portal usage" },
-  { key: "Finance POC only", count: 412, desc: "Mapped finance point of contact" },
-  { key: "North zone — Category A", count: 1212, desc: "Zone + category cohort" },
+  { key: "sellers for festive ticket access", count: 1240, desc: "" },
+  { key: "Sellers with assorted items", count: 856, desc: "" },
+  { key: "Negative Payout Amount", count: 432, desc: "" },
+  { key: "BIS standards not met", count: 210, desc: "" },
+  { key: "Sellers with food item count", count: 678, desc: "" },
+  { key: "Blocker For Recall Condition Missing Only", count: 145, desc: "" },
+  { key: "Blocker For PO Edited Only", count: 98, desc: "" },
 ];
 
 export const LARGE_AUDIENCE_THRESHOLD = 1000;
