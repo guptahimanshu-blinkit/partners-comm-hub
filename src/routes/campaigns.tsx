@@ -1777,10 +1777,8 @@ function initialWizardState() {
     strategy: "Standard" as StrategyChoice,
     escalationChannel: "WhatsApp" as EscalationChannel,
     reminderTemplate: "",
-    appliedStrategyId: "" as string,
-    reminderScheduleMode: REMINDER_SCHEDULE_MODES[2],
-    reminderChannel: REMINDER_CHANNELS[0],
-    reminderContent: "",
+    reminderScheduleMode: CADENCE_DELAY_MODES[0],
+
     reminderAudience: "same" as "same" | "broaden",
     portalAck: false,
     liveEdit: false,
