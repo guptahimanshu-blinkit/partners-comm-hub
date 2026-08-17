@@ -2392,6 +2392,36 @@ function StepSequencing({
 
   const meta = campCat ? CAMP_CATS[campCat] : null;
 
+  const applyRecommendation = (flow: string[]) => {
+    if (!campCat) return;
+    const picked = flow
+      .map((ch) => {
+        const t = eligibleTemplates(campCat, ch)[0];
+        return t ? { ch, t } : null;
+      })
+      .filter(Boolean) as { ch: string; t: CampaignTemplate }[];
+    if (picked.length === 0) {
+      toast.error("No approved templates available for this sequence yet.");
+      return;
+    }
+    setState((p) => ({
+      ...p,
+      messages: picked.map(({ ch, t }, i) => ({
+        key: `${t.id}-rec-${i}-${Date.now()}`,
+        requestId: "REQ-PREAPPROVED",
+        templateId: t.id,
+        name: t.name,
+        channel: toCampaignChannel(ch),
+        channelLabel: ch,
+        templateCategory: t.templateCategory,
+        statLine: templateStatLine(campCat, t),
+        variables: [],
+      })),
+    }));
+    toast.success("Sequence applied — edit or reorder the steps below.");
+  };
+
+
   return (
     <div className="space-y-3">
       {meta && (
