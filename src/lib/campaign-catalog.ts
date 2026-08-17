@@ -177,3 +177,165 @@ export function eligibleTemplates(
       t.channel === channel && CAMP_CATS[cat].tplCats.includes(t.templateCategory),
   );
 }
+
+/* ---------------------------------------------------------------- */
+/* Reminder strategy recommendations (mocked benchmarks)             */
+/* ---------------------------------------------------------------- */
+
+export type ReminderTier = "fyi" | "standard" | "critical";
+
+export interface ReminderStrategy {
+  id: string;
+  title: string;
+  rules: string[];
+  performance: string;
+  tier: ReminderTier;
+  scheduleMode: string;
+  channel: string;
+  content: string;
+  audience: "same" | "broaden";
+  portalAck: boolean;
+}
+
+export const REMINDER_SCHEDULE_MODES = [
+  "Fixed interval — every 2 days",
+  "Fixed interval — every 5 days",
+  "Exponential backoff — 2d → 4d → 8d",
+  "Single reminder — T+3 days",
+  "Escalating daily until SLA breach",
+];
+
+export const REMINDER_CHANNELS = [
+  "Same as last step",
+  "Email",
+  "WhatsApp",
+  "SMS",
+  "Dashboard",
+  "Portal Push",
+];
+
+/** 2–3 mocked "how others do it" strategies per campaign category. */
+export const REMINDER_STRATEGIES: Record<CampaignCategory, ReminderStrategy[]> = {
+  actionable: [
+    {
+      id: "act-backoff",
+      title: "Backoff then escalate to WhatsApp",
+      rules: ["Max 3 reminders", "2d → 4d → 8d", "Escalate Email → WhatsApp"],
+      performance: "82% resolved before 3rd reminder (n=1,240)",
+      tier: "standard",
+      scheduleMode: "Exponential backoff — 2d → 4d → 8d",
+      channel: "WhatsApp",
+      content: "Pending action on your PartnersBiz task — resolve to avoid impact.",
+      audience: "same",
+      portalAck: true,
+    },
+    {
+      id: "act-single",
+      title: "One polite nudge only",
+      rules: ["Single reminder at T+3d", "Same channel", "No escalation"],
+      performance: "54% resolved, 0.4% opt-outs (n=910)",
+      tier: "fyi",
+      scheduleMode: "Single reminder — T+3 days",
+      channel: "Same as last step",
+      content: "Quick reminder: your pending action is still open.",
+      audience: "same",
+      portalAck: false,
+    },
+    {
+      id: "act-sla",
+      title: "SLA enforcement (P1 tasks)",
+      rules: ["Every 2d ×5", "Broaden to secondary POC", "Auto-ticket on expiry"],
+      performance: "94% closure within SLA (n=430)",
+      tier: "critical",
+      scheduleMode: "Every 2 days ×5",
+      channel: "WhatsApp",
+      content: "URGENT: action pending against SLA. Resolve today to avoid escalation.",
+      audience: "broaden",
+      portalAck: true,
+    },
+  ],
+  payments: [
+    {
+      id: "pay-critical",
+      title: "Finance escalation ladder",
+      rules: ["Every 2d ×5", "Email → WhatsApp → Finance POC", "Broaden audience"],
+      performance: "88% invoices settled in 7 days (n=760)",
+      tier: "critical",
+      scheduleMode: "Every 2 days ×5",
+      channel: "WhatsApp",
+      content: "Overdue invoice pending settlement. Please clear to avoid payout hold.",
+      audience: "broaden",
+      portalAck: true,
+    },
+    {
+      id: "pay-standard",
+      title: "Twice, then stop",
+      rules: ["2 reminders (T+3d, T+7d)", "Same channel", "No broadening"],
+      performance: "67% settled, low complaint rate (n=1,110)",
+      tier: "standard",
+      scheduleMode: "Fixed interval — every 5 days",
+      channel: "Email",
+      content: "Reminder: your invoice statement is awaiting reconciliation.",
+      audience: "same",
+      portalAck: true,
+    },
+  ],
+  updates: [
+    {
+      id: "upd-none",
+      title: "Read-only, one recap",
+      rules: ["Single recap at T+5d", "Email only", "No portal nudge"],
+      performance: "31% open on recap (n=2,940)",
+      tier: "fyi",
+      scheduleMode: "Fixed interval — every 5 days",
+      channel: "Email",
+      content: "In case you missed it — your weekly report is ready.",
+      audience: "same",
+      portalAck: false,
+    },
+    {
+      id: "upd-dash",
+      title: "Dashboard-only persistence",
+      rules: ["No email reminders", "Dashboard card stays 7d", "Ack to dismiss"],
+      performance: "46% dashboard views (n=1,830)",
+      tier: "fyi",
+      scheduleMode: "Single reminder — T+3 days",
+      channel: "Dashboard",
+      content: "Your latest scorecard is available in PartnersBiz.",
+      audience: "same",
+      portalAck: true,
+    },
+  ],
+  promotional: [
+    {
+      id: "pro-light",
+      title: "One-touch, opt-out safe",
+      rules: ["Single reminder T+3d", "Email only", "Respect opt-outs"],
+      performance: "19% click, 0.2% unsubscribes (n=1,450)",
+      tier: "fyi",
+      scheduleMode: "Single reminder — T+3 days",
+      channel: "Email",
+      content: "Last chance to claim your ads credit booster.",
+      audience: "same",
+      portalAck: false,
+    },
+    {
+      id: "pro-dash",
+      title: "Portal-first offer nudge",
+      rules: ["Dashboard nudge only", "No push channels", "Ack CTA on offer"],
+      performance: "24% offer views (n=1,980)",
+      tier: "fyi",
+      scheduleMode: "Fixed interval — every 5 days",
+      channel: "Dashboard",
+      content: "Your visibility slot offer is live in the portal.",
+      audience: "same",
+      portalAck: true,
+    },
+  ],
+};
+
+export const TIER_LABEL: Record<ReminderTier, "FYI" | "Standard" | "Critical"> = {
+  fyi: "FYI",
+  standard: "Standard",
+  critical: "Critical",
+};
