@@ -80,6 +80,14 @@ import {
   type VendorActionTelemetry,
 } from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
+import {
+  CAMP_CATS,
+  CAMP_CAT_KEYS,
+  CDP_SEGMENTS,
+  CAMPAIGN_TEMPLATES,
+  LARGE_AUDIENCE_THRESHOLD,
+  type CampaignCategory,
+} from "@/lib/campaign-catalog";
 import { toast } from "sonner";
 
 
@@ -185,7 +193,7 @@ function CampaignsPage() {
             className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-3.5 w-3.5" />
-            New Campaign
+            Create Campaign
           </button>
         </header>
 
@@ -1737,13 +1745,7 @@ const USE_CASES: {
   },
 ];
 
-const SEGMENTS: { key: string; count: number }[] = [
-  { key: "All vendors", count: 3880 },
-  { key: "Tech Enabled Vendors", count: 1240 },
-  { key: "Low Tech Vendors", count: 640 },
-  { key: "Finance POC only", count: 412 },
-  { key: "North zone — Category A", count: 1212 },
-];
+const SEGMENTS = CDP_SEGMENTS;
 
 const CHANNEL_OPTIONS: CampaignChannel[] = ["Email", "WhatsApp", "Dashboard"];
 
@@ -1792,7 +1794,7 @@ function initialWizardState() {
     // Step 1
     name: "",
     owner: "" as Owner | "",
-    useCase: "" as UseCase | "",
+    campCat: "" as CampaignCategory | "",
     // Step 2
     targetLevel: "Vendor" as TargetLevel,
     segment: SEGMENTS[0].key,
@@ -1844,10 +1846,10 @@ function NewCampaignWizard({
   }, [campaigns, s.segment, audienceCount]);
 
   const remindersDisabled = s.trigger === "Recurring";
-  const requiresApproval = audienceCount > 1000;
+  const largeAudience = audienceCount > LARGE_AUDIENCE_THRESHOLD;
 
   const canNext = (() => {
-    if (s.step === 1) return s.name.trim() && s.owner && s.useCase;
+    if (s.step === 1) return s.name.trim() && s.owner && s.campCat;
     if (s.step === 2) return s.methods.size > 0;
     if (s.step === 3) return s.messages.length > 0;
     if (s.step === 4) {
@@ -1880,11 +1882,11 @@ function NewCampaignWizard({
       templateId: first?.templateId ?? "APOLLO-WIZARD",
       name: s.name.trim(),
       categoryId:
-        s.useCase === "Payment"
+        s.campCat === "payments"
           ? "finance_payments"
-          : s.useCase === "Actionable Task"
+          : s.campCat === "actionable"
             ? "action_required"
-            : s.useCase === "Promo / Ads"
+            : s.campCat === "promotional"
               ? "reminders"
               : "daily_ops",
       priority:
@@ -1893,7 +1895,7 @@ function NewCampaignWizard({
           : s.strategy === "Standard"
             ? "P2"
             : "P3",
-      purpose: `${s.useCase} campaign owned by ${OWNER_LABEL[s.owner as Owner]}.`,
+      purpose: `${s.campCat ? CAMP_CATS[s.campCat].name : "Campaign"} campaign owned by ${OWNER_LABEL[s.owner as Owner]}.`,
       channels: uniqChannels.length ? uniqChannels : ["Email"],
       segment: s.segment,
       audienceCount,
@@ -1970,7 +1972,7 @@ function NewCampaignWizard({
             <StepReview
               state={s}
               audienceCount={audienceCount}
-              requiresApproval={requiresApproval}
+              largeAudience={largeAudience}
             />
           )}
         </div>
@@ -2794,11 +2796,11 @@ function StepReminders({
 function StepReview({
   state,
   audienceCount,
-  requiresApproval,
+  largeAudience,
 }: {
   state: WizState;
   audienceCount: number;
-  requiresApproval: boolean;
+  largeAudience: boolean;
 }) {
   const scheduleText =
     state.trigger === "One-time"
@@ -2816,7 +2818,7 @@ function StepReview({
       "Owner",
       state.owner ? OWNER_LABEL[state.owner as Owner] : "—",
     ],
-    ["Use case", state.useCase || "—"],
+    ["Category", state.campCat ? CAMP_CATS[state.campCat].name : "—"],
     [
       "Audience",
       `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment}`,
