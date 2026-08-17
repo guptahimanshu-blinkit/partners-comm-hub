@@ -2770,105 +2770,278 @@ function StepReminders({
       <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
         <span className="text-foreground">
-          Reminders not applicable for recurring campaigns.
+          Reminders not applicable for recurring campaigns — each recurrence is
+          a fresh send.
         </span>
       </div>
     );
   }
-  const strategies: {
-    key: StrategyChoice;
-    tag: string;
-    Icon: typeof Bell;
-    summary: string;
-  }[] = [
+
+  const cat = state.campCat as CampaignCategory;
+  const catMeta = cat ? CAMP_CATS[cat] : null;
+  const strategies: ReminderStrategy[] = cat ? REMINDER_STRATEGIES[cat] : [];
+
+  const applyStrategy = (str: ReminderStrategy) => {
+    setState((p) => ({
+      ...p,
+      appliedStrategyId: str.id,
+      strategy: TIER_LABEL[str.tier],
+      reminderScheduleMode: str.scheduleMode,
+      reminderChannel: str.channel,
+      reminderContent: str.content,
+      reminderAudience: str.audience,
+      portalAck: str.portalAck,
+      escalationChannel:
+        str.channel === "Dashboard" || str.channel === "Portal Push"
+          ? "Dashboard Banner"
+          : "WhatsApp",
+    }));
+    toast.success(`Strategy applied — "${str.title}" pre-filled below.`);
+  };
+
+  const tiers: { key: StrategyChoice; tag: string; Icon: typeof Bell; summary: string }[] = [
     {
       key: "FYI",
       tag: "Low touch",
       Icon: Bell,
-      summary: "Max 1 reminder · same channel · fixed 5d interval.",
+      summary: "Max 1 reminder · same channel · no escalation.",
     },
     {
       key: "Standard",
       tag: "Backoff",
       Icon: Zap,
-      summary:
-        "Exponential backoff 2d → 4d → 8d · Email → WhatsApp → Dashboard.",
+      summary: "Up to 3 reminders · backoff cadence · single escalation hop.",
     },
     {
       key: "Critical",
       tag: "SLA enforced",
       Icon: Shield,
-      summary:
-        "Every 2d ×5 · multi-channel dispatch · broadens audience · auto-ticket on expiry.",
+      summary: "Every 2d ×5 · multi-channel · broadens audience · auto-ticket.",
     },
   ];
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-3">
-        {strategies.map((str) => {
-          const active = state.strategy === str.key;
-          return (
-            <button
-              key={str.key}
-              type="button"
-              onClick={() =>
-                setState((p) => ({ ...p, strategy: str.key }))
-              }
-              className={cn(
-                "rounded-lg border p-3 text-left transition",
-                active
-                  ? "border-primary/60 bg-primary/10 shadow-sm"
-                  : "border-border bg-background hover:bg-muted/40",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <str.Icon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold">{str.key}</span>
-                <span className="ml-auto rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] text-muted-foreground">
-                  {str.tag}
-                </span>
-              </div>
-              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-                {str.summary}
-              </p>
-            </button>
-          );
-        })}
-      </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label htmlFor="wiz-esc">Escalation channel</Label>
-          <select
-            id="wiz-esc"
-            value={state.escalationChannel}
-            onChange={(e) =>
-              setState((p) => ({
-                ...p,
-                escalationChannel: e.target.value as EscalationChannel,
-              }))
-            }
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          >
-            <option>WhatsApp</option>
-            <option>Dashboard Banner</option>
-          </select>
+  return (
+    <div className="space-y-5">
+      {/* A — Recommendation layer */}
+      <section>
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          How other {catMeta?.name ?? "similar"} campaigns remind vendors
+        </h4>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          {strategies.map((str) => {
+            const applied = state.appliedStrategyId === str.id;
+            return (
+              <div
+                key={str.id}
+                className={cn(
+                  "flex flex-col rounded-lg border p-3",
+                  applied
+                    ? "border-primary/60 bg-primary/5"
+                    : "border-border bg-background",
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <span className="text-sm font-semibold leading-snug">
+                    {str.title}
+                  </span>
+                  <span className="ml-auto shrink-0 rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] uppercase text-muted-foreground">
+                    {TIER_LABEL[str.tier]}
+                  </span>
+                </div>
+                <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+                  {str.rules.map((r) => (
+                    <li key={r} className="flex gap-1.5">
+                      <Circle className="mt-1 h-1.5 w-1.5 shrink-0 fill-current" />
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 rounded-md bg-muted/50 px-2 py-1 text-[10px] text-foreground">
+                  {str.performance}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => applyStrategy(str)}
+                  className={cn(
+                    "mt-2 rounded-md border px-2 py-1 text-[11px] font-semibold",
+                    applied
+                      ? "border-primary/40 bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:bg-muted",
+                  )}
+                >
+                  {applied ? "Strategy applied" : "Use this strategy"}
+                </button>
+              </div>
+            );
+          })}
         </div>
+      </section>
+
+      {/* B — Editable strategy form */}
+      <section className="space-y-3">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Reminder strategy (editable)
+        </h4>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {tiers.map((t) => {
+            const active = state.strategy === t.key;
+            const isDefault =
+              catMeta && TIER_LABEL[catMeta.defaultTier] === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setState((p) => ({ ...p, strategy: t.key }))}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition",
+                  active
+                    ? "border-primary/60 bg-primary/10 shadow-sm"
+                    : "border-border bg-background hover:bg-muted/40",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <t.Icon className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">{t.key}</span>
+                  {isDefault && (
+                    <span className="ml-auto rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[9px] uppercase text-muted-foreground">
+                      default
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                  {t.summary}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="rem-sched">Schedule mode</Label>
+            <select
+              id="rem-sched"
+              value={state.reminderScheduleMode}
+              onChange={(e) =>
+                setState((p) => ({ ...p, reminderScheduleMode: e.target.value }))
+              }
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              {REMINDER_SCHEDULE_MODES.map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+              {!REMINDER_SCHEDULE_MODES.includes(state.reminderScheduleMode) && (
+                <option>{state.reminderScheduleMode}</option>
+              )}
+            </select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="rem-chan">Reminder channel</Label>
+            <select
+              id="rem-chan"
+              value={state.reminderChannel}
+              onChange={(e) =>
+                setState((p) => ({ ...p, reminderChannel: e.target.value }))
+              }
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              {REMINDER_CHANNELS.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="grid gap-1.5">
-          <Label htmlFor="wiz-remtpl">Reminder template</Label>
-          <Input
-            id="wiz-remtpl"
-            placeholder="e.g. APOLLO-REMINDER-01"
-            value={state.reminderTemplate}
+          <Label htmlFor="rem-content">Reminder content</Label>
+          <Textarea
+            id="rem-content"
+            rows={3}
+            placeholder="Short reminder copy shown to the vendor…"
+            value={state.reminderContent}
             onChange={(e) =>
-              setState((p) => ({
-                ...p,
-                reminderTemplate: e.target.value,
-              }))
+              setState((p) => ({ ...p, reminderContent: e.target.value }))
             }
           />
         </div>
-      </div>
+
+        <div className="grid gap-1.5">
+          <Label>Reminder audience</Label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ["same", "Same audience", "Only non-responders from the original send."],
+                ["broaden", "Broaden audience", "Add secondary POC / role fallback contacts."],
+              ] as const
+            ).map(([key, title, desc]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() =>
+                  setState((p) => ({ ...p, reminderAudience: key }))
+                }
+                className={cn(
+                  "rounded-lg border p-3 text-left",
+                  state.reminderAudience === key
+                    ? "border-primary/60 bg-primary/10"
+                    : "border-border bg-background hover:bg-muted/40",
+                )}
+              >
+                <div className="text-sm font-medium">{title}</div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* C — Portal acknowledge */}
+      <section className="rounded-lg border border-border bg-background p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium">
+              Also push to portal with Acknowledge CTA
+            </div>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Adds a persistent nudge inside PartnersBiz alongside the reminder.
+            </p>
+          </div>
+          <Switch
+            checked={state.portalAck}
+            onCheckedChange={(v) =>
+              setState((p) => ({ ...p, portalAck: v }))
+            }
+          />
+        </div>
+
+        {state.portalAck && (
+          <div className="mt-3 space-y-2">
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <span className="inline-flex rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {catMeta?.name ?? "Campaign"}
+              </span>
+              <div className="mt-2 text-sm font-semibold">
+                {state.name.trim() || "Action pending on your account"}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {state.reminderContent.trim() ||
+                  "You have a pending item from Blinkit. Review and acknowledge to close this nudge."}
+              </p>
+              <button
+                type="button"
+                className="mt-2 rounded-md border border-primary/40 bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground"
+              >
+                Acknowledge
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              The nudge stays pinned on the vendor dashboard until acknowledged.
+              An acknowledgement stops all remaining reminder steps for that
+              vendor and is logged in campaign telemetry.
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -2882,40 +3055,144 @@ function StepReview({
   audienceCount: number;
   largeAudience: boolean;
 }) {
+  const cat = state.campCat as CampaignCategory;
+  const catMeta = cat ? CAMP_CATS[cat] : null;
+  const recurring = state.trigger === "Recurring";
+
   const scheduleText =
     state.trigger === "One-time"
       ? `One-time · ${state.triggerDate || "—"} ${state.triggerTime}`
       : state.trigger === "Event-based"
         ? `Event · ${state.triggerEvent}`
         : `Recurring · ${state.recurringPattern}`;
-  const reminderText =
-    state.trigger === "Recurring"
-      ? "n/a (recurring)"
-      : `${state.strategy} · escalate via ${state.escalationChannel}`;
+
+  const reminderText = recurring
+    ? "n/a — each recurrence is a fresh send"
+    : `${state.strategy} · ${state.reminderScheduleMode} · via ${state.reminderChannel} · ${
+        state.reminderAudience === "broaden" ? "broadened audience" : "same audience"
+      }`;
+
+  const allInCat =
+    catMeta !== null &&
+    state.messages.every((m) => catMeta.tplCats.includes(m.templateCategory));
+  const channelsOk =
+    catMeta !== null &&
+    state.messages.every((m) => catMeta.channels.includes(m.channelLabel));
+  const reminderSet =
+    recurring || (!!state.reminderScheduleMode && !!state.reminderChannel);
+
+  const checks: { ok: boolean; label: string; detail: string }[] = [
+    {
+      ok: allInCat && state.messages.length > 0,
+      label: "Category → template mapping enforced",
+      detail: catMeta
+        ? `${catMeta.name} allows: ${catMeta.tplCats.join(", ")}`
+        : "No category selected",
+    },
+    {
+      ok: channelsOk && state.messages.length > 0,
+      label: "Templates match eligible channels",
+      detail: catMeta ? catMeta.channels.join(" · ") : "—",
+    },
+    {
+      ok: reminderSet,
+      label: "Reminder strategy set",
+      detail: reminderText,
+    },
+    {
+      ok: state.portalAck,
+      label: state.portalAck
+        ? "Portal Acknowledge CTA enabled"
+        : "Portal Acknowledge CTA off",
+      detail: state.portalAck
+        ? "Vendors can close the loop from the portal."
+        : "No in-portal acknowledgement — closure tracked via channel replies only.",
+    },
+  ];
+
+  const estVolume =
+    audienceCount * Math.max(1, state.messages.length) +
+    (recurring
+      ? 0
+      : audienceCount *
+        (state.strategy === "Critical" ? 5 : state.strategy === "Standard" ? 3 : 1));
+
   const rows: [string, string][] = [
     ["Name", state.name || "—"],
-    [
-      "Owner",
-      state.owner ? OWNER_LABEL[state.owner as Owner] : "—",
-    ],
-    ["Category", state.campCat ? CAMP_CATS[state.campCat].name : "—"],
+    ["Owner", state.owner ? OWNER_LABEL[state.owner as Owner] : "—"],
+    ["Category", catMeta?.name ?? "—"],
     [
       "Audience",
       `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment}`,
     ],
     [
-      "Message chain",
+      "Sequence chain",
       state.messages.length
         ? state.messages
-            .map((m, i) => `${i + 1}. ${m.channel} → ${m.name}`)
+            .map((m, i) => `SEQ_${i + 1} ${m.channelLabel} → ${m.name}`)
             .join("  ·  ")
         : "—",
     ],
-    ["Schedule", scheduleText],
-    ["Reminder policy", reminderText],
+    ["Trigger", scheduleText],
+    ["Reminder config", reminderText],
+    [
+      "Est. send volume",
+      `${estVolume.toLocaleString("en-IN")} messages (incl. reminders)`,
+    ],
   ];
+
   return (
     <div className="space-y-4">
+      {state.liveEdit && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex-1">
+            <div className="font-semibold">Editing an active campaign</div>
+            <p className="mt-0.5">
+              Changes apply to future sends only — already delivered steps are
+              unaffected.
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => toast.success("Changes applied to future sends.")}
+                className="rounded-md border border-primary/40 bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground"
+              >
+                Apply changes
+              </button>
+              <button
+                type="button"
+                onClick={() => toast.success("Campaign paused.")}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-semibold"
+              >
+                <Pause className="h-3 w-3" /> Pause campaign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <section className="rounded-lg border border-border bg-background p-3">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Governance checks
+        </h4>
+        <ul className="mt-2 space-y-2">
+          {checks.map((c) => (
+            <li key={c.label} className="flex items-start gap-2 text-xs">
+              {c.ok ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              ) : (
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              )}
+              <div>
+                <div className="font-medium text-foreground">{c.label}</div>
+                <p className="text-[11px] text-muted-foreground">{c.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <div className="overflow-hidden rounded-lg border border-border">
         <table className="w-full text-sm">
           <tbody>
@@ -2939,9 +3216,9 @@ function StepReview({
               Large audience selected
             </div>
             <p className="mt-0.5 text-muted-foreground">
-              {audienceCount.toLocaleString("en-IN")} recipients — please
-              verify your targeting before launch. No approval required;
-              governance comes from the pre-approved templates you selected.
+              {audienceCount.toLocaleString("en-IN")} recipients — please verify
+              your targeting before launch. No approval required; governance
+              comes from the pre-approved templates you selected.
             </p>
           </div>
         </div>
