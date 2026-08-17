@@ -80,6 +80,14 @@ import {
   type VendorActionTelemetry,
 } from "@/lib/requests-store";
 import { CATEGORIES } from "@/lib/mock-data";
+import {
+  CAMP_CATS,
+  CAMP_CAT_KEYS,
+  CDP_SEGMENTS,
+  CAMPAIGN_TEMPLATES,
+  LARGE_AUDIENCE_THRESHOLD,
+  type CampaignCategory,
+} from "@/lib/campaign-catalog";
 import { toast } from "sonner";
 
 
@@ -185,7 +193,7 @@ function CampaignsPage() {
             className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-3.5 w-3.5" />
-            New Campaign
+            Create Campaign
           </button>
         </header>
 
@@ -1681,7 +1689,6 @@ type Owner =
   | "category"
   | "monetisation"
   | "supply";
-type UseCase = "Announcement" | "Actionable Task" | "Payment" | "Promo / Ads";
 type TargetLevel = "Vendor" | "Manufacturer";
 type AudienceMethod = "Role-based" | "Ad-hoc Users" | "Excel Upload";
 type TriggerKind = "One-time" | "Event-based" | "Recurring";
@@ -1705,45 +1712,14 @@ const OWNER_LABEL: Record<Owner, string> = {
   supply: "Supply Chain",
 };
 
-const USE_CASES: {
-  key: UseCase;
-  tag: string;
-  desc: string;
-  Icon: typeof Bell;
-}[] = [
-  {
-    key: "Announcement",
-    tag: "FYI",
-    desc: "Broadcast an update — no action expected.",
-    Icon: Bell,
-  },
-  {
-    key: "Actionable Task",
-    tag: "Needs action",
-    desc: "Vendor must accept, dispute or resolve.",
-    Icon: Zap,
-  },
-  {
-    key: "Payment",
-    tag: "Financial",
-    desc: "Invoice, hold, or payout related.",
-    Icon: Shield,
-  },
-  {
-    key: "Promo / Ads",
-    tag: "Opt-in",
-    desc: "Monetisation nudges vendors have opted into.",
-    Icon: Megaphone,
-  },
-];
+const SEGMENTS = CDP_SEGMENTS;
 
-const SEGMENTS: { key: string; count: number }[] = [
-  { key: "All vendors", count: 3880 },
-  { key: "Tech Enabled Vendors", count: 1240 },
-  { key: "Low Tech Vendors", count: 640 },
-  { key: "Finance POC only", count: 412 },
-  { key: "North zone — Category A", count: 1212 },
-];
+const CAMP_CAT_ICON: Record<CampaignCategory, typeof Bell> = {
+  actionable: Zap,
+  payments: Shield,
+  updates: Bell,
+  promotional: Megaphone,
+};
 
 const CHANNEL_OPTIONS: CampaignChannel[] = ["Email", "WhatsApp", "Dashboard"];
 
@@ -1792,7 +1768,7 @@ function initialWizardState() {
     // Step 1
     name: "",
     owner: "" as Owner | "",
-    useCase: "" as UseCase | "",
+    campCat: "" as CampaignCategory | "",
     // Step 2
     targetLevel: "Vendor" as TargetLevel,
     segment: SEGMENTS[0].key,
@@ -1844,10 +1820,10 @@ function NewCampaignWizard({
   }, [campaigns, s.segment, audienceCount]);
 
   const remindersDisabled = s.trigger === "Recurring";
-  const requiresApproval = audienceCount > 1000;
+  const largeAudience = audienceCount > LARGE_AUDIENCE_THRESHOLD;
 
   const canNext = (() => {
-    if (s.step === 1) return s.name.trim() && s.owner && s.useCase;
+    if (s.step === 1) return s.name.trim() && s.owner && s.campCat;
     if (s.step === 2) return s.methods.size > 0;
     if (s.step === 3) return s.messages.length > 0;
     if (s.step === 4) {
@@ -1880,11 +1856,11 @@ function NewCampaignWizard({
       templateId: first?.templateId ?? "APOLLO-WIZARD",
       name: s.name.trim(),
       categoryId:
-        s.useCase === "Payment"
+        s.campCat === "payments"
           ? "finance_payments"
-          : s.useCase === "Actionable Task"
+          : s.campCat === "actionable"
             ? "action_required"
-            : s.useCase === "Promo / Ads"
+            : s.campCat === "promotional"
               ? "reminders"
               : "daily_ops",
       priority:
@@ -1893,7 +1869,7 @@ function NewCampaignWizard({
           : s.strategy === "Standard"
             ? "P2"
             : "P3",
-      purpose: `${s.useCase} campaign owned by ${OWNER_LABEL[s.owner as Owner]}.`,
+      purpose: `${s.campCat ? CAMP_CATS[s.campCat].name : "Campaign"} campaign owned by ${OWNER_LABEL[s.owner as Owner]}.`,
       channels: uniqChannels.length ? uniqChannels : ["Email"],
       segment: s.segment,
       audienceCount,
@@ -1934,7 +1910,7 @@ function NewCampaignWizard({
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="workdesk max-h-[90vh] w-full max-w-3xl overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-lg">New Campaign</DialogTitle>
+          <DialogTitle className="text-lg">Create Campaign</DialogTitle>
         </DialogHeader>
 
         <Stepper current={s.step} />
@@ -1956,6 +1932,7 @@ function NewCampaignWizard({
               state={s}
               setState={setS}
               approvedTemplates={approvedTemplates}
+              campCat={s.campCat}
             />
           )}
           {s.step === 4 && <StepSchedule state={s} setState={setS} />}
@@ -1970,7 +1947,7 @@ function NewCampaignWizard({
             <StepReview
               state={s}
               audienceCount={audienceCount}
-              requiresApproval={requiresApproval}
+              largeAudience={largeAudience}
             />
           )}
         </div>
@@ -2079,6 +2056,35 @@ function StepBasics({
   state: WizState;
   setState: WizSetter;
 }) {
+  const pickCategory = (key: CampaignCategory) => {
+    if (state.campCat === key) return;
+    const hasDownstreamData =
+      state.messages.length > 0 ||
+      state.strategy !== "Standard" ||
+      state.reminderTemplate.trim().length > 0;
+    if (
+      state.campCat &&
+      hasDownstreamData &&
+      !window.confirm(
+        "Changing the campaign category clears the message sequence and reminder setup. Continue?",
+      )
+    ) {
+      return;
+    }
+    setState((p) => ({
+      ...p,
+      campCat: key,
+      messages: [],
+      strategy: (CAMP_CATS[key].defaultTier === "critical"
+        ? "Critical"
+        : CAMP_CATS[key].defaultTier === "standard"
+          ? "Standard"
+          : "FYI") as StrategyChoice,
+      escalationChannel: "WhatsApp",
+      reminderTemplate: "",
+    }));
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid gap-2">
@@ -2111,17 +2117,17 @@ function StepBasics({
       </div>
 
       <div className="grid gap-2">
-        <Label>Use case</Label>
+        <Label>Campaign category</Label>
         <div className="grid gap-2 sm:grid-cols-2">
-          {USE_CASES.map((u) => {
-            const active = state.useCase === u.key;
+          {CAMP_CAT_KEYS.map((key) => {
+            const meta = CAMP_CATS[key];
+            const active = state.campCat === key;
+            const Icon = CAMP_CAT_ICON[key];
             return (
               <button
-                key={u.key}
+                key={key}
                 type="button"
-                onClick={() =>
-                  setState((p) => ({ ...p, useCase: u.key }))
-                }
+                onClick={() => pickCategory(key)}
                 className={cn(
                   "flex items-start gap-2 rounded-lg border p-3 text-left transition",
                   active
@@ -2129,29 +2135,46 @@ function StepBasics({
                     : "border-border bg-background hover:bg-muted/40",
                 )}
               >
-                <u.Icon
+                <Icon
                   className={cn(
                     "mt-0.5 h-4 w-4 shrink-0",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 />
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">
-                      {u.key}
+                      {meta.name}
                     </span>
-                    <span className="rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] text-muted-foreground">
-                      {u.tag}
+                    <span className="rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] uppercase text-muted-foreground">
+                      {meta.defaultTier}
                     </span>
                   </div>
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                    {u.desc}
+                    {meta.desc}
                   </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {meta.channels.map((ch) => (
+                      <span
+                        key={ch}
+                        className="rounded border border-border bg-background px-1 py-0 text-[10px] text-muted-foreground"
+                      >
+                        {ch}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </button>
             );
           })}
         </div>
+        {state.campCat && (
+          <p className="text-[11px] text-muted-foreground">
+            Governance is inherited from the pre-approved templates in:{" "}
+            {CAMP_CATS[state.campCat].tplCats.join(" · ")} — no separate admin
+            approval is required for the campaign.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -2200,22 +2223,56 @@ function StepAudience({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="wiz-segment">Segment</Label>
-        <select
-          id="wiz-segment"
-          value={state.segment}
-          onChange={(e) =>
-            setState((p) => ({ ...p, segment: e.target.value }))
-          }
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-        >
-          {SEGMENTS.map((seg) => (
-            <option key={seg.key} value={seg.key}>
-              {seg.key} · {seg.count.toLocaleString("en-IN")}
-            </option>
-          ))}
-        </select>
+        <Label>Saved segments</Label>
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+          {SEGMENTS.map((seg) => {
+            const active = state.segment === seg.key;
+            return (
+              <button
+                key={seg.key}
+                type="button"
+                onClick={() => setState((p) => ({ ...p, segment: seg.key }))}
+                className={cn(
+                  "flex w-full items-center gap-3 px-3 py-2.5 text-left transition",
+                  active ? "bg-primary/10" : "bg-background hover:bg-muted/40",
+                )}
+              >
+                <span
+                  className={cn(
+                    "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
+                    active ? "border-primary" : "border-border",
+                  )}
+                >
+                  {active && (
+                    <span className="h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-foreground">
+                    {seg.key}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {seg.desc}
+                  </span>
+                </span>
+                <span className="shrink-0 tabular-nums text-xs font-semibold text-foreground">
+                  {seg.count.toLocaleString("en-IN")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {audienceCount > LARGE_AUDIENCE_THRESHOLD && (
+        <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
+          <span className="text-foreground">
+            Large audience selected — please verify your targeting before
+            launch.
+          </span>
+        </div>
+      )}
 
       <div className="grid gap-2">
         <Label>Recipient method</Label>
@@ -2276,10 +2333,12 @@ function StepSequencing({
   state,
   setState,
   approvedTemplates,
+  campCat,
 }: {
   state: WizState;
   setState: WizSetter;
   approvedTemplates: TemplateRequest[];
+  campCat: CampaignCategory | "";
 }) {
   const move = (idx: number, dir: -1 | 1) => {
     setState((p) => {
@@ -2430,6 +2489,27 @@ function StepSequencing({
 
       <TemplateLibraryDialog
         open={state.libraryOpen}
+        campCat={campCat}
+        onPickCatalog={(t) =>
+          setState((p) => ({
+            ...p,
+            libraryOpen: false,
+            messages: [
+              ...p.messages,
+              {
+                key: `${t.id}-${p.messages.length}`,
+                requestId: "REQ-PREAPPROVED",
+                templateId: t.id,
+                name: t.name,
+                channel: (t.channel === "Email" ||
+                t.channel === "WhatsApp"
+                  ? t.channel
+                  : "Dashboard") as CampaignChannel,
+                variables: [],
+              },
+            ],
+          }))
+        }
         templates={approvedTemplates}
         onPick={addFromTemplate}
         onClose={() =>
@@ -2491,14 +2571,23 @@ function ChannelBadge({ channel }: { channel: CampaignChannel }) {
 function TemplateLibraryDialog({
   open,
   templates,
+  campCat,
   onPick,
+  onPickCatalog,
   onClose,
 }: {
   open: boolean;
   templates: TemplateRequest[];
+  campCat: CampaignCategory | "";
   onPick: (t: TemplateRequest) => void;
+  onPickCatalog: (t: (typeof CAMPAIGN_TEMPLATES)[number]) => void;
   onClose: () => void;
 }) {
+  const catalog = campCat
+    ? CAMPAIGN_TEMPLATES.filter((t) =>
+        CAMP_CATS[campCat].tplCats.includes(t.templateCategory),
+      )
+    : [];
   const campaigns = useCampaigns();
   const usageByTemplate = useMemo(() => {
     const map = new Map<string, number>();
@@ -2516,6 +2605,41 @@ function TemplateLibraryDialog({
         <DialogHeader>
           <DialogTitle className="text-base">Pick a template</DialogTitle>
         </DialogHeader>
+
+        {catalog.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Pre-approved · {CAMP_CATS[campCat as CampaignCategory].name}
+            </div>
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {catalog.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPickCatalog(t)}
+                    className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-foreground">
+                        {t.name}
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className="font-mono">{t.id}</span>
+                        <span>· {t.channel}</span>
+                        <span>· {t.templateCategory}</span>
+                      </div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        Mock stat: {t.stat.ackRate}% ack rate over{" "}
+                        {t.stat.n.toLocaleString("en-IN")} sends
+                      </div>
+                    </div>
+                    <Plus className="h-4 w-4 shrink-0 text-primary" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {templates.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             No approved templates yet — get a request approved in Requests
@@ -2794,11 +2918,11 @@ function StepReminders({
 function StepReview({
   state,
   audienceCount,
-  requiresApproval,
+  largeAudience,
 }: {
   state: WizState;
   audienceCount: number;
-  requiresApproval: boolean;
+  largeAudience: boolean;
 }) {
   const scheduleText =
     state.trigger === "One-time"
@@ -2816,7 +2940,7 @@ function StepReview({
       "Owner",
       state.owner ? OWNER_LABEL[state.owner as Owner] : "—",
     ],
-    ["Use case", state.useCase || "—"],
+    ["Category", state.campCat ? CAMP_CATS[state.campCat].name : "—"],
     [
       "Audience",
       `${audienceCount.toLocaleString("en-IN")} ${state.targetLevel.toLowerCase()}s · ${state.segment}`,
@@ -2849,17 +2973,17 @@ function StepReview({
         </table>
       </div>
 
-      {requiresApproval ? (
-        <div className="flex items-start gap-2 rounded-lg border border-cat-red/40 bg-cat-red/5 p-3 text-xs">
-          <Shield className="mt-0.5 h-4 w-4 shrink-0 text-cat-red" />
+      {largeAudience ? (
+        <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
           <div>
-            <div className="font-semibold text-cat-red">
-              Approval Required
+            <div className="font-semibold text-foreground">
+              Large audience selected
             </div>
-            <p className="mt-0.5 text-foreground">
-              Target audience ({audienceCount.toLocaleString("en-IN")})
-              exceeds the 1,000 recipient threshold. Launch will route to
-              Comms-Admin as a Pending approval.
+            <p className="mt-0.5 text-muted-foreground">
+              {audienceCount.toLocaleString("en-IN")} recipients — please
+              verify your targeting before launch. No approval required;
+              governance comes from the pre-approved templates you selected.
             </p>
           </div>
         </div>
@@ -2867,11 +2991,10 @@ function StepReview({
         <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <div>
-            <div className="font-semibold text-foreground">
-              Ready to launch
-            </div>
+            <div className="font-semibold text-foreground">Ready to launch</div>
             <p className="mt-0.5 text-muted-foreground">
-              Audience within threshold — no additional approval required.
+              All messages use pre-approved templates — no additional approval
+              required.
             </p>
           </div>
         </div>
