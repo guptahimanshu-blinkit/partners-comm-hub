@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   Megaphone,
@@ -24,7 +24,6 @@ import {
   ArrowRight,
   X,
   ArrowUp,
-  Pencil,
   Users,
   Info,
   FileText,
@@ -66,7 +65,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   useCampaigns,
-  useRequests,
   addCampaign,
   updateCampaign,
   updateCampaignStatus,
@@ -74,7 +72,6 @@ import {
   type Campaign,
   type CampaignChannel,
   type CampaignStatus,
-  type TemplateRequest,
   useVendorActionEvents,
   useVendorTelemetry,
   type VendorActionTelemetry,
@@ -84,9 +81,11 @@ import {
   CAMP_CATS,
   CAMP_CAT_KEYS,
   CDP_SEGMENTS,
-  CAMPAIGN_TEMPLATES,
   LARGE_AUDIENCE_THRESHOLD,
+  eligibleTemplates,
+  templateStatLine,
   type CampaignCategory,
+  type CampaignTemplate,
 } from "@/lib/campaign-catalog";
 import { toast } from "sonner";
 
@@ -1701,6 +1700,9 @@ type WizMessage = {
   templateId: string;
   name: string;
   channel: CampaignChannel;
+  channelLabel: string;
+  templateCategory: string;
+  statLine: string;
   variables: string[];
 };
 
@@ -1721,7 +1723,6 @@ const CAMP_CAT_ICON: Record<CampaignCategory, typeof Bell> = {
   promotional: Megaphone,
 };
 
-const CHANNEL_OPTIONS: CampaignChannel[] = ["Email", "WhatsApp", "Dashboard"];
 
 const EVENT_TRIGGERS = [
   "invoice_overdue",
@@ -1745,22 +1746,8 @@ const STEP_TITLES = [
   "Review & launch",
 ];
 
-const LIQUID_REGEX = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g;
 
-function detectVariables(text: string): string[] {
-  const found = new Set<string>();
-  let m: RegExpExecArray | null;
-  while ((m = LIQUID_REGEX.exec(text)) !== null) found.add(m[1]);
-  return Array.from(found);
-}
 
-function inferChannelFromName(name: string): CampaignChannel {
-  const n = name.toLowerCase();
-  if (n.includes("whatsapp") || n.includes("wa ")) return "WhatsApp";
-  if (n.includes("banner") || n.includes("dashboard") || n.includes("card"))
-    return "Dashboard";
-  return "Email";
-}
 
 function initialWizardState() {
   return {
@@ -1796,14 +1783,8 @@ function NewCampaignWizard({
   open: boolean;
   onClose: () => void;
 }) {
-  const requests = useRequests();
   const campaigns = useCampaigns();
   const [s, setS] = useState(initialWizardState);
-
-  const approvedTemplates = useMemo(
-    () => requests.filter((r) => r.status === "Approved"),
-    [requests],
-  );
 
   const audienceCount = useMemo(() => {
     const seg = SEGMENTS.find((x) => x.key === s.segment);
@@ -1913,7 +1894,7 @@ function NewCampaignWizard({
           <DialogTitle className="text-lg">Create Campaign</DialogTitle>
         </DialogHeader>
 
-        <Stepper current={s.step} />
+        <Stepper current={s.step} remindersDisabled={remindersDisabled} />
 
         <div className="mt-4 space-y-4">
           {s.step === 1 && (
@@ -1928,12 +1909,7 @@ function NewCampaignWizard({
             />
           )}
           {s.step === 3 && (
-            <StepSequencing
-              state={s}
-              setState={setS}
-              approvedTemplates={approvedTemplates}
-              campCat={s.campCat}
-            />
+            <StepSequencing state={s} setState={setS} campCat={s.campCat} />
           )}
           {s.step === 4 && <StepSchedule state={s} setState={setS} />}
           {s.step === 5 && (
@@ -1956,7 +1932,13 @@ function NewCampaignWizard({
           <button
             type="button"
             onClick={() =>
-              s.step > 1 && setS((p) => ({ ...p, step: (p.step - 1) as 1 }))
+              s.step > 1 &&
+              setS((p) => ({
+                ...p,
+                step: (p.step === 6 && remindersDisabled
+                  ? 4
+                  : p.step - 1) as 1,
+              }))
             }
             disabled={s.step === 1}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40"
@@ -1980,7 +1962,12 @@ function NewCampaignWizard({
                 type="button"
                 onClick={() =>
                   canNext &&
-                  setS((p) => ({ ...p, step: (p.step + 1) as 2 }))
+                  setS((p) => ({
+                    ...p,
+                    step: (p.step === 4 && remindersDisabled
+                      ? 6
+                      : p.step + 1) as 2,
+                  }))
                 }
                 disabled={!canNext}
                 className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
@@ -2005,15 +1992,29 @@ function NewCampaignWizard({
   );
 }
 
-function Stepper({ current }: { current: number }) {
+function Stepper({
+  current,
+  remindersDisabled,
+}: {
+  current: number;
+  remindersDisabled?: boolean;
+}) {
   return (
     <ol className="mt-2 flex items-center gap-1 overflow-x-auto pb-1">
       {STEP_TITLES.map((title, idx) => {
         const n = idx + 1;
         const done = current > n;
         const active = current === n;
+        const muted = remindersDisabled && n === 5;
         return (
-          <li key={title} className="flex min-w-0 items-center gap-1">
+          <li
+            key={title}
+            className={cn(
+              "flex min-w-0 items-center gap-1",
+              muted && "opacity-40",
+            )}
+            title={muted ? "Skipped for recurring campaigns" : undefined}
+          >
             <div
               className={cn(
                 "grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[10px] font-semibold",
@@ -2329,15 +2330,19 @@ function StepAudience({
   );
 }
 
+function toCampaignChannel(ch: string): CampaignChannel {
+  if (ch === "WhatsApp") return "WhatsApp";
+  if (ch === "Email") return "Email";
+  return "Dashboard";
+}
+
 function StepSequencing({
   state,
   setState,
-  approvedTemplates,
   campCat,
 }: {
   state: WizState;
   setState: WizSetter;
-  approvedTemplates: TemplateRequest[];
   campCat: CampaignCategory | "";
 }) {
   const move = (idx: number, dir: -1 | 1) => {
@@ -2354,42 +2359,25 @@ function StepSequencing({
       ...p,
       messages: p.messages.filter((m) => m.key !== key),
     }));
-  const addFromTemplate = (t: TemplateRequest) => {
-    const vars = detectVariables(`${t.subject} ${t.purpose}`);
-    setState((p) => ({
-      ...p,
-      libraryOpen: false,
-      messages: [
-        ...p.messages,
-        {
-          key: `${t.id}-${Date.now()}`,
-          requestId: t.id,
-          templateId: t.templateId,
-          name: t.templateName,
-          channel: inferChannelFromName(t.templateName),
-          variables: vars.length ? vars : ["vendor_name"],
-        },
-      ],
-    }));
-  };
-  const setChannel = (key: string, ch: CampaignChannel) =>
-    setState((p) => ({
-      ...p,
-      messages: p.messages.map((m) =>
-        m.key === key ? { ...m, channel: ch } : m,
-      ),
-    }));
+
+  const meta = campCat ? CAMP_CATS[campCat] : null;
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Drag together the ordered comms chain — each message fires in sequence.
-        Only approved templates from Requests are selectable.
-      </p>
+      {meta && (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <span className="text-foreground">
+            {meta.name} maps to template categories:{" "}
+            <strong>{meta.tplCats.join(", ")}</strong>. Only these approved
+            templates, on eligible channels, can be added.
+          </span>
+        </div>
+      )}
 
       {state.messages.length === 0 && (
         <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-xs text-muted-foreground">
-          No messages added yet. Add one from the template library below.
+          No sequence steps yet — add the first touch below.
         </div>
       )}
 
@@ -2399,12 +2387,17 @@ function StepSequencing({
             key={m.key}
             className="flex items-start gap-2 rounded-lg border border-border bg-background p-3"
           >
-            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-              {i + 1}
+            <span className="mt-0.5 shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+              SEQ_{i + 1}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <ChannelBadge channel={m.channel} />
+                {m.channelLabel !== m.channel && (
+                  <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0 text-[10px] font-medium">
+                    {m.channelLabel}
+                  </span>
+                )}
                 <span className="text-sm font-medium text-foreground">
                   {m.name}
                 </span>
@@ -2412,35 +2405,11 @@ function StepSequencing({
                   {m.templateId}
                 </span>
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                {m.variables.map((v) => (
-                  <span
-                    key={v}
-                    className="rounded-full border border-cat-amber/30 bg-cat-amber/10 px-1.5 py-0 font-mono text-[10px] text-cat-amber"
-                  >
-                    {`{{${v}}}`}
-                  </span>
-                ))}
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                {m.templateCategory}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-1">
-                <span className="text-[10px] text-muted-foreground">
-                  Channel:
-                </span>
-                {CHANNEL_OPTIONS.map((ch) => (
-                  <button
-                    key={ch}
-                    type="button"
-                    onClick={() => setChannel(m.key, ch)}
-                    className={cn(
-                      "rounded-md border px-1.5 py-0.5 text-[10px]",
-                      m.channel === ch
-                        ? "border-primary/50 bg-primary/15 text-foreground"
-                        : "border-border bg-background text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    {ch}
-                  </button>
-                ))}
+              <div className="mt-1 text-[11px] font-medium text-primary">
+                {m.statLine}
               </div>
             </div>
             <div className="flex flex-col gap-1">
@@ -2458,19 +2427,7 @@ function StepSequencing({
               >
                 <ArrowDown className="h-3.5 w-3.5" />
               </IconBtn>
-              <IconBtn
-                onClick={() =>
-                  toast.info("Edit template — prototype stub.")
-                }
-                title="Edit template"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </IconBtn>
-              <IconBtn
-                onClick={() => remove(m.key)}
-                title="Remove"
-                danger
-              >
+              <IconBtn onClick={() => remove(m.key)} title="Remove" danger>
                 <X className="h-3.5 w-3.5" />
               </IconBtn>
             </div>
@@ -2484,41 +2441,38 @@ function StepSequencing({
         className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
       >
         <Plus className="h-3.5 w-3.5" />
-        Add Message from Template Library
+        Add sequence step
       </button>
 
-      <TemplateLibraryDialog
+      <SequenceStepModal
         open={state.libraryOpen}
         campCat={campCat}
-        onPickCatalog={(t) =>
+        onClose={() => setState((p) => ({ ...p, libraryOpen: false }))}
+        onPick={(channel, t) =>
           setState((p) => ({
             ...p,
             libraryOpen: false,
             messages: [
               ...p.messages,
               {
-                key: `${t.id}-${p.messages.length}`,
+                key: `${t.id}-${Date.now()}`,
                 requestId: "REQ-PREAPPROVED",
                 templateId: t.id,
                 name: t.name,
-                channel: (t.channel === "Email" ||
-                t.channel === "WhatsApp"
-                  ? t.channel
-                  : "Dashboard") as CampaignChannel,
+                channel: toCampaignChannel(channel),
+                channelLabel: channel,
+                templateCategory: t.templateCategory,
+                statLine: campCat ? templateStatLine(campCat, t) : "",
                 variables: [],
               },
             ],
           }))
         }
-        templates={approvedTemplates}
-        onPick={addFromTemplate}
-        onClose={() =>
-          setState((p) => ({ ...p, libraryOpen: false }))
-        }
       />
     </div>
   );
 }
+
 
 function IconBtn({
   onClick,
@@ -2568,120 +2522,112 @@ function ChannelBadge({ channel }: { channel: CampaignChannel }) {
   );
 }
 
-function TemplateLibraryDialog({
+function SequenceStepModal({
   open,
-  templates,
   campCat,
-  onPick,
-  onPickCatalog,
   onClose,
+  onPick,
 }: {
   open: boolean;
-  templates: TemplateRequest[];
   campCat: CampaignCategory | "";
-  onPick: (t: TemplateRequest) => void;
-  onPickCatalog: (t: (typeof CAMPAIGN_TEMPLATES)[number]) => void;
   onClose: () => void;
+  onPick: (channel: string, t: CampaignTemplate) => void;
 }) {
-  const catalog = campCat
-    ? CAMPAIGN_TEMPLATES.filter((t) =>
-        CAMP_CATS[campCat].tplCats.includes(t.templateCategory),
-      )
-    : [];
-  const campaigns = useCampaigns();
-  const usageByTemplate = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const c of campaigns) {
-      if (c.status === "Running" || c.status === "Failing") {
-        map.set(c.templateId, (map.get(c.templateId) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [campaigns]);
+  const [channel, setChannel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) setChannel(null);
+  }, [open]);
+
+  if (!campCat) return null;
+  const meta = CAMP_CATS[campCat];
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="workdesk max-h-[70vh] w-full max-w-lg overflow-y-auto sm:max-w-lg">
+      <DialogContent className="workdesk max-h-[75vh] w-full max-w-lg overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-base">Pick a template</DialogTitle>
+          <DialogTitle className="text-base">
+            {channel ? `Pick a ${channel} template` : "Pick a channel"}
+          </DialogTitle>
         </DialogHeader>
 
-        {catalog.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Pre-approved · {CAMP_CATS[campCat as CampaignCategory].name}
-            </div>
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {catalog.map((t) => (
-                <li key={t.id}>
+        {!channel && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Only channels eligible for {meta.name} are shown.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {meta.channels.map((ch) => {
+                const count = eligibleTemplates(campCat, ch).length;
+                return (
                   <button
+                    key={ch}
                     type="button"
-                    onClick={() => onPickCatalog(t)}
-                    className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                    onClick={() => setChannel(ch)}
+                    className="rounded-lg border border-border bg-background p-3 text-left hover:bg-muted/40"
                   >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-foreground">
-                        {t.name}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                        <span className="font-mono">{t.id}</span>
-                        <span>· {t.channel}</span>
-                        <span>· {t.templateCategory}</span>
-                      </div>
-                      <div className="mt-1 text-[10px] text-muted-foreground">
-                        Mock stat: {t.stat.ackRate}% ack rate over{" "}
-                        {t.stat.n.toLocaleString("en-IN")} sends
-                      </div>
+                    <div className="text-sm font-medium text-foreground">
+                      {ch}
                     </div>
-                    <Plus className="h-4 w-4 shrink-0 text-primary" />
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {count} approved template{count === 1 ? "" : "s"}
+                    </div>
                   </button>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           </div>
         )}
-        {templates.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No approved templates yet — get a request approved in Requests
-            first.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border">
-            {templates.map((t) => {
-              const usage = usageByTemplate.get(t.templateId) ?? 0;
-              return (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => onPick(t)}
-                    className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {t.templateName}
-                        </span>
-                        {usage > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-cat-amber/40 bg-cat-amber/10 px-1.5 py-0 text-[10px] font-semibold text-cat-amber">
-                            Used in {usage} live campaign{usage === 1 ? "" : "s"} · locked
-                          </span>
-                        )}
+
+        {channel && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setChannel(null)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3 w-3" /> Change channel
+            </button>
+            {eligibleTemplates(campCat, channel).length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-5 text-center text-xs text-muted-foreground">
+                No approved {channel} templates exist under{" "}
+                {meta.tplCats.join(", ")}. Create one via Template Request
+                first.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border rounded-lg border border-border">
+                {eligibleTemplates(campCat, channel).map((t) => (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(channel, t)}
+                      className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground">
+                          {t.name}
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="font-mono">{t.id}</span>
+                          <span>· {t.templateCategory}</span>
+                        </div>
+                        <div className="mt-1 text-[11px] font-medium text-primary">
+                          {templateStatLine(campCat, t)}
+                        </div>
                       </div>
-                      <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                        {t.templateId}
-                      </div>
-                    </div>
-                    <Plus className="h-4 w-4 text-primary" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                      <Plus className="h-4 w-4 shrink-0 text-primary" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </DialogContent>
     </Dialog>
   );
 }
+
 
 
 function StepSchedule({
@@ -2788,8 +2734,8 @@ function StepSchedule({
           <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
             <span className="text-foreground">
-              Reminders are not applicable for recurring campaigns — Step 5
-              will be skipped.
+              Each recurrence is a fresh send — reminders will be skipped.
+              Step 5 (Reminders) is disabled and you'll go straight to Review.
             </span>
           </div>
         </>
