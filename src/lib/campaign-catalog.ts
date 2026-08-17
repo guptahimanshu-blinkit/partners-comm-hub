@@ -154,3 +154,26 @@ export const CDP_SEGMENTS: CdpSegment[] = [
 ];
 
 export const LARGE_AUDIENCE_THRESHOLD = 1000;
+
+/** Mocked inline stat line rendered on template rows in the sequencing step. */
+export function templateStatLine(
+  cat: CampaignCategory,
+  t: CampaignTemplate,
+): string {
+  const n = t.stat.n.toLocaleString("en-IN");
+  if (cat === "actionable" || cat === "payments") {
+    return `Resolves ${t.stat.ackRate}% at first touch (n=${n})`;
+  }
+  return `${t.stat.ackRate}% open rate (n=${n})`;
+}
+
+/** Templates eligible for a category + channel pair (strict double filter). */
+export function eligibleTemplates(
+  cat: CampaignCategory,
+  channel: string,
+): CampaignTemplate[] {
+  return CAMPAIGN_TEMPLATES.filter(
+    (t) =>
+      t.channel === channel && CAMP_CATS[cat].tplCats.includes(t.templateCategory),
+  );
+}
