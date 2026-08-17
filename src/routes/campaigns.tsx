@@ -1746,22 +1746,8 @@ const STEP_TITLES = [
   "Review & launch",
 ];
 
-const LIQUID_REGEX = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g;
 
-function detectVariables(text: string): string[] {
-  const found = new Set<string>();
-  let m: RegExpExecArray | null;
-  while ((m = LIQUID_REGEX.exec(text)) !== null) found.add(m[1]);
-  return Array.from(found);
-}
 
-function inferChannelFromName(name: string): CampaignChannel {
-  const n = name.toLowerCase();
-  if (n.includes("whatsapp") || n.includes("wa ")) return "WhatsApp";
-  if (n.includes("banner") || n.includes("dashboard") || n.includes("card"))
-    return "Dashboard";
-  return "Email";
-}
 
 function initialWizardState() {
   return {
