@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   Megaphone,
@@ -24,7 +24,6 @@ import {
   ArrowRight,
   X,
   ArrowUp,
-  Pencil,
   Users,
   Info,
   FileText,
@@ -66,7 +65,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
   useCampaigns,
-  useRequests,
   addCampaign,
   updateCampaign,
   updateCampaignStatus,
@@ -74,7 +72,6 @@ import {
   type Campaign,
   type CampaignChannel,
   type CampaignStatus,
-  type TemplateRequest,
   useVendorActionEvents,
   useVendorTelemetry,
   type VendorActionTelemetry,
@@ -84,9 +81,11 @@ import {
   CAMP_CATS,
   CAMP_CAT_KEYS,
   CDP_SEGMENTS,
-  CAMPAIGN_TEMPLATES,
   LARGE_AUDIENCE_THRESHOLD,
+  eligibleTemplates,
+  templateStatLine,
   type CampaignCategory,
+  type CampaignTemplate,
 } from "@/lib/campaign-catalog";
 import { toast } from "sonner";
 
@@ -1701,6 +1700,9 @@ type WizMessage = {
   templateId: string;
   name: string;
   channel: CampaignChannel;
+  channelLabel: string;
+  templateCategory: string;
+  statLine: string;
   variables: string[];
 };
 
@@ -1721,7 +1723,6 @@ const CAMP_CAT_ICON: Record<CampaignCategory, typeof Bell> = {
   promotional: Megaphone,
 };
 
-const CHANNEL_OPTIONS: CampaignChannel[] = ["Email", "WhatsApp", "Dashboard"];
 
 const EVENT_TRIGGERS = [
   "invoice_overdue",
@@ -1796,14 +1797,8 @@ function NewCampaignWizard({
   open: boolean;
   onClose: () => void;
 }) {
-  const requests = useRequests();
   const campaigns = useCampaigns();
   const [s, setS] = useState(initialWizardState);
-
-  const approvedTemplates = useMemo(
-    () => requests.filter((r) => r.status === "Approved"),
-    [requests],
-  );
 
   const audienceCount = useMemo(() => {
     const seg = SEGMENTS.find((x) => x.key === s.segment);
@@ -1928,12 +1923,7 @@ function NewCampaignWizard({
             />
           )}
           {s.step === 3 && (
-            <StepSequencing
-              state={s}
-              setState={setS}
-              approvedTemplates={approvedTemplates}
-              campCat={s.campCat}
-            />
+            <StepSequencing state={s} setState={setS} campCat={s.campCat} />
           )}
           {s.step === 4 && <StepSchedule state={s} setState={setS} />}
           {s.step === 5 && (
