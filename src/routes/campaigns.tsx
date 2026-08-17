@@ -2568,120 +2568,112 @@ function ChannelBadge({ channel }: { channel: CampaignChannel }) {
   );
 }
 
-function TemplateLibraryDialog({
+function SequenceStepModal({
   open,
-  templates,
   campCat,
-  onPick,
-  onPickCatalog,
   onClose,
+  onPick,
 }: {
   open: boolean;
-  templates: TemplateRequest[];
   campCat: CampaignCategory | "";
-  onPick: (t: TemplateRequest) => void;
-  onPickCatalog: (t: (typeof CAMPAIGN_TEMPLATES)[number]) => void;
   onClose: () => void;
+  onPick: (channel: string, t: CampaignTemplate) => void;
 }) {
-  const catalog = campCat
-    ? CAMPAIGN_TEMPLATES.filter((t) =>
-        CAMP_CATS[campCat].tplCats.includes(t.templateCategory),
-      )
-    : [];
-  const campaigns = useCampaigns();
-  const usageByTemplate = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const c of campaigns) {
-      if (c.status === "Running" || c.status === "Failing") {
-        map.set(c.templateId, (map.get(c.templateId) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [campaigns]);
+  const [channel, setChannel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) setChannel(null);
+  }, [open]);
+
+  if (!campCat) return null;
+  const meta = CAMP_CATS[campCat];
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="workdesk max-h-[70vh] w-full max-w-lg overflow-y-auto sm:max-w-lg">
+      <DialogContent className="workdesk max-h-[75vh] w-full max-w-lg overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-base">Pick a template</DialogTitle>
+          <DialogTitle className="text-base">
+            {channel ? `Pick a ${channel} template` : "Pick a channel"}
+          </DialogTitle>
         </DialogHeader>
 
-        {catalog.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Pre-approved · {CAMP_CATS[campCat as CampaignCategory].name}
-            </div>
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {catalog.map((t) => (
-                <li key={t.id}>
+        {!channel && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Only channels eligible for {meta.name} are shown.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {meta.channels.map((ch) => {
+                const count = eligibleTemplates(campCat, ch).length;
+                return (
                   <button
+                    key={ch}
                     type="button"
-                    onClick={() => onPickCatalog(t)}
-                    className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                    onClick={() => setChannel(ch)}
+                    className="rounded-lg border border-border bg-background p-3 text-left hover:bg-muted/40"
                   >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-foreground">
-                        {t.name}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                        <span className="font-mono">{t.id}</span>
-                        <span>· {t.channel}</span>
-                        <span>· {t.templateCategory}</span>
-                      </div>
-                      <div className="mt-1 text-[10px] text-muted-foreground">
-                        Mock stat: {t.stat.ackRate}% ack rate over{" "}
-                        {t.stat.n.toLocaleString("en-IN")} sends
-                      </div>
+                    <div className="text-sm font-medium text-foreground">
+                      {ch}
                     </div>
-                    <Plus className="h-4 w-4 shrink-0 text-primary" />
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {count} approved template{count === 1 ? "" : "s"}
+                    </div>
                   </button>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           </div>
         )}
-        {templates.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No approved templates yet — get a request approved in Requests
-            first.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border rounded-lg border border-border">
-            {templates.map((t) => {
-              const usage = usageByTemplate.get(t.templateId) ?? 0;
-              return (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => onPick(t)}
-                    className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {t.templateName}
-                        </span>
-                        {usage > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-cat-amber/40 bg-cat-amber/10 px-1.5 py-0 text-[10px] font-semibold text-cat-amber">
-                            Used in {usage} live campaign{usage === 1 ? "" : "s"} · locked
-                          </span>
-                        )}
+
+        {channel && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setChannel(null)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3 w-3" /> Change channel
+            </button>
+            {eligibleTemplates(campCat, channel).length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-5 text-center text-xs text-muted-foreground">
+                No approved {channel} templates exist under{" "}
+                {meta.tplCats.join(", ")}. Create one via Template Request
+                first.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border rounded-lg border border-border">
+                {eligibleTemplates(campCat, channel).map((t) => (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(channel, t)}
+                      className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-muted/40"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground">
+                          {t.name}
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="font-mono">{t.id}</span>
+                          <span>· {t.templateCategory}</span>
+                        </div>
+                        <div className="mt-1 text-[11px] font-medium text-primary">
+                          {templateStatLine(campCat, t)}
+                        </div>
                       </div>
-                      <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                        {t.templateId}
-                      </div>
-                    </div>
-                    <Plus className="h-4 w-4 text-primary" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                      <Plus className="h-4 w-4 shrink-0 text-primary" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </DialogContent>
     </Dialog>
   );
 }
+
 
 
 function StepSchedule({
