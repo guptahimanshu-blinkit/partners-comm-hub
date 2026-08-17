@@ -2113,17 +2113,17 @@ function StepBasics({
       </div>
 
       <div className="grid gap-2">
-        <Label>Use case</Label>
+        <Label>Campaign category</Label>
         <div className="grid gap-2 sm:grid-cols-2">
-          {USE_CASES.map((u) => {
-            const active = state.useCase === u.key;
+          {CAMP_CAT_KEYS.map((key) => {
+            const meta = CAMP_CATS[key];
+            const active = state.campCat === key;
+            const Icon = CAMP_CAT_ICON[key];
             return (
               <button
-                key={u.key}
+                key={key}
                 type="button"
-                onClick={() =>
-                  setState((p) => ({ ...p, useCase: u.key }))
-                }
+                onClick={() => pickCategory(key)}
                 className={cn(
                   "flex items-start gap-2 rounded-lg border p-3 text-left transition",
                   active
@@ -2131,29 +2131,46 @@ function StepBasics({
                     : "border-border bg-background hover:bg-muted/40",
                 )}
               >
-                <u.Icon
+                <Icon
                   className={cn(
                     "mt-0.5 h-4 w-4 shrink-0",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 />
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">
-                      {u.key}
+                      {meta.name}
                     </span>
-                    <span className="rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] text-muted-foreground">
-                      {u.tag}
+                    <span className="rounded-full border border-border bg-muted/60 px-1.5 py-0 text-[10px] uppercase text-muted-foreground">
+                      {meta.defaultTier}
                     </span>
                   </div>
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                    {u.desc}
+                    {meta.desc}
                   </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {meta.channels.map((ch) => (
+                      <span
+                        key={ch}
+                        className="rounded border border-border bg-background px-1 py-0 text-[10px] text-muted-foreground"
+                      >
+                        {ch}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </button>
             );
           })}
         </div>
+        {state.campCat && (
+          <p className="text-[11px] text-muted-foreground">
+            Governance is inherited from the pre-approved templates in:{" "}
+            {CAMP_CATS[state.campCat].tplCats.join(" · ")} — no separate admin
+            approval is required for the campaign.
+          </p>
+        )}
       </div>
     </div>
   );
