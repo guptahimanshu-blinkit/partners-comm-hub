@@ -2762,13 +2762,25 @@ function StepSchedule({
               ))}
             </select>
           </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="wiz-recur-time">Time (IST)</Label>
+            <Input
+              id="wiz-recur-time"
+              type="time"
+              value={state.triggerTime}
+              onChange={(e) =>
+                setState((p) => ({ ...p, triggerTime: e.target.value }))
+              }
+            />
+          </div>
           <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
             <span className="text-foreground">
-              Each recurrence is a fresh send — reminders will be skipped.
-              Step 5 (Reminders) is disabled and you'll go straight to Review.
+              Each recurrence is a fresh send — sequence escalations will be
+              skipped. Step 5 is greyed out and you'll go straight to Review.
             </span>
           </div>
+
         </>
       )}
     </div>
