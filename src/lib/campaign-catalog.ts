@@ -341,3 +341,84 @@ export const TIER_LABEL: Record<ReminderTier, "FYI" | "Standard" | "Critical"> =
   standard: "Standard",
   critical: "Critical",
 };
+
+/* ---------------------------------------------------------------- */
+/* Step 3 — soft sequence recommendations (mocked benchmarks)        */
+/* ---------------------------------------------------------------- */
+
+export interface SequenceRecommendation {
+  id: string;
+  title: string;
+  /** Channel flow, rendered as Email → WhatsApp → Dashboard. */
+  flow: string[];
+  subtext: string;
+}
+
+export const SEQUENCE_RECOMMENDATIONS: Record<
+  CampaignCategory,
+  SequenceRecommendation[]
+> = {
+  actionable: [
+    {
+      id: "act-3touch",
+      title: "Standard 3-Touch",
+      flow: ["Email", "WhatsApp", "Dashboard"],
+      subtext: "resolves 82% of pending actions",
+    },
+    {
+      id: "act-2touch",
+      title: "Light 2-Touch",
+      flow: ["Email", "Dashboard"],
+      subtext: "resolves 61% with 0.3% opt-outs",
+    },
+  ],
+  payments: [
+    {
+      id: "pay-3touch",
+      title: "Finance Escalation 3-Touch",
+      flow: ["Email", "WhatsApp", "Dashboard"],
+      subtext: "88% invoices settled within 7 days",
+    },
+    {
+      id: "pay-2touch",
+      title: "Statement then nudge",
+      flow: ["Email", "WhatsApp"],
+      subtext: "67% settled, low complaint rate",
+    },
+  ],
+  updates: [
+    {
+      id: "upd-2touch",
+      title: "Report + Portal recap",
+      flow: ["Email", "Dashboard"],
+      subtext: "46% viewed the recap on portal",
+    },
+    {
+      id: "upd-1touch",
+      title: "Single broadcast",
+      flow: ["Email"],
+      subtext: "34% open rate, zero fatigue signals",
+    },
+  ],
+  promotional: [
+    {
+      id: "pro-2touch",
+      title: "Offer + Portal reminder",
+      flow: ["Email", "Dashboard"],
+      subtext: "24% offer views, 0.2% unsubscribes",
+    },
+    {
+      id: "pro-1touch",
+      title: "One-touch, opt-out safe",
+      flow: ["Email"],
+      subtext: "19% click-through on first send",
+    },
+  ],
+};
+
+/** Step 5 — delay modes between sequence steps built in Step 3. */
+export const CADENCE_DELAY_MODES = [
+  "Exponential backoff — 2d → 4d → 8d",
+  "Fixed — Every 3 days",
+  "Aggressive — Every 24 hours",
+];
