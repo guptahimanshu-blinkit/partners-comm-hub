@@ -2405,6 +2405,46 @@ function StepSequencing({
         </div>
       )}
 
+      {campCat && (
+        <section className="space-y-2">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Widely used escalation sequences for {CAMP_CATS[campCat].name}
+          </h4>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SEQUENCE_RECOMMENDATIONS[campCat].map((rec) => (
+              <div
+                key={rec.id}
+                className="flex flex-col rounded-lg border border-border bg-background p-3"
+              >
+                <div className="text-sm font-semibold">{rec.title}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {rec.flow.map((ch, i) => (
+                    <span key={ch + i} className="flex items-center gap-1.5">
+                      {i > 0 && (
+                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      <ChannelBadge channel={toCampaignChannel(ch)} />
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-cat-blue">
+                  {rec.subtext}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => applyRecommendation(rec.flow)}
+                  className="mt-2 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-semibold hover:bg-muted"
+                >
+                  Use this sequence
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+
+
       {state.messages.length === 0 && (
         <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-xs text-muted-foreground">
           No sequence steps yet — add the first touch below.
