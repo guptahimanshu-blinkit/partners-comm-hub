@@ -84,6 +84,11 @@ import {
   LARGE_AUDIENCE_THRESHOLD,
   eligibleTemplates,
   templateStatLine,
+  REMINDER_STRATEGIES,
+  REMINDER_SCHEDULE_MODES,
+  REMINDER_CHANNELS,
+  TIER_LABEL,
+  type ReminderStrategy,
   type CampaignCategory,
   type CampaignTemplate,
 } from "@/lib/campaign-catalog";
