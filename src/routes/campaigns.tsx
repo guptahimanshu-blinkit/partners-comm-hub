@@ -83,7 +83,6 @@ import {
   CAMP_CATS,
   CAMP_CAT_KEYS,
   CDP_SEGMENTS,
-  LARGE_AUDIENCE_THRESHOLD,
   eligibleTemplates,
   templateStatLine,
   REMINDER_STRATEGIES,
@@ -1696,7 +1695,6 @@ type Owner =
   | "monetisation"
   | "supply";
 type TargetLevel = "Vendor" | "Manufacturer";
-type AudienceMethod = "Role-based" | "Ad-hoc Users" | "Excel Upload";
 type TriggerKind = "One-time" | "Event-based" | "Recurring";
 type StrategyChoice = "FYI" | "Standard" | "Critical";
 type EscalationChannel = "WhatsApp" | "Dashboard Banner";
@@ -1746,7 +1744,7 @@ const RECURRING_PATTERNS = [
 
 const STEP_TITLES = [
   "Basics",
-  "Audience",
+  "Seller Audience",
   "Message sequencing",
   "Schedule",
   "Reminders",
@@ -1765,8 +1763,8 @@ function initialWizardState() {
     campCat: "" as CampaignCategory | "",
     // Step 2
     targetLevel: "Vendor" as TargetLevel,
-    segment: SEGMENTS[0].key,
-    methods: new Set<AudienceMethod>(["Role-based"]),
+    segment: "",
+    csvFile: null as File | null,
     // Step 3
     messages: [] as WizMessage[],
     libraryOpen: false,
@@ -1801,9 +1799,10 @@ function NewCampaignWizard({
   const [s, setS] = useState(initialWizardState);
 
   const audienceCount = useMemo(() => {
+    if (s.csvFile) return 0;
     const seg = SEGMENTS.find((x) => x.key === s.segment);
     return seg?.count ?? 0;
-  }, [s.segment]);
+  }, [s.segment, s.csvFile]);
 
   const overlapWarning = useMemo(() => {
     const active = campaigns.filter(
@@ -1815,11 +1814,10 @@ function NewCampaignWizard({
   }, [campaigns, s.segment, audienceCount]);
 
   const remindersDisabled = s.trigger === "Recurring";
-  const largeAudience = audienceCount > LARGE_AUDIENCE_THRESHOLD;
 
   const canNext = (() => {
     if (s.step === 1) return s.name.trim() && s.owner && s.campCat;
-    if (s.step === 2) return s.methods.size > 0;
+    if (s.step === 2) return !!(s.csvFile || s.segment);
     if (s.step === 3) return s.messages.length > 0;
     if (s.step === 4) {
       if (s.trigger === "One-time") return s.triggerDate && s.triggerTime;
@@ -1866,7 +1864,7 @@ function NewCampaignWizard({
             : "P3",
       purpose: `${s.campCat ? CAMP_CATS[s.campCat].name : "Campaign"} campaign owned by ${OWNER_LABEL[s.owner as Owner]}.`,
       channels: uniqChannels.length ? uniqChannels : ["Email"],
-      segment: s.segment,
+      segment: s.csvFile ? `CSV: ${s.csvFile.name}` : s.segment || "—",
       audienceCount,
       triggerType: s.trigger === "Recurring" ? "Recurring" : "One time",
       frequency: s.trigger === "Recurring" ? "Weekly" : "Once",
@@ -1937,7 +1935,6 @@ function NewCampaignWizard({
             <StepReview
               state={s}
               audienceCount={audienceCount}
-              largeAudience={largeAudience}
             />
           )}
         </div>
@@ -2208,123 +2205,144 @@ function StepAudience({
   audienceCount: number;
   overlapName?: string;
 }) {
-  const toggleMethod = (m: AudienceMethod) => {
-    setState((p) => {
-      const next = new Set(p.methods);
-      if (next.has(m)) next.delete(m);
-      else next.add(m);
-      return { ...p, methods: next };
-    });
+  const handleCsvUpload = (file: File | null) => {
+    if (!file) return;
+    setState((p) => ({
+      ...p,
+      csvFile: file,
+      segment: "",
+    }));
   };
+
+  const handleCdpSelect = (value: string) => {
+    setState((p) => ({
+      ...p,
+      segment: value,
+      csvFile: null,
+    }));
+  };
+
+  const clearCsv = () => {
+    setState((p) => ({ ...p, csvFile: null }));
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2">
-        <Label>Target level</Label>
-        <div className="flex gap-2">
-          {(["Vendor", "Manufacturer"] as TargetLevel[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setState((p) => ({ ...p, targetLevel: t }))}
-              className={cn(
-                "flex-1 rounded-md border px-3 py-2 text-sm font-medium",
-                state.targetLevel === t
-                  ? "border-primary/60 bg-primary/10 text-foreground"
-                  : "border-border bg-background text-muted-foreground hover:bg-muted/40",
-              )}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+    <div className="space-y-5">
+      <div className="grid gap-1.5">
+        <h3 className="text-sm font-semibold text-foreground">Seller Audience</h3>
+        <p className="text-xs text-muted-foreground">
+          Select the sellers you want to target with this notification. You can
+          upload a CSV file with the list of Seller IDs or filter all sellers
+          based on the criteria below
+        </p>
       </div>
 
+      {/* Top section: CSV Upload */}
       <div className="grid gap-2">
-        <Label>Saved segments</Label>
-        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-          {SEGMENTS.map((seg) => {
-            const active = state.segment === seg.key;
-            return (
-              <button
-                key={seg.key}
-                type="button"
-                onClick={() => setState((p) => ({ ...p, segment: seg.key }))}
-                className={cn(
-                  "flex w-full items-center gap-3 px-3 py-2.5 text-left transition",
-                  active ? "bg-primary/10" : "bg-background hover:bg-muted/40",
-                )}
-              >
-                <span
-                  className={cn(
-                    "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
-                    active ? "border-primary" : "border-border",
-                  )}
-                >
-                  {active && (
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-foreground">
-                    {seg.key}
-                  </span>
-                  <span className="block text-[11px] text-muted-foreground">
-                    {seg.desc}
-                  </span>
-                </span>
-                <span className="shrink-0 tabular-nums text-xs font-semibold text-foreground">
-                  {seg.count.toLocaleString("en-IN")}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {audienceCount > LARGE_AUDIENCE_THRESHOLD && (
-        <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
-          <span className="text-foreground">
-            Large audience selected — please verify your targeting before
-            launch.
-          </span>
-        </div>
-      )}
-
-      <div className="grid gap-2">
-        <Label>Recipient method</Label>
-        <div className="space-y-1.5">
-          {(["Role-based", "Ad-hoc Users", "Excel Upload"] as AudienceMethod[]).map(
-            (m) => (
-              <label
-                key={m}
-                className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm"
-              >
-                <Checkbox
-                  checked={state.methods.has(m)}
-                  onCheckedChange={() => toggleMethod(m)}
-                />
-                <span>{m}</span>
-                {m === "Role-based" && (
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    Finance POC / Owner
-                  </span>
-                )}
-              </label>
-            ),
+        <Label className="text-sm font-medium text-foreground">
+          Upload a CSV file with the list of Seller IDs
+        </Label>
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files?.[0] ?? null;
+            if (file && file.name.endsWith(".csv")) handleCsvUpload(file);
+          }}
+          className={cn(
+            "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition",
+            state.csvFile
+              ? "border-primary bg-primary/5"
+              : "border-border bg-background hover:bg-muted/30",
           )}
+        >
+          <input
+            type="file"
+            accept=".csv"
+            id="seller-csv"
+            className="sr-only"
+            onChange={(e) => handleCsvUpload(e.target.files?.[0] ?? null)}
+          />
+          <label htmlFor="seller-csv" className="cursor-pointer">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-muted">
+              <Download className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </label>
+          <div className="text-xs text-muted-foreground">
+            <p className="font-medium text-foreground">Drop or Select CSV file</p>
+            <p className="mt-0.5">
+              The CSV file should contain a column named seller_id with all the
+              seller ids
+            </p>
+          </div>
+          <label
+            htmlFor="seller-csv"
+            className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            Upload
+          </label>
         </div>
+
+        {state.csvFile && (
+          <div className="flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+            <span className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              <span className="font-medium text-foreground">
+                {state.csvFile.name}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={clearCsv}
+              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* OR divider */}
+      <div className="relative flex items-center py-1">
+        <div className="flex-1 border-t border-border" />
+        <span className="mx-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          OR
+        </span>
+        <div className="flex-1 border-t border-border" />
+      </div>
+
+      {/* Bottom section: CDP Segment */}
+      <div className="grid gap-2">
+        <Label htmlFor="cdp-segment" className="text-sm font-medium text-foreground">
+          Select a CDP segment:
+        </Label>
+        <select
+          id="cdp-segment"
+          value={state.segment}
+          onChange={(e) => handleCdpSelect(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="">Select a segment…</option>
+          {SEGMENTS.map((seg) => (
+            <option key={seg.key} value={seg.key}>
+              {seg.key}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
         <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div>
           <div className="font-semibold text-foreground">
-            {audienceCount.toLocaleString("en-IN")}{" "}
-            {state.targetLevel.toLowerCase()}s resolved
+            {state.csvFile
+              ? `CSV upload: ${state.csvFile.name}`
+              : `${audienceCount.toLocaleString("en-IN")} sellers resolved`}
           </div>
           <p className="mt-0.5 text-muted-foreground">
-            Live audience count for “{state.segment}”.
+            {state.csvFile
+              ? "Audience count will be derived from the uploaded file at send time."
+              : `Live audience count for “${state.segment || "—"}”.`}
           </p>
         </div>
       </div>
@@ -3053,11 +3071,9 @@ function StepReminders({
 function StepReview({
   state,
   audienceCount,
-  largeAudience,
 }: {
   state: WizState;
   audienceCount: number;
-  largeAudience: boolean;
 }) {
   const cat = state.campCat as CampaignCategory;
   const catMeta = cat ? CAMP_CATS[cat] : null;
@@ -3212,32 +3228,16 @@ function StepReview({
         </table>
       </div>
 
-      {largeAudience ? (
-        <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
-          <div>
-            <div className="font-semibold text-foreground">
-              Large audience selected
-            </div>
-            <p className="mt-0.5 text-muted-foreground">
-              {audienceCount.toLocaleString("en-IN")} recipients — please verify
-              your targeting before launch. No approval required; governance
-              comes from the pre-approved templates you selected.
-            </p>
-          </div>
+      <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <div>
+          <div className="font-semibold text-foreground">Ready to launch</div>
+          <p className="mt-0.5 text-muted-foreground">
+            All messages use pre-approved templates — no additional approval
+            required.
+          </p>
         </div>
-      ) : (
-        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div>
-            <div className="font-semibold text-foreground">Ready to launch</div>
-            <p className="mt-0.5 text-muted-foreground">
-              All messages use pre-approved templates — no additional approval
-              required.
-            </p>
-          </div>
-        </div>
-      )}
+      </div>
 
       <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <FileText className="h-3 w-3" />
