@@ -1894,7 +1894,7 @@ function NewCampaignWizard({
           <DialogTitle className="text-lg">Create Campaign</DialogTitle>
         </DialogHeader>
 
-        <Stepper current={s.step} />
+        <Stepper current={s.step} remindersDisabled={remindersDisabled} />
 
         <div className="mt-4 space-y-4">
           {s.step === 1 && (
@@ -1932,7 +1932,13 @@ function NewCampaignWizard({
           <button
             type="button"
             onClick={() =>
-              s.step > 1 && setS((p) => ({ ...p, step: (p.step - 1) as 1 }))
+              s.step > 1 &&
+              setS((p) => ({
+                ...p,
+                step: (p.step === 6 && remindersDisabled
+                  ? 4
+                  : p.step - 1) as 1,
+              }))
             }
             disabled={s.step === 1}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40"
@@ -1956,7 +1962,12 @@ function NewCampaignWizard({
                 type="button"
                 onClick={() =>
                   canNext &&
-                  setS((p) => ({ ...p, step: (p.step + 1) as 2 }))
+                  setS((p) => ({
+                    ...p,
+                    step: (p.step === 4 && remindersDisabled
+                      ? 6
+                      : p.step + 1) as 2,
+                  }))
                 }
                 disabled={!canNext}
                 className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
@@ -1981,15 +1992,29 @@ function NewCampaignWizard({
   );
 }
 
-function Stepper({ current }: { current: number }) {
+function Stepper({
+  current,
+  remindersDisabled,
+}: {
+  current: number;
+  remindersDisabled?: boolean;
+}) {
   return (
     <ol className="mt-2 flex items-center gap-1 overflow-x-auto pb-1">
       {STEP_TITLES.map((title, idx) => {
         const n = idx + 1;
         const done = current > n;
         const active = current === n;
+        const muted = remindersDisabled && n === 5;
         return (
-          <li key={title} className="flex min-w-0 items-center gap-1">
+          <li
+            key={title}
+            className={cn(
+              "flex min-w-0 items-center gap-1",
+              muted && "opacity-40",
+            )}
+            title={muted ? "Skipped for recurring campaigns" : undefined}
+          >
             <div
               className={cn(
                 "grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[10px] font-semibold",
@@ -2709,8 +2734,8 @@ function StepSchedule({
           <div className="flex items-start gap-2 rounded-lg border border-cat-blue/30 bg-cat-blue/5 p-3 text-xs">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-cat-blue" />
             <span className="text-foreground">
-              Reminders are not applicable for recurring campaigns — Step 5
-              will be skipped.
+              Each recurrence is a fresh send — reminders will be skipped.
+              Step 5 (Reminders) is disabled and you'll go straight to Review.
             </span>
           </div>
         </>
